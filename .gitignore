@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+
+# build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# environment
+.env
+.env.local
+
+# editor
+.vscode/
+.idea/
+.DS_Store
+
+# logs
+*.log
+npm-debug.log*
+
+# coverage
+coverage/
+.nyc_output/
+
+# generated
+*.gen.ts
+*.gen.js

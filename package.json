@@ -1,0 +1,20 @@
+{
+  "name": "underwai",
+  "version": "0.0.0",
+  "description": "A typed, durable data structure where AI / human / effect resolves nodes into values; portable workflow runtime built on Effect.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "effect": "^3.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "effect": "^3.0.0",
+    "typescript": "^5.4.0",
+    "zod": "^3.22.0"
+  }
+}

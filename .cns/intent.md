@@ -2,46 +2,55 @@
 
 ## Phase 1: v1 spec
 
-These are the unresolved design questions that shape the v1 API. Each is a real pivot — two or more implementation approaches that materially affect the surface. Resolve them, then write the v1 spec.
+These are the unresolved design questions that shape the v1 API. Most are now resolved by the v1 design (2026-06-06). Remaining open pivots are listed under "Deferred to v1.1+."
 
-### 1. Persistence: definition + state binding ✅ Done (2026-06-06)
-Resolved in `architecture/index.md`: state is JSON, definition is consumer code, resume = `init(definition) + deserialize(state) + findReadyNodes`. Definition is the consumer's concern; the lib is portable across machines via the data structure alone.
+### Resolved (see `docs/design.md` for full rationale)
 
-### 2. Multi-parent reduce semantics
-A node with parents [A, B]: implicit (lib gathers both into the input, consumer's program receives them as separate fields) vs explicit (a `reduce` node kind). My recommendation: implicit. But "either parent is enough" (race) is a separate semantic — does it need an `effect: all | any` flag on the node, or is it always-all?
+1. **Persistence: definition + state binding.** ✅ Resolved 2026-06-06.
+   State is JSON, definition is consumer code, resume = `init(definition) + deserialize(state) + findReadyNodes`.
 
-### 3. Transport layer
-Wire protocol between runner and renderers. Options: in-process pub/sub, SSE, WebSocket, custom change-stream. Affects SSR (RSC + streaming), wall displays (long-lived WS), and chat-embedded (in-process).
+2. **Multi-parent reduce semantics.** ✅ Resolved 2026-06-06.
+   IMPLICIT. The lib's input resolver IS the reduce. Multi-parent is a property of the topology, not a separate primitive. Rejected Candidate 1's explicit `ReduceNode`.
 
-### 4. Schema ergonomics for human-updatable fields
-`z.humanUpdatable(z.string())` wrapper, `.describe('human-updatable')`, separate `humanFields: string[]` array, or a runtime flag. Choice affects form generation, renderer introspection, and serialization of the marker.
+3. **Transport layer.** ✅ Resolved 2026-06-06.
+   TRANSPORT-AGNOSTIC. Runner emits `AsyncIterable<WorkflowEvent>`. SSR, wall, chat, tests are all consumers. In-process bus is the reference v1 transport; SSE/WS are v1.1.
 
-### 5. Effect buy-in level
-Is defining a workflow an Effect program, or a plain TS object the lib translates internally? Affects the lib's surface: thin runtime vs compiler.
+4. **Schema ergonomics for human-updatable fields.** ✅ Resolved 2026-06-06.
+   Zod extension: `z.humanUpdatable()`. The schema field is marked; the lib exposes `writeHumanInput`; the renderer uses the schema to generate a form.
 
-### 6. Streaming shape
-(a) Final value only, no streaming. (b) Accumulator + final with a `publish(value)` effect. (c) Field-level resolution. Recommendation: (b). (c) is interesting for form-fill UIs but adds complexity; defer to v1.x.
+5. **Effect buy-in level.** ✅ Resolved 2026-06-06.
+   Effect is the *only* required behavior. Consumers write `Effect<Output, Error, Requirements>` programs; the lib validates outputs against Zod schemas at runtime. The dual type guard (Candidate 4's `defineNode`) is deferred to v1.1.
 
-### 7. Long-running workflow durability
-How does a workflow survive a deploy, restart, or year of inactivity? The state is JSON; the runtime is not. Resume is `init(definition) + deserialize(state) + findReadyNodes`. But: are Effect programs required to be idempotent? Are there non-deterministic side effects? "use workflow" has opinions; we should too.
+6. **Streaming shape.** ✅ Resolved 2026-06-06.
+   ACCUMULATOR + FINAL. `publish(value)` updates the partial; `write(value)` is the final. Streaming is opt-in (consumer chooses whether to call `publish`). Field-level streaming (Candidate 1) is rejected for v1.
 
-### 8. Type system mechanics
-"the type system IS the composition" — concretely, how? Zod schema on each node + lib infers types, explicit `Workflow<{Input, Output}>` generic, or consumer writes Effect with `Effect<Output, Error, Requirements>` and lib uses inferred type. Answer changes whether a consumer needs Effect deep knowledge.
+### Deferred to v1.1+
+
+7. **Long-running workflow durability.** Partial — `init` + `deserialize` + `findReadyNodes` is the resume primitive, but idempotency of consumer Effect programs is not enforced. "use workflow" has opinions; v1.1 should adopt or reject them.
+
+8. **Type system mechanics (dual guard).** `defineNode` helper from Candidate 4 is the v1.1 hardening. v1 ships with the runtime check (Zod) and trusts the consumer to keep their Effect program aligned with the schema.
+
+### New v1.x / v2 tasks (added after arena)
+
+9. **SSE / WebSocket transport adapters.** v1.1. The transport-agnostic event stream is the seam; SSE and WS are thin consumers of it.
+
+10. **AI SDK adapter.** v1.1. Wrap `@ai-sdk/*` calls as Effect programs. The lib is model-agnostic; the adapter is convenience.
+
+11. **Reference React adapter.** v1.1. The render protocol is settled; the reference implementation is a thin React adapter over the subscription API.
 
 ## Phase 2: prototype
 
-Once the v1 spec is settled:
+Once the v1 spec is settled (now):
 
 - Implement the data structure (`WorkflowState`, `Node`, `Edge`).
-- Implement the runner (`init`, `resume`, `write`, `findReadyNodes`, `findSubtree`).
-- Implement the Zod schema wrappers.
-- Implement a reference no-op renderer.
-- Implement a reference React renderer.
+- Implement the runner (`init`, `deserialize`, `findReadyNodes`, `findSubtree`, `publish`, `write`, `writeHumanInput`, `runWorkflow`).
+- Implement the Zod schema extension (`z.humanUpdatable`).
+- Implement the in-process event bus and the `subscribe()` API.
 - Write the test suite.
 
 ## Phase 3: integration
 
-- AI SDK adapter (wrapping `@ai-sdk/*` as an Effect program).
+- AI SDK adapter.
 - ThreadWeaver integration (slot the lib underneath).
 - Documentation site.
-- npm publish.
+- npm publish (claim `underwai` and `@underwai/core`).
