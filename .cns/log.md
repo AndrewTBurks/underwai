@@ -76,3 +76,16 @@ The revision is substantial. The new design is key-addressable, has a stricter c
 **20 load-bearing decisions** captured in the design doc. Tradeoffs accepted: composition API restrictiveness, schema+Effect program dual contract without compile-time enforcement, whole-Node subscription callbacks, family-of-nodes loop shape, single human-input API, no `Readonly` wrappers, etc.
 
 **CNS health gate green:** validate.py PASSED, graph.py --check OK.
+
+
+---
+
+**Interrogate + Phase 1 plan.** Andrew invoked the `interrogate` skill to stress-test the v1.1 design. Ran a 4-reviewer manual arena (one posture per reviewer: type-system purist, Effect/runtime engineer, data structure/schema, renderer/UX) over the v1 → v1.1 diff. Total: 32 findings (7 critical, 20 warning, 5 nit), deduped to ~26 unique.
+
+**Act-on criticals (8):** running+writeHumanInput race (B1), concurrent step() safety (B2), subscribe prefix semantics + default inversion (A7+D4), subscribeAll for wall-display (D3), runtime impl of z.human() (A2+C5), edge indexing (A3), per-node error field (C8), InputSource carries schema for two-stage validation (C3+C4).
+
+**Consider list (14):** Path generic, output vs finalOutput duality, humanFields cache, Actor type, stale coalescing, Effect buy-in as documented limitation, findReadyNodes consistency, batched subscription, stale UX, topologicalOrder, getHumanInputDisplay, WorkflowRuntime service, thenLoop family handle, delta-based subscription.
+
+**Andrew's choices for Phase 1:** (1) all 8 act-on criticals in Phase 1, (2) all 14 consider-list items in Phase 1, (3) pre-prepared brief per task (3 options + recommendation + one-question `clarify`). Rock-solid before code. 22 design sessions total.
+
+**Phase 1 written to `.cns/intent.md`.** Phase 2 and Phase 3 unchanged. CNS health gate green: validate.py PASSED, graph.py --check OK.
