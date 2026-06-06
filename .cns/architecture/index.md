@@ -14,7 +14,67 @@ last_reconciled: 2026-06-06
 
 **Boundary discipline.** The data model is the boundary. Every value crossing the boundary is validated against a Zod schema. The lib's internal types are trusted; the lib's external data (workflow state, effect programs, human inputs) is parsed at the edge. Validation is concentrated, not scattered.
 
-**Type system discipline.** Make illegal states unrepresentable. `NodeStatus` is a sum type (eight named values), not a bag of optional fields. `NodeKey<Path>` is a branded string, so the type system rejects passing a raw string where a key is required. `InputSource` is a discriminated union; the runner's input resolver is the only place that handles all three variants.
+**Type system discipline.** Make illegal states unrepresentable. `NodeStatus` is a sum type (seven named values), not a bag of optional fields. `NodeKey<Path>` is a branded string, so the type system rejects passing a raw string where a key is required. `InputSource` is a discriminated union; the runner's input resolver is the only place that handles all three variants.
+
+## Statuses (source of truth)
+
+Seven statuses. Each has a distinct purpose, a distinct renderer implication, and a distinct runner implication. The bar for adding an eighth is high — every status here is load-bearing, and one was cut (`ready`) for being vestigial.
+
+### `pending`
+
+**Purpose.** The node's input is not yet complete. Some upstream node has not resolved.
+
+**Renderer.** Nothing to show. The node's children or upstream siblings might be loading.
+
+**Runner.** Not in `findReadyNodes(state)`. Will become `running` when all upstream nodes resolve and the runner picks it up on a future step.
+
+### `running`
+
+**Purpose.** The consumer's Effect program is executing. No output yet.
+
+**Renderer.** Show a "running" indicator (spinner, "thinking..." text). Do not show a value.
+
+**Runner.** The effect is in flight. The runner has scheduled it; an in-flight fiber is executing it. While `running`, the node's input is *not* reread; a concurrent `writeHumanInput` is recorded for the next ready transition (see TASK-A).
+
+### `streaming`
+
+**Purpose.** The consumer's Effect program has called `publish()` at least once. Partial output exists. The program has not returned.
+
+**Renderer.** Show the partial output. Do not show a "done" indicator.
+
+**Runner.** The effect is in flight. The `output` field is set and validated as a partial of `outputSchema`. The program will eventually return and the runner will transition to `resolved`.
+
+### `resolved`
+
+**Purpose.** The program has returned. The final output is validated against `outputSchema`. The node's work is done.
+
+**Renderer.** Show the final output. This is the terminal success state.
+
+**Runner.** The `finalOutput` field is set. The node is in `findReadyNodes` *only* if its input changes (transitions to `stale`). Otherwise, it stays `resolved` forever.
+
+### `failed`
+
+**Purpose.** The program threw an error or returned `Effect.fail`. The node's work is permanently broken unless the human intervenes (e.g., updates a `writeable` field to retry).
+
+**Renderer.** Show the error. The `error` field on the node (added in TASK-G) carries the typed `SerializedError`.
+
+**Runner.** Terminal failure state. Same as `resolved` — the node is in `findReadyNodes` only if input changes (transitions to `stale`).
+
+### `paused`
+
+**Purpose.** The node has a `verified` field in its input schema that the human has not yet confirmed. The node cannot run until the human engages.
+
+**Renderer.** Show a "needs your input" affordance. Display the proposed value (or empty, if no upstream seed). The human's write un-pauses the node.
+
+**Runner.** The `verified` gate is open. The runner sees the input is not complete (a `verified` field is `pending`). The node is *not* in `findReadyNodes`. The gate closes when `writeHumanInput` is called, which sets the field to `"set"`. The runner then treats the node as `pending` (input is now complete) and the next step picks it up: `pending → running`.
+
+### `stale`
+
+**Purpose.** The node's input has changed (via `writeHumanInput` on a `writeable` field post-resolution, or via an upstream re-execution). The cached resolved value is no longer current. The node needs to re-execute.
+
+**Renderer.** Show the previous output (or "re-deriving" UI per TASK-Q). Replace with the new value when re-execution completes.
+
+**Runner.** In `findReadyNodes` along with `pending`. Re-execution is queued. Multiple writes to the same node before re-execution completes coalesce; the most recent input wins (TASK-M).
 
 ## The data structure (key-addressable, flat, single source of truth)
 
@@ -57,7 +117,7 @@ type Node = {
   output?: unknown               // ACCUMULATOR (current partial)
   outputPartial: boolean
   finalOutput?: unknown          // ACCUMULATOR validated against full schema
-  status: 'pending' | 'ready' | 'running' | 'streaming' | 'resolved' | 'failed' | 'paused' | 'stale'
+  status: 'pending' | 'running' | 'streaming' | 'resolved' | 'failed' | 'paused' | 'stale'
 
   actor: 'system' | 'human' | string
   createdAt: string
@@ -134,25 +194,25 @@ The runner is a state machine. Subscriptions are direct readers. There's no `Wor
 ### Node lifecycle state machine
 
 ```
-pending → ready → running → resolved
-                       ↑         ↓ (input changed via writeHumanInput)
-                       │       stale
-                       │         ↓
-                       │       ready ─→ paused (if input has verified fields)
-                       │                          ↓ (writeHumanInput)
-                       │                       ready
-                       │                          ↓
-                       │                       running → resolved
-                       ↑
-                       │ (upstream re-execution changes the input)
-                       │ → stale → ready (or paused for verified)
+pending → running → resolved
+                ↑         ↓ (input changed via writeHumanInput)
+                │       stale
+                │         ↓
+                │       running (or paused, if input has verified fields)
+                │                          ↓ (writeHumanInput)
+                │                       pending (gate closes) → running
+                ↑
+                │ (upstream re-execution changes the input)
+                │ → stale → running (or paused for verified)
 ```
 
-The `paused` state is entered when a node has `verified` fields in its input schema and the gate is open (the field's source is `{ kind: "human", status: "pending" }`). The node is `paused` until `writeHumanInput` is called, which sets the field to `status: "set"`, closes the gate, and the node transitions to `ready`.
+`pending → running` is direct: the runner picks up `pending` nodes whose inputs are complete. The `paused` state is a parallel state entered before the node first runs. When a node has `verified` fields in its input schema and the gate is open (the field's source is `{ kind: "human", status: "pending" }`), the node is `paused` until `writeHumanInput` is called, which sets the field to `status: "set"`, closes the gate, and the runner then sees the input as complete and transitions to `running`.
 
-When an upstream re-execution changes a node's input, the node's status flips to `stale` (not `paused`). When the runner picks up the `stale` node, it transitions to `ready`, and *if* the input has `verified` fields, it then transitions to `paused` for re-confirmation.
+When an upstream re-execution changes a node's input, the node's status flips to `stale` (not `paused`). When the runner picks up the `stale` node, it transitions to `running`, and *if* the input has `verified` fields, it transitions to `paused` for re-confirmation.
 
 **Staleness propagation:** when a node goes `stale`, the downstream subtree is marked `stale` too. Sibling subtrees (other branches of a fan-out that don't depend on the changed input) are unaffected. `findSubtree(state, staleNodeKey)` returns the descendants to invalidate.
+
+`findReadyNodes(state): Set<NodeKey>` returns nodes whose inputs are complete and whose status is `pending` or `stale`. `paused` is *not* returned (the input is not complete). The runner processes ready nodes in `topologicalOrder` and transitions them to `running`. See `## Statuses` above for the per-status semantics.
 
 ## Subscription (Node-granularity, not event-granularity)
 
@@ -161,7 +221,7 @@ function subscribe(
   state: WorkflowState,
   key: NodeKey,
   onUpdate: (node: Node) => void,
-  opts?: { exact?: boolean }
+  opts?: { prefix?: boolean }
 ): Subscription
 ```
 
@@ -171,7 +231,6 @@ The callback receives the **full updated `Node`**. The consumer's renderer switc
 subscribe(state, "root.refine.final" as NodeKey, (node) => {
   switch (node.status) {
     case "pending":   renderPending(); break
-    case "ready":     renderReady(); break
     case "running":   renderRunning(); break
     case "streaming": renderStreaming(node.output); break
     case "resolved":  renderResolved(node.finalOutput); break

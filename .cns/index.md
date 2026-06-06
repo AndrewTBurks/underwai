@@ -41,7 +41,7 @@ The data structure is the protocol. A consumer who wants a feature that the lib 
 
 ## The five load-bearing decisions
 
-1. **The data structure is a flat DAG of typed nodes.** Each node has `kind`, typed `input` and `output` (Zod-validated), `status` (pending / ready / running / streaming / resolved / failed / paused), `actor`, and metadata. Edges are explicit. Inputs can be literals, references to upstream outputs, or human-updatable.
+1. **The data structure is a flat DAG of typed nodes.** Each node has `kind`, typed `input` and `output` (Zod-validated), `status` (one of seven values — see `.cns/architecture/index.md` for the per-status source of truth), `actor`, and metadata. Edges are explicit. Inputs can be literals, references to upstream outputs, or human-updatable.
 
 2. **Effect is the composition language; the runner is the runtime.** Consumers write Effect programs for each node. The lib walks the DAG, finds ready nodes, plumbs typed inputs in, runs the consumer's Effect, validates the output against the node's Zod schema, writes the result back, and recurses. The lib is a *runtime*, not a *language* — no builder API, no DSL.
 

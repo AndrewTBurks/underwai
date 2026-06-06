@@ -57,8 +57,7 @@ type FieldKey = string
 
 // Node lifecycle
 type NodeStatus =
-  | "pending"      // deps not met
-  | "ready"        // deps met, waiting to run
+  | "pending"      // input not yet complete, or ready to run on the next step
   | "running"      // Effect program executing
   | "streaming"    // partial output exists
   | "resolved"     // final output validated
@@ -176,24 +175,17 @@ function step(state: WorkflowState): WorkflowState
 
 **Node lifecycle state machine:**
 
-```
-pending → ready → running → resolved
-                       ↑         ↓ (input changed via writeHumanInput)
-                       │       stale
-                       │         ↓
-                       │       ready ─→ paused (if input has verified fields)
-                       │                          ↓ (writeHumanInput)
-                       │                       ready
-                       │                          ↓
-                       │                       running → resolved
-                       ↑
-                       │ (upstream re-execution changes the input)
-                       │ → stale → ready (or paused for verified)
-```
+| Status | When entered | Transitions out | Renderer shows |
+|---|---|---|---|
+| `pending` | `init()` or upstream rerun | → `running` (input complete), → `paused` (verified gate open) | nothing (waiting) |
+| `running` | `step` picks up the node | → `streaming` (publish), → `resolved` (return), → `failed` (error) | "running" indicator |
+| `streaming` | `publish()` called | → `resolved` (return), → `failed` (error) | partial output |
+| `resolved` | program returns, validated | → `stale` (input changed) | final output |
+| `failed` | error or `Effect.fail` | → `stale` (writeHumanInput retry) | error + `error` field |
+| `paused` | input has open `verified` gate | → `pending` (gate closes via `writeHumanInput`) | "needs your input" UI |
+| `stale` | input changed, output no longer current | → `running`, → `paused` (verified gate) | previous value + "re-deriving" |
 
-The `paused` state is entered when a node has `verified` fields in its input schema and the gate is open (the field's source is `{ kind: "human", status: "pending" }`). The node is `paused` until `writeHumanInput` is called, which sets the field to `status: "set"`, closes the gate, and the node transitions to `ready`.
-
-When an upstream re-execution changes a node's input, the node's status flips to `stale` (not `paused`). When the runner picks up the `stale` node, it transitions to `ready`, and *if* the input has `verified` fields, it then transitions to `paused` for re-confirmation.
+The runner picks up nodes whose status is `pending` or `stale` and whose inputs are complete. `findReadyNodes(state): Set<NodeKey>` returns exactly that set. The runner processes them in `topologicalOrder` and transitions them to `running`. Per-status semantics are documented in `.cns/architecture/index.md` (the source of truth).
 
 **Staleness propagation:** when a node goes `stale`, the downstream subtree is marked `stale` too. Sibling subtrees (other branches of a fan-out that don't depend on the changed input) are unaffected. `findSubtree(state, staleNodeKey)` returns the descendants to invalidate.
 
@@ -216,14 +208,13 @@ The callback receives the **full updated `Node`**. The consumer's renderer switc
 ```ts
 const sub = subscribe(state, "root.refine.final" as NodeKey, (node) => {
   switch (node.status) {
-    case "pending":  renderPending(); break
-    case "ready":    renderReady(); break
-    case "running":  renderRunning(); break
+    case "pending":   renderPending(); break
+    case "running":   renderRunning(); break
     case "streaming": renderStreaming(node.output); break
-    case "resolved": renderResolved(node.finalOutput); break
-    case "paused":   renderPaused(node); break
-    case "stale":    renderStale(node); break
-    case "failed":   renderFailed(node); break
+    case "resolved":  renderResolved(node.finalOutput); break
+    case "paused":    renderPaused(node); break
+    case "stale":     renderStale(node); break
+    case "failed":    renderFailed(node); break
   }
 })
 ```
@@ -273,11 +264,11 @@ function writeHumanInput(
   value: unknown
 ): WorkflowState
 ```
-
 The API sets the field's value. The runner's state machine handles the rest:
-- if the node was `paused` (waiting for verified input), the field is now `"set"`, the gate closes, the node transitions to `ready`.
+
+- if the node was `paused` (waiting for verified input), the field is now `"set"`, the gate closes, the runner sees the input as complete and treats the node as `pending`. The next `step` picks it up: `pending → running`.
 - if the node was `resolved`, the input has changed, the node transitions to `stale`. Re-execution is queued. Downstream subtree is marked `stale`.
-- if the node was `pending` / `ready`, the input is now complete, the node transitions to `ready`.
+- if the node was `pending`, the input is now complete, the node is ready to be picked up: `pending → running` on the next `step`.
 
 The "starting value" the human sees (proposed, current, or empty) is a property of the field's state when the API is called. The renderer reads `node.input.fields[fieldKey]` and decides. The API doesn't distinguish.
 
@@ -369,7 +360,7 @@ underwai/
       no-op.ts              // for testing
   test/
     composition.test.ts     // key shape, multi-parent, loop family, all overloads
-    runner.test.ts          // state machine, ready/pause/stale transitions
+    runner.test.ts          // state machine, pending/pause/stale transitions
     human-input.test.ts     // writeable vs verified, gate reset on parent re-execution
     streaming.test.ts       // publish/write, accumulator semantics
     subscribe.test.ts       // Node-granularity, prefix matching

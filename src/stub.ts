@@ -45,7 +45,6 @@ export const WorkflowId = (s: string): WorkflowId => s as WorkflowId
 
 export type NodeStatus =
   | "pending"
-  | "ready"
   | "running"
   | "streaming"
   | "resolved"

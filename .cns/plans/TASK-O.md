@@ -25,29 +25,17 @@ decision_required: false
 
 `findReadyNodes` has inconsistent definitions across the design doc and the architecture doc. The design doc says "pending OR stale"; the architecture doc says just "pending". Both docs need to agree.
 
+The prior design's 8-status state machine included `ready` as a brief state between "deps met" and "runner picked up." In practice, the runner picks up `pending` nodes as soon as deps are met, so `ready` was vestigial. After the 2026-06-06 design review, `ready` was cut. The state machine is now 7 statuses.
+
 ## Recommendation
 
-**`findReadyNodes` returns nodes with `status === "pending"` OR `status === "stale"`. `paused` is NOT ready.**
+**`findReadyNodes` returns nodes with `status === "pending"` OR `status === "stale"`. `paused` is NOT returned.**
 
-- `pending`: deps not met, waiting for upstream.
-- `ready` (the function's name is `findReadyNodes`, but the *status* is `pending` or `stale` — the "ready" is a property of the state, not the status). Actually, the function name is a bit confusing here.
+- `pending`: input not yet complete, or ready to run on the next step.
+- `stale`: input changed, output no longer current; needs to re-execute.
+- `paused`: input has an open `verified` gate; the runner does not pick it up until the gate closes via `writeHumanInput`.
 
-Wait, looking at the state machine: the runner processes nodes whose status is `pending` or `stale`, and transitions them to `ready` → `running`. So `findReadyNodes` is a misnomer; the function should be `findProcessableNodes` or `findRunnableNodes`. The runner picks up nodes that are `pending` or `stale`.
-
-But renaming the function is a big change. Let me reconsider.
-
-Actually, looking at the state machine more carefully:
-
-```
-pending → ready → running → resolved
-```
-
-The "ready" status is a brief state between "deps met, about to run" and "currently running." In the original v1.1 design, the `ready` status was meant to indicate "deps met, but the runner hasn't picked it up yet." In practice, the runner picks up `pending` nodes as soon as their deps are met, so the `ready` state is fleeting.
-
-For TASK-O, the fix is:
-- The design doc says `findReadyNodes` returns nodes whose inputs are complete. That's `pending` or `stale` (both have all inputs satisfied; `stale` because the input was just re-set by `writeHumanInput`).
-- `paused` is NOT returned because the input is not complete (a `verified` field is still `pending`).
-- Update both docs to agree.
+The runner picks up nodes whose status is `pending` or `stale` AND whose inputs are complete. The runner processes them in `topologicalOrder` and transitions them to `running`.
 
 ## What "done" looks like
 
