@@ -1,0 +1,75 @@
+{
+  "generated": "2026-06-06T19:13:40.997463+00:00",
+  "nodes": [
+    {
+      "path": ".cns/architecture/index.md",
+      "file": "/Users/andrew/Documents/underwai/.cns/architecture/index.md",
+      "title": "\"Architecture\"",
+      "type": "module",
+      "parent": "../index.md",
+      "status": "dirty",
+      "decision_count": 0
+    },
+    {
+      "path": ".cns/design/index.md",
+      "file": "/Users/andrew/Documents/underwai/.cns/design/index.md",
+      "title": "\"Design\"",
+      "type": "module",
+      "parent": "../index.md",
+      "status": "dirty",
+      "decision_count": 0
+    },
+    {
+      "path": ".cns/index.md",
+      "file": "/Users/andrew/Documents/underwai/.cns/index.md",
+      "title": "\"underwAI\"",
+      "type": "project",
+      "parent": null,
+      "status": "dirty",
+      "decision_count": 0
+    },
+    {
+      "path": ".cns/product/index.md",
+      "file": "/Users/andrew/Documents/underwai/.cns/product/index.md",
+      "title": "\"Product\"",
+      "type": "module",
+      "parent": "../index.md",
+      "status": "dirty",
+      "decision_count": 0
+    },
+    {
+      "path": ".cns/research/index.md",
+      "file": "/Users/andrew/Documents/underwai/.cns/research/index.md",
+      "title": "\"Research\"",
+      "type": "module",
+      "parent": "../index.md",
+      "status": "dirty",
+      "decision_count": 0
+    }
+  ],
+  "edges": [
+    {
+      "from": ".cns/architecture/index.md",
+      "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": ".cns/design/index.md",
+      "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": ".cns/product/index.md",
+      "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": ".cns/research/index.md",
+      "to": ".cns/index.md",
+      "label": "parent"
+    }
+  ],
+  "orphans": [],
+  "cycles": [],
+  "dangling_links": []
+}
