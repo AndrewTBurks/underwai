@@ -2,6 +2,7 @@
 title: "Product"
 type: module
 parent: ../index.md
+principles: [minimal-api-surface, experience-first]
 human_notes: |
 
 status: dirty
@@ -9,10 +10,22 @@ last_reconciled: 2026-06-06
 ---
 
 # Product
+## Principles in this layer
+
+**Minimal API surface.** The v1 must-haves list is bounded: eight items, each a primitive. The deferred list is explicit so consumers know what is *not* shipping. The anti-goals list is a fence: agent frameworks, workflow designers, hosted services, and DSLs are not underwAI's territory.
+
+**Experience first.** The success-and-failure statements frame outcomes, not implementations. "A second consumer builds something on underwAI without the lib needing to change" is an experience. "The lib grows a builder API to hide Effect from consumers" is the failure that experience-first rejects.
 
 ## What underwAI is
 
 A library that lets a developer define a workflow as a flat, typed DAG. The lib executes the workflow by walking the DAG, running consumer-supplied Effect programs at each node, validating the typed outputs, and writing them back to the same data structure. The data structure is the source of truth; it can be serialized, persisted, resumed, and rendered.
+
+## What we replace
+
+- **langgraph / langchain** — opaque checkpoints become inspectable, typed DAGs.
+- **AI SDK `<Tool>` / `<GenerateObject>`** — chat-surface primitives become typed graph positions.
+- **"use workflow"** — borrows the replay/determinism vocabulary, but as plain data, not vercel-locked infrastructure.
+- **instructor** — structured outputs are integrated at every node, not bolted on.
 
 The AI's role is to *resolve a typed position in a graph* — fill a node with a value of a declared type. The human's role is the same. The effect's role is the same. The lib does not care who or what filled the node, only that the value matches the schema.
 
@@ -74,3 +87,11 @@ This means: v1 of underwAI is whatever ThreadWeaver would *want* from a lib, gen
 - Not a workflow designer / visual editor. The lib is a runtime; the consumer's authoring experience is their Effect code.
 - Not a hosted service. UnderwAI is a library. Hosting, observability, and dashboards are separate concerns.
 - Not a DSL. Effect is the language. The lib is the runtime.
+
+## Modules (planned)
+
+- **core** — the data structure, operations on it, the flat DAG representation
+- **schema** — Zod extensions for human-updatable fields, node type registration
+- **runner** — the `init()` / `resume()` / `write()` runtime, DAG traversal, Effect integration
+- **transport** — subscription API, change-stream protocol, SSR streaming
+- **renderers** — reference renderer registry, React adapter (and a "no-op" renderer for testing)

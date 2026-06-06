@@ -2,6 +2,7 @@
 title: "Design"
 type: module
 parent: ../index.md
+principles: [laziness-protocol, exhaust-the-design-space, encode-lessons-in-structure]
 human_notes: |
 
 status: dirty
@@ -9,8 +10,31 @@ last_reconciled: 2026-06-06
 ---
 
 # Design
+## Principles in this layer
 
-Conventions, naming, and design language for underwAI.
+**Laziness protocol.** Prefer deletion. New sections, new types, new combinators are rejected unless they cannot be expressed by composing the existing ones. The CNS already has five central nodes; a sixth is a sixth thing to read, and the bar is high.
+
+**Exhaust the design space.** When a decision is novel, build 2-3 competing candidates and compare them. The `v1.1` design was the synthesis of a 4-candidate arena; the v1.1 design is the synthesis of a design conversation with 8 pivots. Both were resolved by stress-testing alternatives, not by picking the first shape that worked.
+
+**Encode lessons in structure.** Conventions, rules, and the "why" of a decision belong in frontmatter, status flags, and metadata. Prose is for what cannot be expressed structurally. A `principles:` field on a node is structural; a paragraph explaining the principle is prose that has to be re-read every time.
+
+## Encoding conventions
+
+The CNS uses frontmatter as the boundary between structural and prose content. Every central node has a `principles:` field listing the principles that govern its content. A new reader reads `index.md` for the project's two top-level principles, then each child node's "Principles in this layer" section to see how the principles apply.
+
+When to add a principle to a node's list:
+
+- The principle changes a decision in this node's content.
+- The principle is *load-bearing* in this layer (not just generally true).
+
+When *not* to add a principle:
+
+- The principle is universally true (e.g., "be honest"). Don't pollute every node with universally-true principles.
+- The principle doesn't change a specific decision in this node.
+
+## Conventions, naming, and design language
+
+What follows is the live content of this layer: name, license, the Effect-as-language decision, the renderer protocol, the project's anti-references, and the deferred visual identity.
 
 ## Name
 

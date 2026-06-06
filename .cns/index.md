@@ -1,6 +1,7 @@
 ---
 title: "underwAI"
 type: project
+principles: [minimal-api-surface, maximal-flexibility]
 links:
   - id: architecture
     path: .cns/architecture/index.md
@@ -20,7 +21,23 @@ last_reconciled: 2026-06-06
 
 A typed, durable data structure where AI, humans, and effects resolve nodes into values. A portable workflow runtime built on Effect's composition primitives.
 
-The structure **is** the state. There is no separate runtime memory. A workflow can be initialized from a definition, serialized to JSON, resumed on another machine, and have a human update a field — and the subtree re-derives.
+The structure **is** the state. There is no separate runtime memory. A workflow can be initialized from a definition, serialized to JSON, resumed on another machine, and have a human update a field, and the subtree re-derives.
+
+## Principles
+
+Two principles govern every decision in this project. Every layer of the CNS, every task in `intent.md`, every patch to `docs/design.md` and `src/stub.ts` is checked against them.
+
+### Minimal API surface
+
+The lib's surface is the smallest set of primitives that supports the workflow model. New combinators, types, or options are rejected unless they cannot be expressed by composing the existing ones. The state machine has exactly eight states. The composition API has four combinators. The subscription API has two functions. The runtime boundary is the data structure, not a builder. A consumer who learns the lib learns four combinators and a state machine, not a framework.
+
+The cost of a new API element is borne forever. The bar for adding one is that removing it would make a real workflow impossible to express.
+
+### Maximal flexibility
+
+Where the surface is small, the *expressiveness* of each primitive is large. `z.human()` is one marker that means "this field is human-writable." `.verified()` is one decorator that means "this field is a confirmation point." Both primitives compose with the rest of Zod, so the expressiveness comes from composition, not from a longer surface.
+
+The data structure is the protocol. A consumer who wants a feature that the lib doesn't ship can implement it as a node kind or a transport. The lib provides primitives; the consumer composes them.
 
 ## The five load-bearing decisions
 
@@ -34,21 +51,11 @@ The structure **is** the state. There is no separate runtime memory. A workflow 
 
 5. **Two render modes.** (a) auto-render the whole graph (for SSR full-page), (b) subscribe to a node and get its subtree (for embedding workflow pieces in chat, wall displays, etc.). Consumers supply a renderer registry — the lib ships zero UI.
 
-## What it replaces
+## Layer references
 
-- **langgraph / langchain** — opaque checkpoints become inspectable, typed DAGs.
-- **AI SDK `<Tool>` / `<GenerateObject>`** — chat-surface primitives become typed graph positions.
-- **"use workflow"** — borrows the replay/determinism vocabulary, but as plain data, not vercel-locked infrastructure.
-- **instructor** — structured outputs are integrated at every node, not bolted on.
+The principles are restated and applied in each layer's `index.md`:
 
-## Status
-
-Greenfield. v1 spec in progress. See `intent.md` for open design questions.
-
-## Modules
-
-- **core** — the data structure, operations on it, the flat DAG representation
-- **schema** — Zod extensions for human-updatable fields, node type registration
-- **runner** — the `init()` / `resume()` / `write()` runtime, DAG traversal, Effect integration
-- **transport** — subscription API, change-stream protocol, SSR streaming
-- **renderers** — reference renderer registry, React adapter (and a "no-op" renderer for testing)
+- **architecture** carries the data model and the runtime boundary. `principles: [boundary-discipline, type-system-discipline]`.
+- **design** carries the encoding conventions: frontmatter field names, prose style, when to add a principle to a node's list. `principles: [laziness-protocol, exhaust-the-design-space, encode-lessons-in-structure]`.
+- **product** carries the gap statement, the v1 must-haves, and the modules list. `principles: [minimal-api-surface, experience-first]`.
+- **research** carries the related-work table and the open questions that drive `intent.md`. `principles: [encode-lessons-in-structure, exhaust-the-design-space]`.

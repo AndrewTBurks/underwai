@@ -2,6 +2,7 @@
 title: "Architecture"
 type: module
 parent: ../index.md
+principles: [boundary-discipline, type-system-discipline]
 human_notes: |
 
 status: dirty
@@ -9,6 +10,11 @@ last_reconciled: 2026-06-06
 ---
 
 # Architecture
+## Principles in this layer
+
+**Boundary discipline.** The data model is the boundary. Every value crossing the boundary is validated against a Zod schema. The lib's internal types are trusted; the lib's external data (workflow state, effect programs, human inputs) is parsed at the edge. Validation is concentrated, not scattered.
+
+**Type system discipline.** Make illegal states unrepresentable. `NodeStatus` is a sum type (eight named values), not a bag of optional fields. `NodeKey<Path>` is a branded string, so the type system rejects passing a raw string where a key is required. `InputSource` is a discriminated union; the runner's input resolver is the only place that handles all three variants.
 
 ## The data structure (key-addressable, flat, single source of truth)
 

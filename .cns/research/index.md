@@ -2,6 +2,7 @@
 title: "Research"
 type: module
 parent: ../index.md
+principles: [encode-lessons-in-structure, exhaust-the-design-space]
 human_notes: |
 
 status: dirty
@@ -9,6 +10,11 @@ last_reconciled: 2026-06-06
 ---
 
 # Research
+## Principles in this layer
+
+**Encode lessons in structure.** The "Open questions" section is the source of `intent.md` tasks. When a question is resolved by a design conversation or an arena, the question moves out of this doc and the resolution moves into the architecture or design doc. The research doc holds *unresolved* questions, not resolved history.
+
+**Exhaust the design space.** When prior art suggests a shape, the "What underwAI takes / What underwAI rejects" split is a deliberate boundary. The rejection column is not "we don't know" — it is a positive decision made after looking at the alternative.
 
 Background, related work, and the questions we still need to answer.
 
