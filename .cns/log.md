@@ -14,7 +14,7 @@
 - Renderers: two modes (auto-render / subscribe), consumer supplies the registry, lib ships zero UI.
 - Repo: `github.com/AndrewTBurks/underwai`.
 
-**v1 scope settled:** flat typed DAG, Zod I/O, Effect programs, runner with `init`/`deserialize`/`findReadyNodes`/`findSubtree`/`publish`/`write`/`writeHumanInput`/`runWorkflow`, transport-agnostic event stream, subscription API, Zod extension for human-updatable fields.
+**v1 scope settled:** flat typed DAG, Zod I/O, Effect programs, runner with `init`/`deserialize`/`findReadyNodes`/`findSubtree`/`publish`/`write`/`writeHumanInput`/`step`, transport-agnostic event stream, subscription API, Zod extension for human-updatable fields.
 
 **Open questions in `intent.md`:** persistence binding, multi-parent reduce, transport, schema ergonomics, Effect buy-in, streaming shape, long-running durability, type system mechanics. Each is a real pivot; resolve before writing the v1 spec.
 
@@ -26,25 +26,53 @@
   - C3: implicit reduce, transport-agnostic, schema-driven, accumulator streaming
   - C4: implicit reduce, transport-agnostic, dual (schema + effect), accumulator streaming
 
-- **Base picked:** Candidate 3. Cross-judge scores: C1=22, C2=26, C3=29, C4=28. C3 wins on the "runner is boring" criterion — the most reliable indicator of "this lib will be small enough to fit in your head." C3 and C4 converge on three of four pivots; the divergence on type system mechanics is a v1.x refinement.
+- **Base picked:** Candidate 3. Cross-judge scores: C1=22, C2=26, C3=29, C4=28. C3 wins on the "runner is boring" criterion. C3 and C4 converge on three of four pivots; the divergence on type system mechanics is a v1.x refinement.
 
 - **Grafts:**
-  - From C4: the *concept* of a `defineNode` helper as a v1.1 feature. v1 ships without it; the schema + Effect program are both required but not type-checked against each other.
-  - From C2: the in-process `WorkflowEventBus` (`bus.on(handler) => unsubscribe`) as the reference in-process transport for the transport-agnostic event stream.
+  - From C4: the *concept* of a `defineNode` helper as a v1.1 feature.
+  - From C2: the in-process `WorkflowEventBus` as the reference transport.
 
-- **Rejections:**
-  - C1's explicit `ReduceNode` — data structure stays flat.
-  - C1's `path` on `from_node` — consumer picks a field off the parent's output in their Effect program.
-  - C1's field-level streaming — accumulator covers 90% of cases; field-level is v1.x.
-  - C2's in-process-only transport — rejected; SSR + wall + chat are v1 use cases.
-  - C4's `defineNode` helper — deferred to v1.1.
+- **Rejections:** C1's explicit `ReduceNode`, C1's path-on-from_node, C1's field-level streaming, C2's in-process-only transport, C4's `defineNode` in v1.
 
 - **Convergence signal:** C3 and C4 converge on three of four pivots. Strong agreement on the core shape.
 
-**v1 design committed.** `docs/design.md` ships with the full rationale + synthesis record. `src/stub.ts` is a complete type-level proof that the design compiles, with `throw new Error("not implemented")` bodies. `tsc --noEmit` exit 0. Implementation fills in body-by-body against this contract.
+**v1 design committed (commit `ffff8ed`).** `docs/design.md` ships with the full rationale + synthesis record. `src/stub.ts` is a complete type-level proof that the design compiles, with `throw new Error("not implemented")` bodies. `tsc --noEmit` exit 0.
 
 **Decisions resolved:** reduce semantics (implicit), transport (transport-agnostic), type system mechanics (schema-driven), streaming shape (accumulator + final).
 
 **Decisions deferred to v1.1+:** `defineNode` dual type guard, long-running workflow durability, SSE/WS transports, AI SDK adapter, reference React adapter.
+
+**CNS health gate green:** validate.py PASSED, graph.py --check OK.
+
+---
+
+**Design revision (v1 → v1.1).** Andrew's feedback after reviewing the v1 design:
+
+- "It's overly verbose."
+- "Arrays are the wrong data structure to store nodes, inputs, and outputs."
+- "Nodes should be addressable by key. Keys should be deterministic (think React useId)."
+
+The revision is substantial. The new design is key-addressable, has a stricter composition API, drops the event-stream subscription model, splits human-in-the-loop into two modes, and reduces verbosity throughout.
+
+**Resolved in the design conversation:**
+
+- **Composition API is the only way to create nodes.** Consumers never type keys. Keys are produced by combinators and carried as template-literal types on `NodeRef<Path>`.
+- **Combinators:** `run`, `then`, `all` (overloaded array|object), `thenLoop(body, predicate)`. The set is small and bounded.
+- **Data structure:** `Record<string, Node>` keyed by `NodeKey<Path>`. No `Readonly` wrappers; immutability by convention. `nodes: Record<string, Node>` instead of `ReadonlyArray<Node>`.
+- **Subscription:** `subscribe(state, key, onUpdate(node))`. Node-granularity. The consumer's renderer switches on `node.status`. The wire format (v1.1+) is `WorkflowEvent`-driven.
+- **Human-in-the-loop:**
+  - `z.human(z.string())` for writeable (the field is human-writable; node runs with seeded value; can be updated later).
+  - `z.human(z.string()).verified()` for hard-pause (the field is human-writable; node pauses for confirmation; the human MUST engage).
+  - One API: `writeHumanInput(state, nodeKey, fieldKey, value)`. The "starting value" (proposed, current, or empty) is a property of the field's state; the API doesn't distinguish.
+  - The verified gate resets on parent re-execution. When an upstream re-execution changes a node's input, the node's status flips to `stale` and (when the runner picks it up) to `paused` for re-confirmation.
+- **Staleness:** `stale` is a node-level property, not a per-field marker. When a node's input changes, the node goes `stale`. Downstream subtree propagates. Siblings unaffected.
+- **Loops:** A family of nodes (`root.refine[0]`, `root.refine[1]`, ..., `root.refine.final`). The body, predicate, and final are all real nodes in the DAG. The predicate is a node, not a callback — fully composable.
+- **Wire format:** `WorkflowEvent` is wire-only (v1.1+). In-process is Node-granularity. The wire format is a more minimal representation of the same event log.
+
+**New node status:** `paused` (waiting for verified-field human input) and `stale` (input changed; needs to re-execute). Eight total: `pending` / `ready` / `running` / `streaming` / `resolved` / `failed` / `paused` / `stale`.
+
+**Revised design committed.** `docs/design.md` (v1.1) supersedes the v1 design. `src/stub.ts` matches the new shape. `tsc --noEmit` exit 0.
+
+**20 load-bearing decisions** captured in the design doc. Tradeoffs accepted: composition API restrictiveness, schema+Effect program dual contract without compile-time enforcement, whole-Node subscription callbacks, family-of-nodes loop shape, single human-input API, no `Readonly` wrappers, etc.
 
 **CNS health gate green:** validate.py PASSED, graph.py --check OK.

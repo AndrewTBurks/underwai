@@ -1,30 +1,47 @@
-// underwai — TS stub
+// underwai — TS stub (v1)
 // This file proves the v1 design compiles. Bodies are `throw new Error("not implemented")`.
 // Implementation fills in body-by-body against this contract.
 //
 // Module map:
-//   types.ts        -> WorkflowState, Node, Edge, ResolvedInput, InputSource
-//   schemas.ts      -> Zod extensions
-//   operations.ts   -> init, get, serialize, deserialize, findReadyNodes, findSubtree
-//   events.ts       -> WorkflowEvent union
-//   runner.ts       -> runWorkflow (publish, write, writeHumanInput operations)
-//   subscribe.ts    -> subscribe() over the event stream
-//   transports/     -> in-process, sse (v1.1), ws (v1.1)
-//   renderers/      -> react (v1.1), no-op
+//   keys.ts        -> NodeKey type
+//   types.ts       -> WorkflowState, Node, Edge, ResolvedInput, InputSource, NodeStatus
+//   composition.ts -> run, then, all, thenLoop
+//   schemas.ts     -> z.human() + .verified() extension
+//   operations.ts  -> init, get, serialize, deserialize, findReadyNodes, findSubtree
+//   runner.ts      -> step, publish, write, writeHumanInput
+//   subscribe.ts   -> subscribe(state, key, onUpdate)
+//   events.ts      -> WorkflowEvent (wire format)
 //
 // This stub puts everything in one file for compile-checking; the real
 // implementation will split per the module map.
 
 import { Effect } from "effect"
-import type { ZodTypeAny } from "zod"
+import type { ZodType, ZodTypeAny, z } from "zod"
+
+// =========================================================================
+// keys.ts
+// =========================================================================
+
+export type NodeKey<Path extends string = string> = string & {
+  readonly __path: Path
+  readonly __brand: "NodeKey"
+}
+
+export type WorkflowId = string & { readonly __brand: "WorkflowId" }
+
+export type FieldKey = string
+
+// Constructor (used internally by composition; not exposed to consumers).
+// The `as unknown as` is required because TS can't see the brand through the
+// generic — the constructor adds it.
+export const NodeKey = <Path extends string>(path: Path): NodeKey<Path> =>
+  path as unknown as NodeKey<Path>
+
+export const WorkflowId = (s: string): WorkflowId => s as WorkflowId
 
 // =========================================================================
 // types.ts
 // =========================================================================
-
-export type WorkflowId = string & { readonly __brand: "WorkflowId" }
-export type NodeId = string & { readonly __brand: "NodeId" }
-export type FieldKey = string
 
 export type NodeStatus =
   | "pending"
@@ -34,8 +51,7 @@ export type NodeStatus =
   | "resolved"
   | "failed"
   | "paused"
-
-export type Actor = "system" | "human" | (string & {})
+  | "stale"
 
 export type WorkflowStatus =
   | "pending"
@@ -44,13 +60,17 @@ export type WorkflowStatus =
   | "completed"
   | "failed"
 
+export type Actor = "system" | "human" | (string & {})
+
+export type HumanMode = "writeable" | "verified"
+
 export type ResolvedInput = {
-  fields: Readonly<Record<FieldKey, InputSource>>
+  fields: Record<FieldKey, InputSource>
 }
 
 export type InputSource =
   | { kind: "literal"; value: unknown }
-  | { kind: "from_node"; nodeId: NodeId }
+  | { kind: "from_node"; nodeId: NodeKey }
   | {
       kind: "human"
       fieldSchema: ZodTypeAny
@@ -59,29 +79,35 @@ export type InputSource =
     }
 
 export type Node = {
-  id: NodeId
+  id: NodeKey
   kind: string
   label?: string
+
   inputSchema: ZodTypeAny
   input: ResolvedInput
+  // Computed from inputSchema at init(). Tells the runner which fields are
+  // human-writable and whether they require pre-run confirmation.
+  humanFields: ReadonlyMap<FieldKey, HumanMode>
+
   outputSchema: ZodTypeAny
   output?: unknown
   outputPartial: boolean
   finalOutput?: unknown
   status: NodeStatus
+
   actor: Actor
   createdAt: string
   updatedAt: string
 }
 
 export type Edge = {
-  from: NodeId
-  to: NodeId
+  from: NodeKey
+  to: NodeKey
   toField: FieldKey
 }
 
 export type SerializedError = {
-  nodeId: NodeId
+  nodeId: NodeKey
   message: string
   cause?: SerializedError
 }
@@ -90,42 +116,92 @@ export type WorkflowState = {
   id: WorkflowId
   version: number
   status: WorkflowStatus
-  nodes: ReadonlyArray<Node>
+
+  // Key-addressable. O(1) lookup.
+  nodes: Record<string, Node>
+  // Edges are structural metadata; not directly addressed.
   edges: ReadonlyArray<Edge>
-  inputs: ReadonlyArray<NodeId>
-  outputs: ReadonlyArray<NodeId>
+
   createdAt: string
   updatedAt: string
   error?: SerializedError
 }
 
 // =========================================================================
-// schemas.ts — Zod extension
+// schemas.ts — z.human() + .verified() extension
 // =========================================================================
 
-// Augmented in src/schemas.ts. The augmentation declaration is in a separate
-// .d.ts file so consumers can import it once and get typing on all their
-// Zod schemas.
-//
-// (The runtime implementation lives in src/schemas.ts and patches the
-// ZodType prototype with `humanUpdatable()`. The declaration is here in the
-// stub for compile-checking.)
+export type HumanSchema<T extends ZodTypeAny> = T & {
+  __humanMode: HumanMode
+  verified(): HumanSchema<T>
+}
 
 declare module "zod" {
-  interface ZodType {
-    humanUpdatable(): ZodType
+  namespace z {
+    function human<T extends ZodTypeAny>(schema: T): HumanSchema<T>
   }
 }
 
 // =========================================================================
-// operations.ts — state-derivation functions
+// composition.ts — the only ways to create nodes
 // =========================================================================
 
-export function init(_definition: WorkflowDefinition): WorkflowState {
+export type NodeRef<Path extends string = string> = {
+  readonly key: NodeKey<Path>
+}
+
+export type NodeDefinition<TInput = unknown, TOutput = unknown> = {
+  kind: string
+  inputSchema: ZodType<TInput>
+  outputSchema: ZodType<TOutput>
+  program: (input: TInput) => Effect.Effect<TOutput, Error, never>
+}
+
+export function run<S extends ZodTypeAny>(
+  _def: NodeDefinition<z.infer<S>, unknown>,
+): NodeRef<"root"> {
   throw new Error("not implemented")
 }
 
-export function getNode(_state: WorkflowState, _id: NodeId): Node {
+export function then<S extends ZodTypeAny>(
+  _parent: NodeRef,
+  _def: NodeDefinition<z.infer<S>, unknown>,
+): NodeRef<string> {
+  throw new Error("not implemented")
+}
+
+// Overloaded: array form returns a discriminated union; object form returns a record.
+// Implementation uses overload signatures, then a single implementation body.
+export type AllRef = NodeRef<string> & {
+  // Array form: discriminated union output. Object form: record output.
+  // The output type is computed by the implementation from the input shape.
+}
+
+export interface All {
+  (...args: ReadonlyArray<NodeRef>): NodeRef<string>
+  (args: Readonly<Record<string, NodeRef>>): NodeRef<string>
+}
+
+export const all: All = ((..._args: unknown[]): NodeRef<string> => {
+  throw new Error("not implemented")
+}) as All
+
+export function thenLoop<B, P>(
+  _body: (prev: NodeRef) => NodeRef,
+  _predicate: (current: NodeRef) => NodeRef,
+): NodeRef<string> {
+  throw new Error("not implemented")
+}
+
+// =========================================================================
+// operations.ts
+// =========================================================================
+
+export function init(_root: NodeRef): WorkflowState {
+  throw new Error("not implemented")
+}
+
+export function getNode(_state: WorkflowState, _key: NodeKey): Node {
   throw new Error("not implemented")
 }
 
@@ -137,40 +213,28 @@ export function deserialize(_json: string): WorkflowState {
   throw new Error("not implemented")
 }
 
-export function findReadyNodes(
-  _state: WorkflowState,
-): ReadonlyArray<NodeId> {
+export function findReadyNodes(_state: WorkflowState): Set<NodeKey> {
   throw new Error("not implemented")
 }
 
 export function findSubtree(
   _state: WorkflowState,
-  _root: NodeId,
-): ReadonlyArray<NodeId> {
+  _root: NodeKey,
+): Set<NodeKey> {
   throw new Error("not implemented")
 }
 
 // =========================================================================
-// events.ts
+// runner.ts
 // =========================================================================
 
-export type WorkflowEvent =
-  | { type: "node:ready"; nodeId: NodeId }
-  | { type: "node:running"; nodeId: NodeId }
-  | { type: "node:partial"; nodeId: NodeId; output: unknown }
-  | { type: "node:resolved"; nodeId: NodeId; output: unknown }
-  | { type: "node:failed"; nodeId: NodeId; error: SerializedError }
-  | { type: "node:paused"; nodeId: NodeId; field: FieldKey }
-  | { type: "workflow:completed"; output: unknown }
-  | { type: "workflow:failed"; error: SerializedError }
-
-// =========================================================================
-// runner.ts — mutation operations
-// =========================================================================
+export function step(_state: WorkflowState): WorkflowState {
+  throw new Error("not implemented")
+}
 
 export function publish(
   _state: WorkflowState,
-  _id: NodeId,
+  _key: NodeKey,
   _partial: unknown,
 ): WorkflowState {
   throw new Error("not implemented")
@@ -178,7 +242,7 @@ export function publish(
 
 export function write(
   _state: WorkflowState,
-  _id: NodeId,
+  _key: NodeKey,
   _finalOutput: unknown,
 ): WorkflowState {
   throw new Error("not implemented")
@@ -186,88 +250,53 @@ export function write(
 
 export function writeHumanInput(
   _state: WorkflowState,
-  _nodeId: NodeId,
-  _field: FieldKey,
+  _nodeKey: NodeKey,
+  _fieldKey: FieldKey,
   _value: unknown,
 ): WorkflowState {
   throw new Error("not implemented")
 }
 
-export function runWorkflow(
-  _definition: WorkflowDefinition,
-  _state?: WorkflowState,
-): {
-  state: WorkflowState
-  events: AsyncIterable<WorkflowEvent>
-} {
-  throw new Error("not implemented")
-}
-
 // =========================================================================
-// subscribe.ts
+// subscribe.ts — Node-granularity subscription
 // =========================================================================
 
 export type Subscription = {
   unsubscribe(): void
 }
 
+export type SubscribeOptions = {
+  exact?: boolean
+}
+
 export function subscribe(
-  _events: AsyncIterable<WorkflowEvent>,
-  _target: NodeId | "root",
-  _onEvent: (event: WorkflowEvent) => void,
+  _state: WorkflowState,
+  _key: NodeKey,
+  _onUpdate: (node: Node) => void,
+  _opts?: SubscribeOptions,
 ): Subscription {
   throw new Error("not implemented")
 }
 
 // =========================================================================
-// transports/in-process.ts — grafted from Candidate 2
+// events.ts — wire format (v1.1+; in-process uses Node-granularity)
 // =========================================================================
 
-export type WorkflowEventBus = {
-  emit(event: WorkflowEvent): void
-  on(handler: (event: WorkflowEvent) => void): () => void
-}
-
-export function createInProcessBus(): WorkflowEventBus {
-  throw new Error("not implemented")
-}
+export type WorkflowEvent =
+  | { type: "node:status"; nodeId: NodeKey; status: NodeStatus }
+  | { type: "node:partial"; nodeId: NodeKey; output: unknown }
+  | { type: "node:resolved"; nodeId: NodeKey; output: unknown }
+  | { type: "node:failed"; nodeId: NodeKey; error: SerializedError }
+  | { type: "workflow:status"; status: WorkflowStatus }
 
 // =========================================================================
-// types.ts (continued) — type inference from schemas
+// Type inference from schemas (helper for consumers)
 // =========================================================================
 
 export type InferNodeInput<N extends Node> = N["inputSchema"] extends ZodTypeAny
-  ? import("zod").infer<N["inputSchema"]>
+  ? z.infer<N["inputSchema"]>
   : never
 
 export type InferNodeOutput<N extends Node> = N["outputSchema"] extends ZodTypeAny
-  ? import("zod").infer<N["outputSchema"]>
+  ? z.infer<N["outputSchema"]>
   : never
-
-// =========================================================================
-// definition.ts — consumer-facing types
-// =========================================================================
-
-export type NodeDefinition = {
-  id: NodeId
-  kind: string
-  inputSchema: ZodTypeAny
-  outputSchema: ZodTypeAny
-  program: (input: unknown) => Effect.Effect<unknown, Error, never>
-}
-
-export type WorkflowDefinition = {
-  name: string
-  version: number
-  nodes: ReadonlyArray<NodeDefinition>
-  edges: ReadonlyArray<Edge>
-  inputs: ReadonlyArray<NodeId>
-  outputs: ReadonlyArray<NodeId>
-}
-
-// =========================================================================
-// Constructor helpers — branded ids
-// =========================================================================
-
-export const WorkflowId = (s: string): WorkflowId => s as WorkflowId
-export const NodeId = (s: string): NodeId => s as NodeId

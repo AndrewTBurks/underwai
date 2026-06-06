@@ -1,6 +1,6 @@
 # underwAI — Design (v1)
 
-This is the synthesized design for underwAI v1. It is the result of an arena process that produced four candidate designs from a decomposed design space (one candidate per combination of the four most-load-bearing open pivots: reduce semantics, transport, type system mechanics, streaming shape). The cross-judge picked candidate 3 ("implicit reduce, transport-agnostic, schema-driven, accumulator streaming") as the base, with two grafts from the losing candidates. See the *Synthesis decision* section at the bottom for the full record.
+This is the v1 design for underwAI. It supersedes the candidate-3 design from the 2026-06-06 arena, incorporating feedback from the design conversation: nodes are key-addressable, the composition API is the only way to create nodes, the subscription model is `Node`-granularity (not event-granularity), the human-in-the-loop has two modes (`writeable` and `verified`), and the verbosity of the prior design is reduced.
 
 ## Problem
 
@@ -13,18 +13,49 @@ Existing libraries don't have this shape:
 - **"use workflow"** gives resumable workflows, but the runtime is vercel-locked.
 - **Effect** is a runtime, not a workflow library.
 
-underwAI fuses these: typed outputs at every node, Effect composition, durable data structure as the single source of truth, human-in-the-loop as a compositional primitive, renderers as a thin subscription layer.
+underwAI fuses these: typed outputs at every node, Effect composition, durable data structure as the single source of truth, human-in-the-loop as a compositional primitive, renderers as a thin subscription layer. **Every node is addressable by a deterministic, type-safe key.**
 
 ## Shape
 
-### The data structure (flat, typed, single source of truth)
+### Composition API (the only way to create nodes)
+
+The consumer never types node keys. They use a small set of combinators that return handles, and the handles carry the keys as template-literal types:
 
 ```ts
-// Branded ids
+// Combinators
+function run<S extends ZodTypeAny>(def: NodeDef<S>): NodeRef<"root">
+function then<S extends ZodTypeAny>(parent: NodeRef, def: NodeDef<S>): NodeRef<"${parent.path}.${def.kind}">
+function all(...args: [...NodeRef[]]): NodeRef<"${parent.path}.all[N]">         // array form: discriminated union output
+function all(args: Record<string, NodeRef>): NodeRef<"${parent.path}.all.${key}"> // object form: record output
+function thenLoop<B, P>(
+  body: (prev: NodeRef) => NodeRef,        // body returns the next iteration
+  predicate: (current: NodeRef) => NodeRef // predicate returns boolean
+): NodeRef<"${parent.path}.${...}">        // produces a family of nodes
+```
+
+**Key invariants:**
+
+1. The consumer never types a node key as a string. Keys are produced by the composition API and carried as template-literal types on the returned `NodeRef<Path>`.
+2. The composition API is the only way to create nodes. There is no `addNode(state, ...)` API.
+3. Multi-parent (fan-in) is implicit. The lib's input resolver gathers all upstream outputs into a node's input. No explicit `reduce` primitive.
+4. `thenLoop` produces a *family* of nodes: `root.refine[0]`, `root.refine[1]`, ..., `root.refine.final`. Each iteration's body and predicate are real nodes in the DAG.
+5. `z.human(schema)` flags a field as human-writable. `.verified()` is a decorator that gates on human confirmation *before* the node runs.
+
+### Data structure (flat, keyed, single source of truth)
+
+```ts
+// The branded key type. Path is a template-literal type carried through
+// composition. Consumers never construct these directly.
+type NodeKey<Path extends string = string> = string & {
+  readonly __path: Path
+  readonly __brand: "NodeKey"
+}
+
 type WorkflowId = string & { readonly __brand: "WorkflowId" }
-type NodeId = string & { readonly __brand: "NodeId" }
+
 type FieldKey = string
 
+// Node lifecycle
 type NodeStatus =
   | "pending"      // deps not met
   | "ready"        // deps met, waiting to run
@@ -32,39 +63,47 @@ type NodeStatus =
   | "streaming"    // partial output exists
   | "resolved"     // final output validated
   | "failed"
-  | "paused"       // human input needed
+  | "paused"       // waiting for verified-field human input
+  | "stale"        // input changed; needs to re-execute
 
-type Actor = "system" | "human" | (string & {})  // brand allows string union
+type WorkflowStatus =
+  | "pending"
+  | "running"
+  | "paused"       // at least one node is paused on verified input
+  | "completed"
+  | "failed"
 
-type WorkflowState = {
-  id: WorkflowId
-  version: number                                  // schema migration key
-  status: "pending" | "running" | "paused" | "completed" | "failed"
+type Actor = "system" | "human" | (string & {})
 
-  nodes: ReadonlyArray<Node>
-  edges: ReadonlyArray<Edge>
-  // No reduces. Multi-parent resolution is the lib's input resolver.
-
-  inputs: ReadonlyArray<NodeId>                     // entry points
-  outputs: ReadonlyArray<NodeId>                    // root-level return
-
-  createdAt: string
-  updatedAt: string
-  error?: SerializedError
+type ResolvedInput = {
+  fields: Record<FieldKey, InputSource>
 }
 
+type InputSource =
+  | { kind: "literal"; value: unknown }
+  | { kind: "from_node"; nodeId: NodeKey }  // multi-parent is implicit
+  | {
+      kind: "human"
+      fieldSchema: ZodTypeAny
+      value?: unknown
+      status: "pending" | "set"
+    }
+
 type Node = {
-  id: NodeId
-  kind: string                                     // consumer-defined type id
+  id: NodeKey
+  kind: string
   label?: string
 
-  inputSchema: ZodTypeAny                          // runtime authority for I/O
+  inputSchema: ZodTypeAny
   input: ResolvedInput
+  // Computed from inputSchema at init(). Tells the runner which fields are
+  // human-writable and whether they require pre-run confirmation.
+  humanFields: ReadonlyMap<FieldKey, "writeable" | "verified">
 
   outputSchema: ZodTypeAny
-  output?: unknown                                 // ACCUMULATOR (partial value)
-  outputPartial: boolean                            // is `output` validated as a partial?
-  finalOutput?: unknown                            // ACCUMULATOR validated against full schema
+  output?: unknown                  // ACCUMULATOR (current partial)
+  outputPartial: boolean
+  finalOutput?: unknown             // ACCUMULATOR validated against full schema
   status: NodeStatus
 
   actor: Actor
@@ -72,151 +111,241 @@ type Node = {
   updatedAt: string
 }
 
-type ResolvedInput = {
-  fields: Readonly<Record<FieldKey, InputSource>>
-}
-
-type InputSource =
-  | { kind: "literal"; value: unknown }
-  | { kind: "from_node"; nodeId: NodeId }          // multi-parent is implicit
-  | { kind: "human"; fieldSchema: ZodTypeAny; value?: unknown; status: "pending" | "set" }
-
 type Edge = {
-  from: NodeId
-  to: NodeId
+  from: NodeKey
+  to: NodeKey
   toField: FieldKey
 }
 
 type SerializedError = {
-  nodeId: NodeId
+  nodeId: NodeKey
   message: string
   cause?: SerializedError
 }
+
+type WorkflowState = {
+  id: WorkflowId
+  version: number
+  status: WorkflowStatus
+
+  // Key-addressable. O(1) lookup by path.
+  nodes: Record<string, Node>
+  // Edges are structural metadata; not directly addressed.
+  edges: ReadonlyArray<Edge>
+
+  createdAt: string
+  updatedAt: string
+  error?: SerializedError
+}
 ```
 
-### The runner (boring, transport-agnostic, Effect-based)
+**Verbosity reductions from the prior design:**
+- `Record<string, Node>` instead of `ReadonlyArray<Node>`. No `Readonly` wrappers; immutability is by convention (the runner always returns a new state).
+- No `inputs` / `outputs` arrays. Workflow has a conventional root key; the consumer's composition API defines inputs/outputs.
+- `ReadonlyMap<FieldKey, ...>` for `humanFields` (one readonly that's actually meaningful — the schema-derived fields are immutable per node).
+- `Map<>` instead of `Set<>` for `humanFields` because we need the mode (writeable vs verified), not just membership.
+
+### Runtime (state machine, no event stream)
+
+The runner is a state machine. Subscriptions are direct readers. There's no `WorkflowEvent` stream in the consumer-facing API.
 
 ```ts
-// === Core operations on state ===
+// Core operations
+function init(definition: WorkflowDefinition): WorkflowState
+function getNode(state: WorkflowState, key: NodeKey): Node
+function serialize(state: WorkflowState): string
+function deserialize(json: string): WorkflowState
 
-export function init(definition: WorkflowDefinition): WorkflowState
-export function getNode(state: WorkflowState, id: NodeId): Node
-export function serialize(state: WorkflowState): string             // JSON
-export function deserialize(json: string): WorkflowState
-export function findReadyNodes(state: WorkflowState): ReadonlyArray<NodeId>
-export function findSubtree(state: WorkflowState, root: NodeId): ReadonlyArray<NodeId>
+// State derivation
+function findReadyNodes(state: WorkflowState): Set<NodeKey>
+function findSubtree(state: WorkflowState, root: NodeKey): Set<NodeKey>
 
-// === Mutation operations ===
-
-// publish() — accumulator update. The consumer's Effect program calls this
-// to push a partial output. The lib validates it as a partial of outputSchema.
-export function publish(
+// Mutation primitives (used by the runner)
+function publish(state: WorkflowState, key: NodeKey, partial: unknown): WorkflowState
+function write(state: WorkflowState, key: NodeKey, finalOutput: unknown): WorkflowState
+function writeHumanInput(
   state: WorkflowState,
-  id: NodeId,
-  partial: unknown
-): WorkflowState
-
-// write() — final write. The consumer's Effect program returns this as its
-// success value. The lib validates it against the full outputSchema.
-export function write(
-  state: WorkflowState,
-  id: NodeId,
-  finalOutput: unknown
-): WorkflowState
-
-export function writeHumanInput(
-  state: WorkflowState,
-  nodeId: NodeId,
-  field: FieldKey,
+  nodeKey: NodeKey,
+  fieldKey: FieldKey,
   value: unknown
 ): WorkflowState
 
-// === Transport-agnostic event stream ===
+// The runner: take state, find ready nodes, run their Effect programs, update state.
+function step(state: WorkflowState): WorkflowState
+```
 
-export type WorkflowEvent =
-  | { type: "node:ready"; nodeId: NodeId }
-  | { type: "node:running"; nodeId: NodeId }
-  | { type: "node:partial"; nodeId: NodeId; output: unknown }
-  | { type: "node:resolved"; nodeId: NodeId; output: unknown }
-  | { type: "node:failed"; nodeId: NodeId; error: SerializedError }
-  | { type: "node:paused"; nodeId: NodeId; field: FieldKey }
-  | { type: "workflow:completed"; output: unknown }
-  | { type: "workflow:failed"; error: SerializedError }
+**Node lifecycle state machine:**
 
-export function runWorkflow(
-  definition: WorkflowDefinition,
-  state?: WorkflowState
-): {
-  state: WorkflowState
-  events: AsyncIterable<WorkflowEvent>
-}
+```
+pending → ready → running → resolved
+                       ↑         ↓ (input changed via writeHumanInput)
+                       │       stale
+                       │         ↓
+                       │       ready ─→ paused (if input has verified fields)
+                       │                          ↓ (writeHumanInput)
+                       │                       ready
+                       │                          ↓
+                       │                       running → resolved
+                       ↑
+                       │ (upstream re-execution changes the input)
+                       │ → stale → ready (or paused for verified)
+```
 
-// === Subscription (lives on top of events) ===
+The `paused` state is entered when a node has `verified` fields in its input schema and the gate is open (the field's source is `{ kind: "human", status: "pending" }`). The node is `paused` until `writeHumanInput` is called, which sets the field to `status: "set"`, closes the gate, and the node transitions to `ready`.
 
-export type Subscription = {
+When an upstream re-execution changes a node's input, the node's status flips to `stale` (not `paused`). When the runner picks up the `stale` node, it transitions to `ready`, and *if* the input has `verified` fields, it then transitions to `paused` for re-confirmation.
+
+**Staleness propagation:** when a node goes `stale`, the downstream subtree is marked `stale` too. Sibling subtrees (other branches of a fan-out that don't depend on the changed input) are unaffected. `findSubtree(state, staleNodeKey)` returns the descendants to invalidate.
+
+### Subscription (Node-granularity, not event-granularity)
+
+```ts
+type Subscription = {
   unsubscribe(): void
 }
 
-export function subscribe(
-  events: AsyncIterable<WorkflowEvent>,
-  target: NodeId | "root",
-  onEvent: (event: WorkflowEvent) => void
+function subscribe(
+  state: WorkflowState,
+  key: NodeKey,
+  onUpdate: (node: Node) => void
 ): Subscription
-
-// === Zod extension for human-updatable fields ===
-
-declare module "zod" {
-  interface ZodType {
-    humanUpdatable(): ZodType
-  }
-}
-
-// === Type inference from schemas ===
-
-export type InferNodeInput<N> = z.infer<N["inputSchema"]>
-export type InferNodeOutput<N> = z.infer<N["outputSchema"]>
-
-// === Workflow definition (consumer-facing) ===
-
-export type WorkflowDefinition = {
-  name: string
-  version: number
-  nodes: ReadonlyArray<NodeDefinition>
-  edges: ReadonlyArray<Edge>
-  inputs: ReadonlyArray<NodeId>
-  outputs: ReadonlyArray<NodeId>
-}
-
-export type NodeDefinition = {
-  id: NodeId
-  kind: string
-  inputSchema: ZodTypeAny
-  outputSchema: ZodTypeAny
-  // The consumer's Effect program is the only required behavior.
-  // The lib validates the output against outputSchema (Zod) at runtime.
-  program: (input: unknown) => Effect.Effect<unknown, Error, Requirements>
-}
 ```
+
+The callback receives the **full updated `Node`**. The consumer's renderer switches on `node.status`:
+
+```ts
+const sub = subscribe(state, "root.refine.final" as NodeKey, (node) => {
+  switch (node.status) {
+    case "pending":  renderPending(); break
+    case "ready":    renderReady(); break
+    case "running":  renderRunning(); break
+    case "streaming": renderStreaming(node.output); break
+    case "resolved": renderResolved(node.finalOutput); break
+    case "paused":   renderPaused(node); break
+    case "stale":    renderStale(node); break
+    case "failed":   renderFailed(node); break
+  }
+})
+```
+
+**Subscription matches by key prefix by default.** `subscribe(state, "root.refine", onUpdate)` matches every node in the loop family: `root.refine[0]`, `root.refine[1]`, ..., `root.refine.final`. The consumer can opt into exact match: `subscribe(state, "root.refine.final", onUpdate, { exact: true })`.
+
+**Wire format (v1.1+) is `WorkflowEvent`-driven.** Transports (SSE, WebSocket) consume a more minimal `WorkflowEvent` stream from the runner. The in-process `Node`-granularity model is a *projection* of the same event log. The consumer never sees `WorkflowEvent` in-process; the transport does.
 
 ### Streaming (accumulator + final)
 
-A node's lifecycle when streaming is in play:
+The consumer's Effect program calls `publish(value)` to update the accumulator. The lib validates the value as a partial of `outputSchema`. When the Effect program returns, the runner calls `write(value)`, which validates against the full schema and sets `finalOutput`.
+
+Subscribers to the node get the updated `Node` with `output` set and `status: "streaming"`. When the node resolves, they get the node with `finalOutput` set and `status: "resolved"`.
+
+A consumer that doesn't want streaming simply doesn't call `publish` — the node goes `running → resolved` with no `streaming` state. Streaming is opt-in.
+
+### Human-in-the-loop (z.human + .verified)
+
+```ts
+declare module "zod" {
+  namespace z {
+    function human<T extends ZodTypeAny>(schema: T): HumanSchema<T>
+  }
+}
+
+type HumanSchema<T> = T & {
+  __humanMode: "writeable" | "verified"
+  verified(): HumanSchema<T>
+}
 ```
-pending -> ready -> running -> streaming (with partial `output`) -> ... -> resolved (with `finalOutput`)
+
+**Two modes:**
+
+1. `z.human(z.string())` — `__humanMode: "writeable"`. The field is human-writable. The node runs with the seeded value (from upstream, or `undefined` if no seed). The human can update the field later via `writeHumanInput`, which marks the node `stale` and propagates `stale` downstream.
+
+2. `z.human(z.string()).verified()` — `__humanMode: "verified"`. The field is human-writable AND the node pauses for human confirmation *before* running. The seeded value is shown as a "proposed" value in the renderer; the human either accepts it (writes the proposed value back via `writeHumanInput`) or types a new value and writes that. The human *must* engage — there's no "skip verification" path.
+
+**The verified gate resets on parent re-execution.** When an upstream re-execution changes a node's input, the node's status flips to `stale` and (when the runner picks it up) to `paused` again. The human is asked to re-confirm. The gate is tied to the node's *input*, not the workflow's identity.
+
+**One API for human writes:**
+
+```ts
+function writeHumanInput(
+  state: WorkflowState,
+  nodeKey: NodeKey,
+  fieldKey: FieldKey,
+  value: unknown
+): WorkflowState
 ```
 
-The consumer's Effect program calls `publish(value)` to update the accumulator. The lib validates `value` as a partial of `outputSchema` (Zod's `.partial()` works for `z.object()`; for unions/primitives the lib stores untyped partials with `outputPartial: false`). When the Effect program returns, the runner calls `write(value)`, which validates against the full schema and sets `finalOutput`.
+The API sets the field's value. The runner's state machine handles the rest:
+- if the node was `paused` (waiting for verified input), the field is now `"set"`, the gate closes, the node transitions to `ready`.
+- if the node was `resolved`, the input has changed, the node transitions to `stale`. Re-execution is queued. Downstream subtree is marked `stale`.
+- if the node was `pending` / `ready`, the input is now complete, the node transitions to `ready`.
 
-A consumer that doesn't want streaming simply doesn't call `publish` — the node goes `running → resolved` with no `streaming` event. Streaming is opt-in.
+The "starting value" the human sees (proposed, current, or empty) is a property of the field's state when the API is called. The renderer reads `node.input.fields[fieldKey]` and decides. The API doesn't distinguish.
 
-### The render protocol (two modes, lib ships zero UI)
+### Effect integration (consumer-facing API)
 
-1. **Auto-render the whole graph.** For SSR, full-page renderers, the wall-display use case. The consumer subscribes to `"root"` and gets every event.
-2. **Subscribe to a specific node.** For embedding workflow pieces in chat, modal popups, etc. The consumer subscribes to `nodeId` and gets events for that node and its subtree.
+```ts
+// A node definition. The consumer supplies the schema, the kind, and an Effect program.
+type NodeDefinition<TInput, TOutput, TError, TRequirements> = {
+  id: NodeKey
+  kind: string
+  inputSchema: ZodType<TInput>
+  outputSchema: ZodType<TOutput>
+  program: (input: TInput) => Effect.Effect<TOutput, TError, TRequirements>
+}
+```
 
-In both cases, the consumer supplies a renderer registry mapping `kind` → `(node, children) => UIElement`. The lib ships zero UI. The renderer receives a node plus its resolved subtree; it does not need to traverse the DAG itself.
+The consumer writes plain Effect programs. The lib wraps them with the runner's `publish` / `write` / `writeHumanInput` semantics:
 
-The lib ships a reference React adapter and a no-op renderer for testing.
+```ts
+const summarize: NodeDefinition<{ text: string }, { summary: string }, never, never> = {
+  id: "summarize" as NodeKey,
+  kind: "summarize",
+  inputSchema: z.object({ text: z.string() }),
+  outputSchema: z.object({ summary: z.string() }),
+  program: (input) => Effect.succeed({ summary: await callLLM(input.text) }),
+}
+```
+
+The lib validates the program's output against `outputSchema` (Zod) at runtime. Type-level alignment between `program`'s success type and `outputSchema`'s inferred type is a v1.1 hardening (`defineNode` helper from Candidate 4 of the arena).
+
+### Workflow definition (consumer-facing)
+
+```ts
+type WorkflowDefinition = {
+  name: string
+  version: number
+  root: NodeRef
+  // nodes and edges are derived from the composition at init() time.
+}
+```
+
+The consumer writes a composition expression. The lib walks it, builds the data structure, populates `state.nodes` and `state.edges`. There's no separate "list of nodes" — the composition is the definition.
+
+## Load-bearing decisions
+
+1. **Key-addressable flat DAG.** Every node has a deterministic path-based key. The consumer never types keys; the composition API produces them. `state.nodes[key]` is O(1) lookup.
+
+2. **Composition API is the only way to create nodes.** No `addNode(state, def)`. The consumer's composition expression *is* the definition. This is what makes keys type-safe.
+
+3. **Effect programs are the only required behavior.** Plain `Effect<Output, Error, Requirements>`. The lib is a runtime, not a language. No builder, no DSL, no wrapper.
+
+4. **Zod schemas are the runtime authority.** `inputSchema` and `outputSchema` per node. Partial validation on `publish`, full validation on `write`. The lib validates at every step; the consumer trusts the schema.
+
+5. **`z.human()` is the marker, `.verified()` is the gate.** Two modes for human-writable fields. The marker is a Zod extension; the gate is a decorator. The runner's state machine handles the transitions.
+
+6. **One API for human writes: `writeHumanInput`.** The "starting value" (proposed, current, or empty) is a property of the field's state. The API doesn't distinguish. The runner decides the node's status transition.
+
+7. **In-process subscription is Node-granularity, not event-granularity.** `subscribe(state, key, onUpdate)` calls back with the full updated `Node`. The renderer switches on `node.status`. The wire format (v1.1+) is `WorkflowEvent`-driven.
+
+8. **Staleness is a node-level property, not a per-field marker.** When a node's input changes, the node goes `stale`. Downstream subtree propagates. Siblings unaffected.
+
+9. **Loops are a family of nodes.** `root.refine[0]`, `root.refine[1]`, ..., `root.refine.final`. The body and predicate are real nodes in the DAG. The final node is `pending` until the loop settles.
+
+10. **Multi-parent (fan-in) is implicit.** The lib's input resolver gathers all upstream outputs into a node's input. No explicit `reduce` primitive.
+
+11. **Transport-agnostic by construction.** The in-process model is a synchronous function call. The wire format is an event stream. Both are derived from the runner's state machine. SSE/WS are v1.1+ adapters.
+
+12. **No `Readonly` wrappers in the data structure.** Immutability is by convention. The runner always returns a new state. The only `Readonly` is on `humanFields` (a schema-derived map that's immutable per node).
 
 ## Module map
 
@@ -224,107 +353,88 @@ The lib ships a reference React adapter and a no-op renderer for testing.
 underwai/
   src/
     types.ts                // WorkflowState, Node, Edge, ResolvedInput, InputSource
-    schemas.ts              // Zod extensions (z.humanUpdatable)
+    keys.ts                 // NodeKey type, branded constructor
+    composition.ts          // run, then, all, thenLoop (the only ways to create nodes)
+    schemas.ts              // z.human() + .verified() extension
     operations.ts           // init, get, serialize, deserialize, findReadyNodes, findSubtree
-    runner.ts               // runWorkflow, the Effect-based execution loop
-    events.ts               // WorkflowEvent union
-    subscribe.ts            // subscribe() — node-level subscription over the event stream
+    runner.ts               // step, publish, write, writeHumanInput, runWorkflow
+    subscribe.ts            // subscribe() — Node-granularity subscription
+    events.ts               // WorkflowEvent union (wire format only)
     transports/
-      in-process.ts         // default in-process transport: an AsyncIterable over an in-process channel
-      sse.ts                // optional SSE adapter (v1.1)
-      ws.ts                 // optional WebSocket adapter (v1.1)
+      in-process.ts         // default: synchronous function-call to subscribers
+      sse.ts                // v1.1
+      ws.ts                 // v1.1
     renderers/
-      react.tsx             // reference React adapter
+      react.tsx             // v1.1
       no-op.ts              // for testing
   test/
-    runner.test.ts
-    streaming.test.ts
-    human-input.test.ts
-    subscribe.test.ts
-    serialization.test.ts
+    composition.test.ts     // key shape, multi-parent, loop family, all overloads
+    runner.test.ts          // state machine, ready/pause/stale transitions
+    human-input.test.ts     // writeable vs verified, gate reset on parent re-execution
+    streaming.test.ts       // publish/write, accumulator semantics
+    subscribe.test.ts       // Node-granularity, prefix matching
+    serialization.test.ts   // round-trip
   docs/
     design.md               // this file
 ```
 
-## Load-bearing decisions
-
-These are the decisions that make the design cohere. If you're tempted to change one, you should re-read the synthesis record at the bottom of this file.
-
-1. **Flat typed DAG as single source of truth.** One `Node` type. No `ReduceNode`. The lib's input resolver is the reduce — multi-parent is a property of the topology, not a separate primitive. The data structure fits in your head and serializes cleanly to JSON.
-
-2. **Effect is the composition language; the runner is the runtime.** Consumers write plain `Effect` programs. The lib ships no builder API, no DSL, no wrapper around Effect. The lib's job is narrow: data structure + runtime + transport. Composition is Effect's job.
-
-3. **Zod schemas are the runtime authority for I/O.** Every node has `inputSchema` and `outputSchema`. The lib validates inputs on resolution, partials on `publish`, and finals on `write`. Serialized state has a Zod schema, not a TypeScript type. Renderers introspect schemas to know what they're rendering.
-
-4. **The runner emits a transport-agnostic event stream.** `AsyncIterable<WorkflowEvent>`. SSR, wall displays, chat-embedded, and tests are all consumers of the same stream. The in-process channel is the reference transport; SSE/WS are v1.1 adapters.
-
-5. **Human-in-the-loop is a property of the input schema, not a separate node kind.** A field is marked `humanUpdatable()` in the Zod schema. The lib exposes `writeHumanInput`. Setting a human value triggers subtree re-derivation — `findSubtree(state, nodeId)` returns the nodes to invalidate.
-
-6. **Accumulator + final streaming.** The consumer's Effect program calls `publish(value)` for partials and returns a final value. Streaming is opt-in. Field-level streaming is a v1.x feature.
-
 ## Tradeoffs accepted
 
-- **We accept the consumer writing more code** (schema + Effect program) in exchange for a strict, schema-literal contract at the serialization boundary. Schema-driven means the lib is the runtime authority, not "we'll validate the model output later."
+- **The consumer writes more code (schema + Effect program) in exchange for a strict, schema-literal contract.** The lib is the runtime authority, not "we'll validate the model output later."
 
-- **We accept in-process transport as the only v1 transport** in exchange for the runner being a simple `AsyncIterable` over an in-process channel. SSE/WS are v1.1; the event stream is the seam.
+- **The composition API is restrictive in exchange for type-safe keys.** Consumers can't add a node by hand outside the composition API. This is what makes the keys carry real type information.
 
-- **We accept that the consumer's Effect program must call `publish` to stream** in exchange for streaming being opt-in and not requiring a new node kind, a new status, or a new data structure. The lib's accumulator is one optional field (`output`); the alternative (field-level streaming) is a bigger surface for marginal benefit.
+- **Subscription callbacks are whole-Node, not deltas, in exchange for simpler renderer code.** The consumer re-renders on every status change. For partial updates, the consumer can diff the previous and current `Node`, or use a `node.updatedAt` timestamp to skip renders.
 
-- **We accept that the consumer's program has to be Effect** in exchange for the lib's composition story being Effect's composition story. The whole pitch is "Effect composition primitives as the workflow language." A plain-async adapter would be a contradiction.
+- **The runner's state machine is the source of truth, not the consumer's mental model.** The consumer learns "writeHumanInput transitions the node based on its current status" once, then it just works. No separate `confirm` API.
 
-- **We accept the dual type system (schema + Effect) is not type-checked at compile time** in exchange for the lib not requiring a builder or `defineNode`-style helper. C4's dual type guard is a v1.1 refinement; v1 ships with the runtime check (Zod) and trusts the consumer to keep their Effect program aligned with the schema.
+- **Loops are a family of nodes, not a `loop` node kind, in exchange for full composability.** The body, predicate, and final are all real nodes. The consumer can subscribe to any of them.
+
+- **The dual type system (schema + Effect) is not compile-time enforced in v1.** v1 ships with the runtime check (Zod) and trusts the consumer to keep the Effect program aligned with the schema. The `defineNode` helper is a v1.1 hardening.
 
 ## Alternatives considered
 
-- **Explicit `reduce` node kind (Candidate 1).** Rejected. The data structure stays flat. Multi-parent is implicit in the lib's input resolver. A separate `ReduceNode` adds complexity without buying anything the consumer can't write in 3 lines.
+- **Explicit `reduce` node kind.** Rejected. The data structure stays flat. Multi-parent is implicit in the lib's input resolver.
+- **Effect-program-driven types (schema as runtime check).** Rejected. The serialized state has a Zod schema; in-memory value has an Effect type. These can drift. Schema-driven means the runtime boundary is the schema.
+- **Field-level streaming (Candidate 1).** Rejected. Accumulator covers 90% of cases. Field-level is v1.x.
+- **Final-only streaming.** Rejected. Long-running LLM calls deserve progressive text. The accumulator is a small addition.
+- **Event-based subscription (`WorkflowEvent` stream).** Rejected for in-process. Wire format is event-based (v1.1), in-process is Node-granularity.
+- **Two human-input APIs (write + confirm).** Rejected. One API; the runner's state machine handles the transitions.
+- **Consumer-supplied node keys.** Rejected. The composition API produces keys from the path. Consumers never type keys.
+- **`addNode(state, def)` lower-level API.** Rejected. The composition API is the only way. This is what makes keys type-safe.
+- **Loops as a single node with iteration count metadata.** Rejected. The user wants the iterations addressable individually. The family-of-nodes shape matches the model.
 
-- **Effect-program-driven types (Candidate 2).** Rejected. The serialized state would have a Zod schema but the in-memory value would have an Effect type — these can drift. Schema-driven means the runtime boundary is the schema, and the lib validates every step.
+## Synthesis record
 
-- **In-process-only transport (Candidate 2).** Rejected. SSR + wall + chat are all v1 use cases; transport-agnostic is the right call. The runner emits an `AsyncIterable<WorkflowEvent>`; transports are consumers.
+The candidate-3 design from the 2026-06-06 arena was the base. The current v1 design supersedes it after a design conversation that resolved:
 
-- **Field-level streaming (Candidate 1).** Rejected for v1. The accumulator covers 90% of streaming cases. Field-level is a v1.x feature that requires a new node status, a `fieldStatus` map, and a more complex consumer API.
+| Topic | v0 (candidate 3) | v1 (this document) |
+|---|---|---|
+| Node addressability | `ReadonlyArray<Node>` | `Record<string, Node>` keyed by `NodeKey<Path>` |
+| Key shape | Branded `NodeId` (string) | Branded `NodeKey<Path>` (template-literal type) |
+| Key production | Consumer could construct | Composition API only |
+| Subscription | `AsyncIterable<WorkflowEvent>` | `subscribe(state, key, onUpdate(node) => void)` |
+| Human-input API | `writeHumanInput` only | `writeHumanInput` only (confirmed) |
+| Human-input modes | One mode (`z.humanUpdatable`) | Two modes (`z.human`, `z.human().verified()`) |
+| Staleness model | `staleFields: Set<FieldKey>` on node | `stale` status only; node-level, not per-field |
+| Verified gate | n/a (no gate) | Gate resets on parent re-execution |
+| Loop shape | One node, iteration count in metadata | Family of nodes + `final` |
+| Multi-parent | Implicit | Implicit (unchanged) |
+| Streaming | Accumulator + final | Accumulator + final (unchanged) |
+| Transport | Transport-agnostic event stream | In-process: Node-granularity; wire: WorkflowEvent (v1.1) |
+| Verbosity | `Readonly<Record<...>>` everywhere | Reduced; no `Readonly` wrappers; `Record` instead of `ReadonlyArray` |
 
-- **Dual type system with `defineNode` helper (Candidate 4).** Deferred to v1.1. v1 ships with the runtime check (Zod) and trusts the consumer. The `defineNode` helper is a future hardening; the v1 lib is more permissive.
+## Open questions for v1.1+
 
-- **Final-only streaming (Candidate 2).** Rejected. Long-running LLM calls deserve progressive text; the accumulator is a small addition for a real UX win.
-
-## Synthesis decision
-
-The arena process produced four candidate designs:
-
-| Candidate | Reduce | Transport | Types | Streaming |
-|---|---|---|---|---|
-| C1 | explicit | agnostic | schema | field-level |
-| C2 | implicit | in-process | effect | final |
-| C3 | implicit | agnostic | schema | accumulator |
-| C4 | implicit | agnostic | dual | accumulator |
-
-**Base: Candidate 3.** Cross-judge scores: C1=22, C2=26, C3=29, C4=28 (out of 30). C3 wins on the "runner is boring" criterion — the most reliable indicator of "this lib will be small enough to fit in your head." C3 and C4 converge on three of the four pivots; the divergence on type system mechanics is a v1.x refinement, not a v1 must-have.
-
-**Grafts from losers:**
-
-- From C4: the *concept* of a `defineNode` helper as a v1.1 feature. v1 ships without it; the schema + Effect program are both required but not type-checked against each other. C4's `defineNode` is the future v1.1 hardening.
-- From C2: the in-process `WorkflowEventBus` (`bus.on(handler) => unsubscribe`) as the reference in-process transport for the transport-agnostic event stream. C3 keeps the `AsyncIterable<WorkflowEvent>` as the primary API but documents the in-process bus as the default transport.
-
-**Rejections from losers:**
-
-- C1's explicit `ReduceNode` — rejected; the data structure stays flat.
-- C1's `path` on `from_node` — rejected; the consumer picks a field off the parent's output in their Effect program's destructuring, not in the data structure.
-- C1's field-level streaming — rejected for v1; accumulator covers 90% of cases.
-- C2's in-process-only transport — rejected; SSR + wall + chat are v1 use cases.
-- C4's `defineNode` helper — deferred to v1.1.
-
-**Convergence signal:** C3 and C4 converge on three of four pivots (implicit reduce, transport-agnostic, accumulator streaming). The divergence on type system mechanics is a v1.x refinement, not a v1 must-have. Strong agreement on the core shape.
-
-## Open questions and risks
-
-- **Long-running workflow durability.** Resume = `init(definition) + deserialize(state) + findReadyNodes`. But are Effect programs idempotent? Are there non-deterministic side effects in the consumer's program? "use workflow" has opinions about this; we should too. (Defer to v1.1; v1 ships the resume primitive and trusts the consumer.)
-- **Partial validation edge cases.** Zod's `.partial()` works cleanly for `z.object()`. For `z.string()`, `z.number()`, etc., the lib can't enforce "this is a partial" — it just stores untyped partials with `outputPartial: false`. Is this acceptable? (My read: yes; the final validation is what matters for typed outputs.)
-- **The schema + Effect program drift risk.** C4's `defineNode` would catch drift at compile time. v1 catches it at runtime via Zod validation. This is a known gap, deferred to v1.1.
-- **The transport stream's backpressure.** The runner returns an `AsyncIterable<WorkflowEvent>`. Long-running workflows with many subscribers need backpressure. The in-process transport (v1) handles this naturally; v1.1 transports (SSE/WS) need to be designed with this in mind.
+- **`defineNode` helper for dual type guard.** Schema and Effect program are both required but not type-checked against each other in v1. v1.1 adds the helper.
+- **Long-running workflow durability.** Resume = `init(definition) + deserialize(state) + findReadyNodes`. Idempotency of consumer Effect programs is not enforced.
+- **SSE / WebSocket transports.** v1.1 adapters consume the `WorkflowEvent` stream.
+- **AI SDK adapter.** v1.1. Wrap `@ai-sdk/*` calls as Effect programs.
+- **Reference React adapter.** v1.1. The render protocol is settled; the reference implementation is a thin React adapter over `subscribe`.
+- **Renderer-supplied `stale` UX.** The `stale` status is a real node status; what the renderer shows for it is the renderer's call. The lib doesn't ship a "re-deriving..." component.
 
 ## Next implementation step
 
-Write the TS stub in `src/types.ts` and `src/operations.ts` — the data structure and the state-derivation functions (`findReadyNodes`, `findSubtree`). These are the smallest pieces that prove the design compiles and that the data structure's invariants hold. The runner, schemas, events, and subscribe come next, in that order.
+Write `src/types.ts` (the data structure), `src/keys.ts` (the `NodeKey` type), and `src/schemas.ts` (the `z.human` extension). These are the smallest pieces that prove the design compiles and that the data structure's invariants hold. The composition API, operations, runner, and subscribe come next, in that order.
 
-The TS stub ships alongside this file as `src/stub.ts` — a complete type-level proof that the design compiles, with `throw new Error("not implemented")` bodies. Implementation fills in body-by-body against this contract.
+The TS stub in `src/stub.ts` is a complete type-level proof that the design compiles, with `throw new Error("not implemented")` bodies. Implementation fills in body-by-body against this contract.
