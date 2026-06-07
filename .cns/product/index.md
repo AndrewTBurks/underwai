@@ -10,9 +10,10 @@ last_reconciled: 2026-06-06
 ---
 
 # Product
+
 ## Principles in this layer
 
-**Minimal API surface.** The v1 must-haves list is bounded: eight items, each a primitive. The deferred list is explicit so consumers know what is *not* shipping. The anti-goals list is a fence: agent frameworks, workflow designers, hosted services, and DSLs are not underwAI's territory.
+**Minimal API surface.** The v1 must-haves list is bounded: eight items, each a primitive. The deferred list is explicit so consumers know what is _not_ shipping. The anti-goals list is a fence: agent frameworks, workflow designers, hosted services, and DSLs are not underwAI's territory.
 
 **Experience first.** The success-and-failure statements frame outcomes, not implementations. "A second consumer builds something on underwAI without the lib needing to change" is an experience. "The lib grows a builder API to hide Effect from consumers" is the failure that experience-first rejects.
 
@@ -27,7 +28,7 @@ A library that lets a developer define a workflow as a flat, typed DAG. The lib 
 - **"use workflow"** — borrows the replay/determinism vocabulary, but as plain data, not vercel-locked infrastructure.
 - **instructor** — structured outputs are integrated at every node, not bolted on.
 
-The AI's role is to *resolve a typed position in a graph* — fill a node with a value of a declared type. The human's role is the same. The effect's role is the same. The lib does not care who or what filled the node, only that the value matches the schema.
+The AI's role is to _resolve a typed position in a graph_ — fill a node with a value of a declared type. The human's role is the same. The effect's role is the same. The lib does not care who or what filled the node, only that the value matches the schema.
 
 ## The gap it fills
 
@@ -62,16 +63,16 @@ The non-negotiable surface for v1:
 
 ## The threadweaver relationship (note, not in scope)
 
-Andrew is building ThreadWeaver (separate project at `~/Documents/thesis-project`) — a research instrument for studying AI co-authorship in scientific workflows. ThreadWeaver's product doc describes *exactly* the data structure underwAI is designed to be: a typed workflow graph, two render surfaces (client + wall), human-in-the-loop, durable provenance. The decision is to build underwAI as a *general* library that can be slotted underneath ThreadWeaver, not as a domain-specific tool. Andrew is the domain expert on ThreadWeaver and explicitly does not want underwAI constrained by it.
+Andrew is building ThreadWeaver (separate project at `~/Documents/thesis-project`) — a research instrument for studying AI co-authorship in scientific workflows. ThreadWeaver's product doc describes _exactly_ the data structure underwAI is designed to be: a typed workflow graph, two render surfaces (client + wall), human-in-the-loop, durable provenance. The decision is to build underwAI as a _general_ library that can be slotted underneath ThreadWeaver, not as a domain-specific tool. Andrew is the domain expert on ThreadWeaver and explicitly does not want underwAI constrained by it.
 
-This means: v1 of underwAI is whatever ThreadWeaver would *want* from a lib, generalized. The killer demo for v1 is "ThreadWeaver runs on top of this." The killer demo for v1.1+ is "a different consumer runs on top of this, and the lib doesn't have to change."
+This means: v1 of underwAI is whatever ThreadWeaver would _want_ from a lib, generalized. The killer demo for v1 is "ThreadWeaver runs on top of this." The killer demo for v1.1+ is "a different consumer runs on top of this, and the lib doesn't have to change."
 
 ## Success looks like
 
 - A second consumer (not Andrew) builds something on underwAI without the lib needing to change.
 - The data structure is small enough to fit in your head and JSON-serializable.
 - The renderer protocol is thin enough that consumers supply their own UI in a weekend.
-- The runner is boring — it just walks a DAG and runs Effect programs. The interesting parts are the *primitives it composes*, not the runner itself.
+- The runner is boring — it just walks a DAG and runs Effect programs. The interesting parts are the _primitives it composes_, not the runner itself.
 
 ## Failure looks like
 
@@ -82,7 +83,7 @@ This means: v1 of underwAI is whatever ThreadWeaver would *want* from a lib, gen
 
 ## Anti-goals
 
-- Not a general-purpose agent framework. Do not add "agent" concepts (memory, planning, tool use, reflection) as first-class. The AI is a *resolver*, not an *agent*.
+- Not a general-purpose agent framework. Do not add "agent" concepts (memory, planning, tool use, reflection) as first-class. The AI is a _resolver_, not an _agent_.
 - Not a workflow designer / visual editor. The lib is a runtime; the consumer's authoring experience is their Effect code.
 - Not a hosted service. UnderwAI is a library. Hosting, observability, and dashboards are separate concerns.
 - Not a DSL. Effect is the language. The lib is the runtime.
@@ -93,11 +94,11 @@ The library is a pnpm workspace. The 6-package split was pre-shard on 2026-06-06
 
 **All six packages ship with v1.0.** The original "v1.x / v2 deferred" list had `@underwai/transport`, `@underwai/renderer-react`, and `@underwai/renderer-log` as v1.1+; that was a misjudgment, corrected on 2026-06-06. A v1.0 without a way to consume the lib isn't a true v1.0.
 
-| Package | Status | Depends on | Purpose |
-|---|---|---|---|
-| `@underwai/core` | v1.0 | zod, effect (peer) | Data structure: types, keys, composition, operations. The foundation. |
-| `@underwai/schema` | v1.0 | zod (peer) | Zod extension: `z.human()` + `.verified()`. Standalone. |
-| `@underwai/runner` | v1.0 | `@underwai/core`, `@underwai/schema`, zod, effect | The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives. |
-| `@underwai/transport` | v1.0 | `@underwai/core`, effect (peer) | Subscription API + wire format + transports (SSE, WebSocket). |
-| `@underwai/renderer-react` | v1.0 | `@underwai/core`, `@underwai/transport`, react (peer) | Reference React adapter. |
-| `@underwai/renderer-log` | v1.0 | `@underwai/core`, `@underwai/transport` | stdout log renderer for tests. |
+| Package                    | Status | Depends on                                            | Purpose                                                                    |
+| -------------------------- | ------ | ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| `@underwai/core`           | v1.0   | zod, effect (peer)                                    | Data structure: types, keys, composition, operations. The foundation.      |
+| `@underwai/schema`         | v1.0   | zod (peer)                                            | Zod extension: `z.human()` + `.verified()`. Standalone.                    |
+| `@underwai/runner`         | v1.0   | `@underwai/core`, `@underwai/schema`, zod, effect     | The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives. |
+| `@underwai/transport`      | v1.0   | `@underwai/core`, effect (peer)                       | Subscription API + wire format + transports (SSE, WebSocket).              |
+| `@underwai/renderer-react` | v1.0   | `@underwai/core`, `@underwai/transport`, react (peer) | Reference React adapter.                                                   |
+| `@underwai/renderer-log`   | v1.0   | `@underwai/core`, `@underwai/transport`               | stdout log renderer for tests.                                             |

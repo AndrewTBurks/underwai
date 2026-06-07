@@ -8,16 +8,16 @@ A typed, durable data structure where AI, humans, and effects resolve nodes into
 
 This is a pnpm workspace. The pre-shard package structure is in [`packages/`](./packages/). Each package has its own `index.md` for local context during implementation.
 
-| Package | Status | Purpose |
-|---|---|---|
-| [`@underwai/core`](./packages/core/) | v1.0 | Data structure: types, keys, composition, operations |
-| [`@underwai/schema`](./packages/schema/) | v1.0 | `z.human()` + `.verified()` Zod extension |
-| [`@underwai/runner`](./packages/runner/) | v1.0 | The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives |
-| [`@underwai/transport`](./packages/transport/) | v1.0 | Subscription API + wire format + transports (SSE, WebSocket) |
-| [`@underwai/renderer-react`](./packages/renderer-react/) | v1.0 | Reference React adapter |
-| [`@underwai/renderer-log`](./packages/renderer-log/) | v1.0 | stdout log renderer for tests |
+| Package                                                  | Status | Purpose                                                                   |
+| -------------------------------------------------------- | ------ | ------------------------------------------------------------------------- |
+| [`@underwai/core`](./packages/core/)                     | v1.0   | Data structure: types, keys, composition, operations                      |
+| [`@underwai/schema`](./packages/schema/)                 | v1.0   | `z.human()` + `.verified()` Zod extension                                 |
+| [`@underwai/runner`](./packages/runner/)                 | v1.0   | The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives |
+| [`@underwai/transport`](./packages/transport/)           | v1.0   | Subscription API + wire format + transports (SSE, WebSocket)              |
+| [`@underwai/renderer-react`](./packages/renderer-react/) | v1.0   | Reference React adapter                                                   |
+| [`@underwai/renderer-log`](./packages/renderer-log/)     | v1.0   | stdout log renderer for tests                                             |
 
-**All six packages ship with v1.0.** A "true v1.0" is the lib *plus* the way to consume it — without a transport and renderers, it's a data structure with a runner, not a usable v1.0. There is no v1.1+ tier.
+**All six packages ship with v1.0.** A "true v1.0" is the lib _plus_ the way to consume it — without a transport and renderers, it's a data structure with a runner, not a usable v1.0. There is no v1.1+ tier.
 
 ## The five load-bearing decisions
 
@@ -32,7 +32,7 @@ This is a pnpm workspace. The pre-shard package structure is in [`packages/`](./
 Two principles govern every decision in this project:
 
 - **Minimal API surface.** The lib's surface is the smallest set of primitives that supports the workflow model. Eight states. Four combinators. Two subscription methods.
-- **Maximal flexibility.** Where the surface is small, the *expressiveness* of each primitive is large. `z.human()` is one marker; `.verified()` is one decorator. The data structure is the protocol.
+- **Maximal flexibility.** Where the surface is small, the _expressiveness_ of each primitive is large. `z.human()` is one marker; `.verified()` is one decorator. The data structure is the protocol.
 
 ## Repo
 

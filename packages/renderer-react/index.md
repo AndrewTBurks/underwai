@@ -1,6 +1,6 @@
 ---
 parent: ../../.cns/index.md
-title: '@underwai/renderer-react'
+title: "@underwai/renderer-react"
 status: clean
 last_reconciled: 2026-06-07
 type: package
@@ -9,11 +9,11 @@ decisions:
   - id: DEC-RR-001
     date: 2026-06-06
     author: agent
-    summary: 'Hooks use useSyncExternalStore against the LiveSubscriptionRegistry. No useState, no useEffect, no shimmed subscription. React 18+ idiomatic.'
+    summary: "Hooks use useSyncExternalStore against the LiveSubscriptionRegistry. No useState, no useEffect, no shimmed subscription. React 18+ idiomatic."
   - id: DEC-RR-002
     date: 2026-06-06
     author: agent
-    summary: 'Renderer registry: kind -> (state, node) -> ReactElement. registerKind / getKindRenderer / clearRegistry. Default renderer is a <pre> with the kind and status.'
+    summary: "Renderer registry: kind -> (state, node) -> ReactElement. registerKind / getKindRenderer / clearRegistry. Default renderer is a <pre> with the kind and status."
   - id: DEC-RR-003
     date: 2026-06-06
     author: agent
@@ -21,7 +21,7 @@ decisions:
   - id: DEC-RR-004
     date: 2026-06-07
     author: agent
-    summary: 'No chat/agent UI affordances. The lib is workflow-shaped, not chat-shaped. The renderer is a thin adapter over the LiveSubscriptionRegistry; consumers compose their own UI from useNode, useSubtree, useWorkflowState.'
+    summary: "No chat/agent UI affordances. The lib is workflow-shaped, not chat-shaped. The renderer is a thin adapter over the LiveSubscriptionRegistry; consumers compose their own UI from useNode, useSubtree, useWorkflowState."
   - id: DEC-RR-005
     date: 2026-06-07
     author: agent

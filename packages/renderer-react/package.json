@@ -2,8 +2,8 @@
   "name": "@underwai/renderer-react",
   "version": "0.0.0",
   "description": "React adapter for the underwAI workflow runtime. Hooks + provider + auto-render.",
-  "type": "module",
   "license": "Apache-2.0",
+  "type": "module",
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
@@ -13,15 +13,15 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b"
   },
-  "peerDependencies": {
-    "@types/react": "^18.0.0 || ^19.0.0",
-    "react": "^18.0.0 || ^19.0.0"
-  },
   "dependencies": {
     "@underwai/core": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
     "react": "^19.0.0"
+  },
+  "peerDependencies": {
+    "@types/react": "^18.0.0 || ^19.0.0",
+    "react": "^18.0.0 || ^19.0.0"
   }
 }

@@ -2,8 +2,8 @@
   "name": "@underwai/transport",
   "version": "0.0.0",
   "description": "Subscription API and event-stream wire format for underwAI.",
-  "type": "module",
   "license": "Apache-2.0",
+  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {

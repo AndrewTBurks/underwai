@@ -30,19 +30,19 @@ decisions:
   - id: DEC-CORE-015
     date: 2026-06-07
     author: agent
-    summary: '`compose(fn)` wraps a composition expression to capture the defs and edges. Inside the wrapper, run/chain/all/thenLoop record into a per-compose Builder. The result is a CompositionTree (root + defs + edges) that init() walks to build a WorkflowState. The implementation uses a module-level currentBuilder reference (the legacy-context pattern). Compositions written outside compose() still work — they just don''t record.'
+    summary: "`compose(fn)` wraps a composition expression to capture the defs and edges. Inside the wrapper, run/chain/all/thenLoop record into a per-compose Builder. The result is a CompositionTree (root + defs + edges) that init() walks to build a WorkflowState. The implementation uses a module-level currentBuilder reference (the legacy-context pattern). Compositions written outside compose() still work — they just don't record."
   - id: DEC-CORE-016
     date: 2026-06-07
     author: agent
-    summary: '`init(tree, id)` is the public WorkflowState builder. Walks CompositionTree.defs, creates a Node for each (status=pending), applies edges (with bridges), and computes edgesByTarget and edgesByFrom. Replaces the pre-shard stub.'
+    summary: "`init(tree, id)` is the public WorkflowState builder. Walks CompositionTree.defs, creates a Node for each (status=pending), applies edges (with bridges), and computes edgesByTarget and edgesByFrom. Replaces the pre-shard stub."
   - id: DEC-CORE-017
     date: 2026-06-07
     author: agent
-    summary: '`getHumanInputDisplay(state, node, fieldKey)` returns a discriminated union on source kind: literal (root, no incoming edge, or human-marked+verified+value), from_node (incoming edge from a resolved upstream), human (writeable+pending or writeable+set). Renderer decides UX. Replaces the pre-shard stub. Signature changed: takes state in addition to node, so the function can read edgesByTarget.'
+    summary: "`getHumanInputDisplay(state, node, fieldKey)` returns a discriminated union on source kind: literal (root, no incoming edge, or human-marked+verified+value), from_node (incoming edge from a resolved upstream), human (writeable+pending or writeable+set). Renderer decides UX. Replaces the pre-shard stub. Signature changed: takes state in addition to node, so the function can read edgesByTarget."
   - id: DEC-CORE-018
     date: 2026-06-07
     author: agent
-    summary: '`publish(state, key, output, partial, now)` and `write(state, key, value)` are public core mutation primitives. Pure functions; the runner inlined this logic before. The runner runtime now uses these from @underwai/core instead of duplicating the logic in mutations.ts.'
+    summary: "`publish(state, key, output, partial, now)` and `write(state, key, value)` are public core mutation primitives. Pure functions; the runner inlined this logic before. The runner runtime now uses these from @underwai/core instead of duplicating the logic in mutations.ts."
   - id: DEC-CORE-005
     date: 2026-06-06
     author: agent
@@ -50,7 +50,7 @@ decisions:
   - id: DEC-CORE-006
     date: 2026-06-06
     author: agent
-    summary: 'findReadyNodes returns ReadonlyArray<NodeKey> in dependency order. Kahn''s algorithm using edgesByFrom. Iteration order is the contract. No topologicalOrder field on WorkflowState (TASK-R).'
+    summary: "findReadyNodes returns ReadonlyArray<NodeKey> in dependency order. Kahn's algorithm using edgesByFrom. Iteration order is the contract. No topologicalOrder field on WorkflowState (TASK-R)."
   - id: DEC-CORE-007
     date: 2026-06-06
     author: agent
@@ -74,7 +74,7 @@ decisions:
   - id: DEC-CORE-012
     date: 2026-06-06
     author: agent
-    summary: 'The `chain` combinator has two overloads: parent.chain(child) for direct match (parent.output shape === child.input shape), parent.chain((out) => in_, child) for bridge function. Bridge is composition metadata on the Edge, not a node (TASK-H).'
+    summary: "The `chain` combinator has two overloads: parent.chain(child) for direct match (parent.output shape === child.input shape), parent.chain((out) => in_, child) for bridge function. Bridge is composition metadata on the Edge, not a node (TASK-H)."
   - id: DEC-CORE-013
     date: 2026-06-06
     author: agent
@@ -111,6 +111,6 @@ The current pre-shard artifact lives at `src/stub.ts` — a single file with all
 
 When v1.0 implementation begins, the agent reads this file, opens `src/stub.ts` (the pre-shard artifact with all the types stubbed out), and distributes the contents into the four `src/*` files. The stub has every type and function declaration in one place; the split is mechanical. The composability of the result is verified by `tsc -b` and the per-package typecheck.
 
-The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the type shapes, the composition API, and the serialization contract. Prose in the body is for the file plan and the boundary; the *why* lives in the decisions array.
+The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the type shapes, the composition API, and the serialization contract. Prose in the body is for the file plan and the boundary; the _why_ lives in the decisions array.
 
-The data structure is small enough to fit in your head. The composition API is four combinators. The state machine is seven statuses. The runner is an Effect program that walks the DAG. Most of the implementation work is *verifying the design*, not building the design — the design is settled.
+The data structure is small enough to fit in your head. The composition API is four combinators. The state machine is seven statuses. The runner is an Effect program that walks the DAG. Most of the implementation work is _verifying the design_, not building the design — the design is settled.

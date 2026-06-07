@@ -2,8 +2,8 @@
   "name": "@underwai/runner",
   "version": "0.0.0",
   "description": "The Effect-based workflow orchestrator. Owns the in-flight fiber per workflow.",
-  "type": "module",
   "license": "Apache-2.0",
+  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {

@@ -27,7 +27,7 @@ decisions:
   - id: DEC-SCHEMA-006
     date: 2026-06-07
     author: agent
-    summary: 'Canonical API is `human(z.string())` (named import). The `z.human()` namespace mutation is NOT shipped. Zod 3 freezes the z namespace object (Object.isFrozen(z) === true), so the standard zod-extension pattern (zod-prisma, tRPC) does not work without forking. Consumers who want the namespace syntax do `import { human }` and call human() directly. This is the minimal-API-surface shape: no surprise mutations of the consumer''s z object.'
+    summary: "Canonical API is `human(z.string())` (named import). The `z.human()` namespace mutation is NOT shipped. Zod 3 freezes the z namespace object (Object.isFrozen(z) === true), so the standard zod-extension pattern (zod-prisma, tRPC) does not work without forking. Consumers who want the namespace syntax do `import { human }` and call human() directly. This is the minimal-API-surface shape: no surprise mutations of the consumer's z object."
 human_notes: |
 
 status: dirty
@@ -57,7 +57,7 @@ The pre-shard file plan:
 
 When v1.0 implementation begins, the agent reads this file, opens `.cns/architecture/index.md` for the state machine and per-status semantics, and implements three small files (`human.ts`, `verified.ts`, `get-mode.ts`) and the `index.ts` re-export. The TypeScript declaration-merge trick (`declare module "zod" { namespace z { function human<T>(schema: T): HumanSchema<T> } }`) gives the type-level extension; the runtime functions attach the marker.
 
-The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the runtime marker mechanism, the human-mode vocabulary, and the standalone boundary. Prose in the body is for the file plan; the *why* lives in the decisions array.
+The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the runtime marker mechanism, the human-mode vocabulary, and the standalone boundary. Prose in the body is for the file plan; the _why_ lives in the decisions array.
 
 The shape of `HumanSchema<T>` is `T & { __humanMode: HumanMode; verified(): HumanSchema<T> }`. The `&` intersection is the type-theoretic cleanest shape; the runtime marker is on `_def`, which is internal to Zod but stable across 3.x.
 

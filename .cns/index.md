@@ -47,7 +47,7 @@ The cost of a new API element is borne forever. The bar for adding one is that r
 
 ### Maximal flexibility
 
-Where the surface is small, the *expressiveness* of each primitive is large. `z.human()` is one marker that means "this field is human-writable." `.verified()` is one decorator that means "this field is a confirmation point." Both primitives compose with the rest of Zod, so the expressiveness comes from composition, not from a longer surface.
+Where the surface is small, the _expressiveness_ of each primitive is large. `z.human()` is one marker that means "this field is human-writable." `.verified()` is one decorator that means "this field is a confirmation point." Both primitives compose with the rest of Zod, so the expressiveness comes from composition, not from a longer surface.
 
 The data structure is the protocol. A consumer who wants a feature that the lib doesn't ship can implement it as a node kind or a transport. The lib provides primitives; the consumer composes them.
 
@@ -55,7 +55,7 @@ The data structure is the protocol. A consumer who wants a feature that the lib 
 
 1. **The data structure is a flat DAG of typed nodes.** Each node has `kind`, typed `input` and `output` (Zod-validated), `status` (one of seven values — see `.cns/architecture/index.md` for the per-status source of truth), `actor`, and metadata. Edges are explicit. Inputs can be literals, references to upstream outputs, or human-updatable.
 
-2. **Effect is the composition language; the runner is the runtime.** Consumers write Effect programs for each node. The lib walks the DAG, finds ready nodes, plumbs typed inputs in, runs the consumer's Effect, validates the output against the node's Zod schema, writes the result back, and recurses. The lib is a *runtime*, not a *language* — no builder API, no DSL.
+2. **Effect is the composition language; the runner is the runtime.** Consumers write Effect programs for each node. The lib walks the DAG, finds ready nodes, plumbs typed inputs in, runs the consumer's Effect, validates the output against the node's Zod schema, writes the result back, and recurses. The lib is a _runtime_, not a _language_ — no builder API, no DSL.
 
 3. **Structured outputs are a first-class node property, not a special case.** Every node has a typed output schema. Validation is part of the runner, not a separate step.
 
@@ -76,7 +76,7 @@ The principles are restated and applied in each layer's `index.md`:
 
 The library is a pnpm workspace. Each package has its own `index.md` (peripheral nervous system node) with local context for the implementation phase. Pre-shard on 2026-06-06.
 
-**All six packages ship with v1.0.** There is no v1.1+ tier — the v1.0 deliverable is the lib *plus* the way to consume it. A "true v1.0" without a transport and renderers is not a usable v1.0; it's a data structure with a runner. The original product doc's "v1.x / v2 deferred" list had these as v1.1+; that was a misjudgment, corrected on 2026-06-06.
+**All six packages ship with v1.0.** There is no v1.1+ tier — the v1.0 deliverable is the lib _plus_ the way to consume it. A "true v1.0" without a transport and renderers is not a usable v1.0; it's a data structure with a runner. The original product doc's "v1.x / v2 deferred" list had these as v1.1+; that was a misjudgment, corrected on 2026-06-06.
 
 - **packages/core** ([`index.md`](packages/core/index.md)) — `@underwai/core`. The data structure: types, keys, composition, operations. No imports from the other v1 packages.
 - **packages/schema** ([`index.md`](packages/schema/index.md)) — `@underwai/schema`. The Zod extension: `z.human()` + `.verified()`. Standalone; depends on Zod only.
@@ -89,7 +89,7 @@ The pre-shard `src/stub.ts` was moved to `packages/core/src/stub.ts` on 2026-06-
 
 ## Decisions in scope
 
-The package `index.md` files encode their design decisions in the `decisions[]` frontmatter array. Read that array, not the body prose, to understand *why* each package is shaped the way it is. The body carries the file plan and the boundary; the frontmatter carries the load-bearing decisions.
+The package `index.md` files encode their design decisions in the `decisions[]` frontmatter array. Read that array, not the body prose, to understand _why_ each package is shaped the way it is. The body carries the file plan and the boundary; the frontmatter carries the load-bearing decisions.
 
 Each `decisions[]` entry has `id:`, `date:`, `author:`, `summary:`. The IDs are scoped per-package (`DEC-CORE-001` through `DEC-CORE-013`, `DEC-SCHEMA-001` through `DEC-SCHEMA-005`, etc.). Where the same design point touches multiple packages, the decision appears once in the package that owns it; sibling packages cross-reference the design point by name in their `decisions[]` summary, not by ID.
 

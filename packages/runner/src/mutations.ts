@@ -8,15 +8,11 @@
 // All transitions on Node["status"] go through these functions.
 // The transition rules are documented in .cns/architecture/node.md.
 
-import type { Node, NodeStatus, WorkflowState } from "@underwai/core"
+import type { Node, NodeStatus, WorkflowState } from "@underwai/core";
 
-export function markRunning(
-  state: WorkflowState,
-  nodeId: Node["id"],
-  now: string,
-): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string]
-  if (!node) return state
+export function markRunning(state: WorkflowState, nodeId: Node["id"], now: string): WorkflowState {
+  const node = state.nodes[nodeId as unknown as string];
+  if (!node) return state;
   return {
     ...state,
     nodes: {
@@ -27,7 +23,7 @@ export function markRunning(
         updatedAt: now,
       },
     },
-  }
+  };
 }
 
 export function markStreaming(
@@ -37,8 +33,8 @@ export function markStreaming(
   partial: boolean,
   now: string,
 ): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string]
-  if (!node) return state
+  const node = state.nodes[nodeId as unknown as string];
+  if (!node) return state;
   return {
     ...state,
     nodes: {
@@ -49,7 +45,7 @@ export function markStreaming(
         updatedAt: now,
       },
     },
-  }
+  };
 }
 
 export function markResolved(
@@ -58,8 +54,8 @@ export function markResolved(
   finalOutput: unknown,
   now: string,
 ): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string]
-  if (!node) return state
+  const node = state.nodes[nodeId as unknown as string];
+  if (!node) return state;
   return {
     ...state,
     nodes: {
@@ -70,7 +66,7 @@ export function markResolved(
         updatedAt: now,
       },
     },
-  }
+  };
 }
 
 export function markFailed(
@@ -79,8 +75,8 @@ export function markFailed(
   error: Node["id"] extends never ? never : import("@underwai/core").SerializedError,
   now: string,
 ): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string]
-  if (!node) return state
+  const node = state.nodes[nodeId as unknown as string];
+  if (!node) return state;
   return {
     ...state,
     status: "failed",
@@ -93,16 +89,12 @@ export function markFailed(
       },
     },
     error,
-  }
+  };
 }
 
-export function markPaused(
-  state: WorkflowState,
-  nodeId: Node["id"],
-  now: string,
-): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string]
-  if (!node) return state
+export function markPaused(state: WorkflowState, nodeId: Node["id"], now: string): WorkflowState {
+  const node = state.nodes[nodeId as unknown as string];
+  if (!node) return state;
   // Per-node "paused" only. The workflow-level "paused" status
   // is a phantom slot (no transition into it) and was removed
   // in TASK-37. The workflow's own status stays as-is.
@@ -116,22 +108,17 @@ export function markPaused(
         updatedAt: now,
       },
     },
-  }
+  };
 }
 
 // markStale: a node that needs to be re-derived. The "stale" status
 // carries the previous output so the renderer can show "re-deriving".
 // Per DEC-RUNNER-005, multiple writes coalesce: the most recent
 // value wins.
-export function markStale(
-  state: WorkflowState,
-  nodeId: Node["id"],
-  now: string,
-): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string]
-  if (!node) return state
-  const previousOutput =
-    node.status.kind === "resolved" ? node.status.finalOutput : undefined
+export function markStale(state: WorkflowState, nodeId: Node["id"], now: string): WorkflowState {
+  const node = state.nodes[nodeId as unknown as string];
+  if (!node) return state;
+  const previousOutput = node.status.kind === "resolved" ? node.status.finalOutput : undefined;
   return {
     ...state,
     nodes: {
@@ -142,7 +129,7 @@ export function markStale(
         updatedAt: now,
       },
     },
-  }
+  };
 }
 
 // writeHumanInput: per TASK-A, mid-execution writeHumanInput marks
@@ -155,8 +142,8 @@ export function writeHumanInput(
   value: unknown,
   now: string,
 ): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string]
-  if (!node) return state
+  const node = state.nodes[nodeId as unknown as string];
+  if (!node) return state;
   return {
     ...state,
     nodes: {
@@ -168,11 +155,11 @@ export function writeHumanInput(
         updatedAt: now,
       },
     },
-  }
+  };
 }
 
 function extractOutput(status: NodeStatus): unknown {
-  if (status.kind === "resolved") return status.finalOutput
-  if (status.kind === "streaming") return status.output
-  return undefined
+  if (status.kind === "resolved") return status.finalOutput;
+  if (status.kind === "streaming") return status.output;
+  return undefined;
 }

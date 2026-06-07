@@ -24,39 +24,39 @@
 // CompositionTree: a root NodeRef and a flat list of defs+edges
 // that init() walks to build a WorkflowState.
 
-import type { Effect } from "effect"
-import type { ZodType, z } from "zod"
-import { NodeKey as nodeKeyCtor, type NodeKey } from "./keys.js"
-import type { Edge } from "./types.js"
+import type { Effect } from "effect";
+import type { ZodType, z } from "zod";
+import { NodeKey as nodeKeyCtor, type NodeKey } from "./keys.js";
+import type { Edge } from "./types.js";
 
 export type NodeRef<Path extends string = string> = {
-  readonly key: NodeKey<Path>
-}
+  readonly key: NodeKey<Path>;
+};
 
 export type NodeDefinition<TInput = unknown, TOutput = unknown> = {
-  kind: string
-  inputSchema: ZodType<TInput>
-  outputSchema: ZodType<TOutput>
-  program: (input: TInput) => Effect.Effect<TOutput, Error, never>
-}
+  kind: string;
+  inputSchema: ZodType<TInput>;
+  outputSchema: ZodType<TOutput>;
+  program: (input: TInput) => Effect.Effect<TOutput, Error, never>;
+};
 
 // A captured composition. The root is the final NodeRef; the defs
 // map is keyed by the NodeKey string; the edges are the recorded
 // chain/bridge/thenLoop connections.
 export type CompositionTree = {
-  root: NodeRef
-  defs: Map<string, NodeDefinition>
-  edges: ReadonlyArray<Edge>
-}
+  root: NodeRef;
+  defs: Map<string, NodeDefinition>;
+  edges: ReadonlyArray<Edge>;
+};
 
 // Internal: a per-compose builder. Combinators check the module-
 // level `currentBuilder` and, if set, record into it.
 type Builder = {
-  defs: Map<string, NodeDefinition>
-  edges: Edge[]
-}
+  defs: Map<string, NodeDefinition>;
+  edges: Edge[];
+};
 
-let currentBuilder: Builder | null = null
+let currentBuilder: Builder | null = null;
 
 // compose: run a composition expression and capture its defs and
 // edges. The returned CompositionTree is what init() consumes.
@@ -65,17 +65,17 @@ let currentBuilder: Builder | null = null
 export function compose<P extends string>(
   fn: () => NodeRef<P>,
 ): { tree: CompositionTree; root: NodeRef<P> } {
-  const prev = currentBuilder
-  const builder: Builder = { defs: new Map(), edges: [] }
-  currentBuilder = builder
+  const prev = currentBuilder;
+  const builder: Builder = { defs: new Map(), edges: [] };
+  currentBuilder = builder;
   try {
-    const root = fn()
+    const root = fn();
     return {
       tree: { root: root as NodeRef, defs: builder.defs, edges: builder.edges },
       root,
-    }
+    };
   } finally {
-    currentBuilder = prev
+    currentBuilder = prev;
   }
 }
 
@@ -85,22 +85,20 @@ function recordDef(
   parentKey: string | null,
   bridge: ((parentOut: unknown) => unknown) | undefined,
 ): void {
-  if (!currentBuilder) return
-  currentBuilder.defs.set(key, def)
+  if (!currentBuilder) return;
+  currentBuilder.defs.set(key, def);
   if (parentKey) {
     const edge: Edge = bridge
       ? { from: parentKey as never, to: key as never, bridge }
-      : { from: parentKey as never, to: key as never }
-    currentBuilder.edges.push(edge)
+      : { from: parentKey as never, to: key as never };
+    currentBuilder.edges.push(edge);
   }
 }
 
 // run: create the root node. The path is "root".
-export function run<S extends ZodType>(
-  def: NodeDefinition<z.infer<S>, unknown>,
-): NodeRef<"root"> {
-  recordDef("root", def, null, undefined)
-  return { key: nodeKeyCtor("root") as NodeKey<"root"> }
+export function run<S extends ZodType>(def: NodeDefinition<z.infer<S>, unknown>): NodeRef<"root"> {
+  recordDef("root", def, null, undefined);
+  return { key: nodeKeyCtor("root") as NodeKey<"root"> };
 }
 
 // chain: connect a child to a parent. The child path is `${P}.${K}`.
@@ -108,47 +106,42 @@ export function run<S extends ZodType>(
 export function chain<P extends string, K extends string, S extends ZodType>(
   parent: NodeRef<P>,
   def: NodeDefinition<z.infer<S>, unknown> & { kind: K },
-): NodeRef<`${P}.${K}`>
+): NodeRef<`${P}.${K}`>;
 export function chain<P extends string, TOut, TIn, K extends string>(
   parent: NodeRef<P>,
   bridge: (parentOut: TOut) => TIn,
   def: NodeDefinition<TIn, unknown> & { kind: K },
-): NodeRef<`${P}.${K}`>
+): NodeRef<`${P}.${K}`>;
 export function chain(
   parent: NodeRef<string>,
-  arg2:
-    | (NodeDefinition<unknown, unknown> & { kind: string })
-    | ((parentOut: unknown) => unknown),
+  arg2: (NodeDefinition<unknown, unknown> & { kind: string }) | ((parentOut: unknown) => unknown),
   arg3?: NodeDefinition<unknown, unknown> & { kind: string },
 ): NodeRef<string> {
-  let def: NodeDefinition<unknown, unknown> & { kind: string }
-  let bridge: ((parentOut: unknown) => unknown) | undefined
+  let def: NodeDefinition<unknown, unknown> & { kind: string };
+  let bridge: ((parentOut: unknown) => unknown) | undefined;
   if (typeof arg2 === "function") {
-    bridge = arg2 as (parentOut: unknown) => unknown
-    def = arg3 as NodeDefinition<unknown, unknown> & { kind: string }
+    bridge = arg2 as (parentOut: unknown) => unknown;
+    def = arg3 as NodeDefinition<unknown, unknown> & { kind: string };
   } else {
-    def = arg2 as NodeDefinition<unknown, unknown> & { kind: string }
+    def = arg2 as NodeDefinition<unknown, unknown> & { kind: string };
   }
-  const childKey = `${parent.key as string}.${def.kind}`
-  recordDef(childKey, def, parent.key as string, bridge)
+  const childKey = `${parent.key as string}.${def.kind}`;
+  recordDef(childKey, def, parent.key as string, bridge);
   return {
     key: nodeKeyCtor(childKey) as NodeKey<string>,
-  }
+  };
 }
 
 // all: produce a node whose path is parent's path + ".all".
 export function all<P extends string>(
   parent: NodeRef<P>,
   ..._refs: [...NodeRef[]]
-): NodeRef<`${P}.all`>
+): NodeRef<`${P}.all`>;
 export function all<P extends string>(
   parent: NodeRef<P>,
   _refs: Record<string, NodeRef>,
-): NodeRef<`${P}.all.${string}`>
-export function all(
-  parent: NodeRef<string>,
-  ..._args: unknown[]
-): NodeRef<string> {
+): NodeRef<`${P}.all.${string}`>;
+export function all(parent: NodeRef<string>, ..._args: unknown[]): NodeRef<string> {
   // For the tree, "all" is treated as a virtual node. We do not
   // record an "all" def because the consumer specifies the
   // children explicitly via _refs / _refs-record. The init() walk
@@ -156,7 +149,7 @@ export function all(
   // chain calls that produced the children.
   return {
     key: nodeKeyCtor(`${parent.key as string}.all`) as NodeKey<`${string}.all`>,
-  }
+  };
 }
 
 // thenLoop: produce a family of nodes whose path is parent's path +
@@ -172,11 +165,11 @@ export function thenLoop<P extends string, K extends string>(
   // The body is captured lazily; init() can't run the body. The
   // consumer is expected to pre-populate the family defs in the
   // tree if they want a runnable family.
-  const familyKey = `${parent.key as string}.${_kind}`
+  const familyKey = `${parent.key as string}.${_kind}`;
   // No def is recorded here; the family is body-driven.
-  void _body
-  void _predicate
+  void _body;
+  void _predicate;
   return {
     key: nodeKeyCtor(familyKey) as unknown as NodeKey<`${P}.${K}`>,
-  }
+  };
 }

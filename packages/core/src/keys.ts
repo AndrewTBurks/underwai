@@ -11,15 +11,15 @@
 // "verified"; the path inside a node is opaque to the lib).
 
 export type NodeKey<Path extends string = string> = string & {
-  readonly __path: Path
-  readonly __brand: "NodeKey"
-}
+  readonly __path: Path;
+  readonly __brand: "NodeKey";
+};
 
-export type WorkflowId = string & { readonly __brand: "WorkflowId" }
+export type WorkflowId = string & { readonly __brand: "WorkflowId" };
 
-export type FieldKey = string
+export type FieldKey = string;
 
 export const NodeKey = <Path extends string>(path: Path): NodeKey<Path> =>
-  path as unknown as NodeKey<Path>
+  path as unknown as NodeKey<Path>;
 
-export const WorkflowId = (s: string): WorkflowId => s as WorkflowId
+export const WorkflowId = (s: string): WorkflowId => s as WorkflowId;

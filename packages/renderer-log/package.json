@@ -2,8 +2,8 @@
   "name": "@underwai/renderer-log",
   "version": "0.0.0",
   "description": "Stdout log renderer for the underwAI workflow runtime. The smallest possible consumer.",
-  "type": "module",
   "license": "Apache-2.0",
+  "type": "module",
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"

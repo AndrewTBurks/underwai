@@ -49,7 +49,7 @@ last_reconciled: 2026-06-06
 
 # @underwai/runner
 
-The runner. Owns the Effect fiber that walks the DAG. Provides `WorkflowRuntime` to consumer `Effect.gen` programs so they can call `publish` / `write` / `writeHumanInput` without state-threading. The lib is a runtime for Effect programs; this package *is* that runtime.
+The runner. Owns the Effect fiber that walks the DAG. Provides `WorkflowRuntime` to consumer `Effect.gen` programs so they can call `publish` / `write` / `writeHumanInput` without state-threading. The lib is a runtime for Effect programs; this package _is_ that runtime.
 
 ## What lives here
 
@@ -72,7 +72,7 @@ The pre-shard file plan:
 
 When v1.0 implementation begins, the agent reads this file, opens `.cns/architecture/index.md` and `.cns/architecture/node.md` for the state machine and per-status semantics, and implements the runner.
 
-The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the runner fiber model, the mid-execution interrupt policy, the re-execution coalescing rule, and the WorkflowRuntime service contract. Prose in the body is for the file plan and the boundary; the *why* lives in the decisions array.
+The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the runner fiber model, the mid-execution interrupt policy, the re-execution coalescing rule, and the WorkflowRuntime service contract. Prose in the body is for the file plan and the boundary; the _why_ lives in the decisions array.
 
 The runner is the most non-trivial piece of the lib. The state machine has seven statuses, six valid transitions, and the mid-execution interrupt. The composition is: `findReadyNodes` → `stepInternal` (run a single ready node's Effect, handle transitions) → loop until no ready nodes → re-run on stale/paused-closed.
 

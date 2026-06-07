@@ -13,6 +13,7 @@ last_reconciled: 2026-06-06
 ---
 
 # Architecture
+
 ## Principles in this layer
 
 **Boundary discipline.** The data model is the boundary. Every value crossing the boundary is validated against a Zod schema. The lib's internal types are trusted; the lib's external data (workflow state, effect programs, human inputs) is parsed at the edge. Validation is concentrated, not scattered.
@@ -37,7 +38,7 @@ Seven statuses. Each has a distinct purpose, a distinct renderer implication, an
 
 **Renderer.** Show a "running" indicator (spinner, "thinking..." text). Do not show a value.
 
-**Runner.** The effect is in flight. The runner has scheduled it; an in-flight fiber is executing it. While `running`, the node's input is *not* reread; a concurrent `writeHumanInput` is recorded for the next ready transition (see TASK-A).
+**Runner.** The effect is in flight. The runner has scheduled it; an in-flight fiber is executing it. While `running`, the node's input is _not_ reread; a concurrent `writeHumanInput` is recorded for the next ready transition (see TASK-A).
 
 ### `streaming`
 
@@ -53,7 +54,7 @@ Seven statuses. Each has a distinct purpose, a distinct renderer implication, an
 
 **Renderer.** Show the final output. This is the terminal success state.
 
-**Runner.** The `finalOutput` field is set. The node is in `findReadyNodes` *only* if its input changes (transitions to `stale`). Otherwise, it stays `resolved` forever.
+**Runner.** The `finalOutput` field is set. The node is in `findReadyNodes` _only_ if its input changes (transitions to `stale`). Otherwise, it stays `resolved` forever.
 
 ### `failed`
 
@@ -69,7 +70,7 @@ Seven statuses. Each has a distinct purpose, a distinct renderer implication, an
 
 **Renderer.** Show a "needs your input" affordance. Display the proposed value (or empty, if no upstream seed). The human's write un-pauses the node.
 
-**Runner.** The `verified` gate is open. The runner sees the input is not complete (a `verified` field is `pending`). The node is *not* in `findReadyNodes`. The gate closes when `writeHumanInput` is called, which sets the field to `"set"`. The runner then treats the node as `pending` (input is now complete) and the next step picks it up: `pending → running`.
+**Runner.** The `verified` gate is open. The runner sees the input is not complete (a `verified` field is `pending`). The node is _not_ in `findReadyNodes`. The gate closes when `writeHumanInput` is called, which sets the field to `"set"`. The runner then treats the node as `pending` (input is now complete) and the next step picks it up: `pending → running`.
 
 ### `stale`
 
@@ -81,25 +82,25 @@ Seven statuses. Each has a distinct purpose, a distinct renderer implication, an
 
 ## The data structure (key-addressable, flat, single source of truth)
 
-The data structure is a flat DAG of typed nodes plus an edge list, with **every node addressable by a deterministic, type-safe key**. It is JSON-serializable and is the *only* state. There is no separate runtime memory.
+The data structure is a flat DAG of typed nodes plus an edge list, with **every node addressable by a deterministic, type-safe key**. It is JSON-serializable and is the _only_ state. There is no separate runtime memory.
 
 ### `WorkflowState`
 
 ```ts
 type WorkflowState = {
-  id: WorkflowId
-  version: number
-  status: 'pending' | 'running' | 'paused' | 'completed' | 'failed'
+  id: WorkflowId;
+  version: number;
+  status: "pending" | "running" | "paused" | "completed" | "failed";
 
   // Key-addressable. O(1) lookup by path.
-  nodes: Record<string, Node>
+  nodes: Record<string, Node>;
   // Edges are structural metadata; not directly addressed.
-  edges: ReadonlyArray<Edge>
+  edges: ReadonlyArray<Edge>;
 
-  createdAt: string
-  updatedAt: string
-  error?: SerializedError
-}
+  createdAt: string;
+  updatedAt: string;
+  error?: SerializedError;
+};
 ```
 
 ### `Node`
@@ -115,37 +116,37 @@ type WorkflowState = {
 
 ```ts
 type ResolvedInput = {
-  fields: Record<FieldKey, InputSource>
-}
+  fields: Record<FieldKey, InputSource>;
+};
 
 type InputSource =
-  | { kind: 'literal'; value: unknown }
-  | { kind: 'from_node'; nodeId: NodeKey }      // multi-parent is implicit
+  | { kind: "literal"; value: unknown }
+  | { kind: "from_node"; nodeId: NodeKey } // multi-parent is implicit
   | {
-      kind: 'human'
-      fieldSchema: ZodTypeAny
-      value?: unknown
-      status: 'pending' | 'set'
-    }
+      kind: "human";
+      fieldSchema: ZodTypeAny;
+      value?: unknown;
+      status: "pending" | "set";
+    };
 ```
 
 ### `Edge`
 
 ```ts
 type Edge = {
-  from: NodeKey
-  to: NodeKey
-  toField: FieldKey
-}
+  from: NodeKey;
+  to: NodeKey;
+  toField: FieldKey;
+};
 ```
 
 ### `NodeKey`
 
 ```ts
 type NodeKey<Path extends string = string> = string & {
-  readonly __path: Path
-  readonly __brand: 'NodeKey'
-}
+  readonly __path: Path;
+  readonly __brand: "NodeKey";
+};
 ```
 
 The `Path` is a template-literal type carried through the composition API. Consumers never construct `NodeKey` directly — the composition API produces them.
@@ -194,11 +195,11 @@ pending → running → resolved
 
 `pending → running` is direct: the runner picks up `pending` nodes whose inputs are complete. The `paused` state is a parallel state entered before the node first runs. When a node has `verified` fields in its input schema and the gate is open (the field's source is `{ kind: "human", status: "pending" }`), the node is `paused` until `writeHumanInput` is called, which sets the field to `status: "set"`, closes the gate, and the runner then sees the input as complete and transitions to `running`.
 
-When an upstream re-execution changes a node's input, the node's status flips to `stale` (not `paused`). When the runner picks up the `stale` node, it transitions to `running`, and *if* the input has `verified` fields, it transitions to `paused` for re-confirmation.
+When an upstream re-execution changes a node's input, the node's status flips to `stale` (not `paused`). When the runner picks up the `stale` node, it transitions to `running`, and _if_ the input has `verified` fields, it transitions to `paused` for re-confirmation.
 
 **Staleness propagation:** when a node goes `stale`, the downstream subtree is marked `stale` too. Sibling subtrees (other branches of a fan-out that don't depend on the changed input) are unaffected. `findSubtree(state, staleNodeKey)` returns the descendants to invalidate.
 
-`findReadyNodes(state): ReadonlyArray<NodeKey>` returns nodes whose inputs are complete and whose status is `pending` or `stale`, **in dependency order** (Kahn's algorithm from `edgesByFrom`). `paused` is *not* returned (the input is not complete). The runner iterates the array in order and transitions each node to `running`. See `## Statuses` above for the per-status semantics.
+`findReadyNodes(state): ReadonlyArray<NodeKey>` returns nodes whose inputs are complete and whose status is `pending` or `stale`, **in dependency order** (Kahn's algorithm from `edgesByFrom`). `paused` is _not_ returned (the input is not complete). The runner iterates the array in order and transitions each node to `running`. See `## Statuses` above for the per-status semantics.
 
 ## Subscription (Node-granularity, not event-granularity)
 
@@ -207,8 +208,8 @@ function subscribe(
   state: WorkflowState,
   key: NodeKey,
   onUpdate: (node: Node) => void,
-  opts?: { prefix?: boolean }
-): Subscription
+  opts?: { prefix?: boolean },
+): Subscription;
 ```
 
 The callback receives the **full updated `Node`**. The consumer's renderer switches on `node.status`:
@@ -216,20 +217,34 @@ The callback receives the **full updated `Node`**. The consumer's renderer switc
 ```ts
 subscribe(state, "root.refine.final" as NodeKey, (node) => {
   switch (node.status) {
-    case "pending":   renderPending(); break
-    case "running":   renderRunning(); break
-    case "streaming": renderStreaming(node.output); break
-    case "resolved":  renderResolved(node.finalOutput); break
-    case "paused":    renderPaused(node); break
-    case "stale":     renderStale(node); break
-    case "failed":    renderFailed(node); break
+    case "pending":
+      renderPending();
+      break;
+    case "running":
+      renderRunning();
+      break;
+    case "streaming":
+      renderStreaming(node.output);
+      break;
+    case "resolved":
+      renderResolved(node.finalOutput);
+      break;
+    case "paused":
+      renderPaused(node);
+      break;
+    case "stale":
+      renderStale(node);
+      break;
+    case "failed":
+      renderFailed(node);
+      break;
   }
-})
+});
 ```
 
 Subscription matches by key prefix by default. `subscribe(state, "root.refine", onUpdate)` matches every node in the loop family. The consumer can opt into exact match: `subscribe(state, "root.refine.final", onUpdate, { exact: true })`.
 
-**Wire format (v1.1+) is `WorkflowEvent`-driven.** Transports (SSE, WebSocket) consume a more minimal `WorkflowEvent` stream from the runner. The in-process `Node`-granularity model is a *projection* of the same event log.
+**Wire format (v1.1+) is `WorkflowEvent`-driven.** Transports (SSE, WebSocket) consume a more minimal `WorkflowEvent` stream from the runner. The in-process `Node`-granularity model is a _projection_ of the same event log.
 
 ## Streaming (accumulator + final)
 
@@ -246,23 +261,23 @@ A consumer that doesn't want streaming simply doesn't call `publish` — the nod
 ```ts
 declare module "zod" {
   namespace z {
-    function human<T extends ZodTypeAny>(schema: T): HumanSchema<T>
+    function human<T extends ZodTypeAny>(schema: T): HumanSchema<T>;
   }
 }
 
 type HumanSchema<T> = T & {
-  __humanMode: HumanMode
-  verified(): HumanSchema<T>
-}
+  __humanMode: HumanMode;
+  verified(): HumanSchema<T>;
+};
 ```
 
-`z.human(z.string())` flags a field as human-writable. `.verified()` is a decorator that gates on human confirmation *before* the node runs.
+`z.human(z.string())` flags a field as human-writable. `.verified()` is a decorator that gates on human confirmation _before_ the node runs.
 
 **Two modes:**
 
 - `z.human(z.string())` — `__humanMode: "writeable"`. The field is human-writable. The node runs with the seeded value (from upstream, or `undefined` if no seed). The human can update the field later via `writeHumanInput`, which marks the node `stale` and propagates `stale` downstream.
 
-- `z.human(z.string()).verified()` — `__humanMode: "verified"`. The field is human-writable AND the node pauses for human confirmation *before* running. The human *must* engage.
+- `z.human(z.string()).verified()` — `__humanMode: "verified"`. The field is human-writable AND the node pauses for human confirmation _before_ running. The human _must_ engage.
 
 ### One API: `writeHumanInput`
 
@@ -276,7 +291,7 @@ The "starting value" the human sees (proposed, current, or empty) is a property 
 
 ### Verified gate resets on parent re-execution
 
-When an upstream re-execution changes a node's input, the node's status flips to `stale` and (when the runner picks it up) to `paused` again. The gate is tied to the node's *input*, not the workflow's identity.
+When an upstream re-execution changes a node's input, the node's status flips to `stale` and (when the runner picks it up) to `paused` again. The gate is tied to the node's _input_, not the workflow's identity.
 
 ## Decisions (2026-06-06 arena + design conversation)
 

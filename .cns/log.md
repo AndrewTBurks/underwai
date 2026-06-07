@@ -5,6 +5,7 @@
 **Bootstrap.** Project initialized with the design conversation distilled into the central nervous system. Created `.cns/` with `index.md`, `architecture/`, `design/`, `product/`, `research/`, `intent.md`, `log.md`, `plans/`, `graph.json`.
 
 **Decisions captured:**
+
 - Name: `underwAI` (lowercase, capital "AI"). The "way" is the workflow; the AI is the resolver.
 - License: Apache-2.0. Adoption > copyleft; patent grant matters for AI libs.
 - Data structure: flat typed DAG, JSON-serializable, the only state.
@@ -29,7 +30,7 @@
 - **Base picked:** Candidate 3. Cross-judge scores: C1=22, C2=26, C3=29, C4=28. C3 wins on the "runner is boring" criterion. C3 and C4 converge on three of four pivots; the divergence on type system mechanics is a v1.x refinement.
 
 - **Grafts:**
-  - From C4: the *concept* of a `defineNode` helper as a v1.1 feature.
+  - From C4: the _concept_ of a `defineNode` helper as a v1.1 feature.
   - From C2: the in-process `WorkflowEventBus` as the reference transport.
 
 - **Rejections:** C1's explicit `ReduceNode`, C1's path-on-from_node, C1's field-level streaming, C2's in-process-only transport, C4's `defineNode` in v1.
@@ -76,7 +77,6 @@ The revision is substantial. The new design is key-addressable, has a stricter c
 **20 load-bearing decisions** captured in the design doc. Tradeoffs accepted: composition API restrictiveness, schema+Effect program dual contract without compile-time enforcement, whole-Node subscription callbacks, family-of-nodes loop shape, single human-input API, no `Readonly` wrappers, etc.
 
 **CNS health gate green:** validate.py PASSED, graph.py --check OK.
-
 
 ---
 
@@ -138,6 +138,7 @@ The revision is substantial. The new design is key-addressable, has a stricter c
 - `NodeKey` is branded and carries a `Path` template-literal generic. Combinator signatures thread the path through.
 
 **Pivots from the original plan:**
+
 - TASK-C: dropped `{ prefix: true }` knob; added `subscribeSet` with a pattern grammar.
 - TASK-D: absorbed into TASK-C.
 - TASK-G + J + K + S: `Node["status"]` is a discriminated union; per-status data lives on the variants.
@@ -145,11 +146,12 @@ The revision is substantial. The new design is key-addressable, has a stricter c
 - TASK-I: Path generic is non-negotiable; combinators carry the path.
 - TASK-R: no `topologicalOrder` field; `findReadyNodes` returns in dependency order.
 
-**The 7-status state machine is intact.** `pending` → `running` → `streaming` → `resolved`; `pending`/`running` → `paused` → `pending` (verified gate); `running`/`streaming` → `stale` (input change); `running`/`streaming` → `failed` (effect failure); `paused` is *not* in `findReadyNodes`.
+**The 7-status state machine is intact.** `pending` → `running` → `streaming` → `resolved`; `pending`/`running` → `paused` → `pending` (verified gate); `running`/`streaming` → `stale` (input change); `running`/`streaming` → `failed` (effect failure); `paused` is _not_ in `findReadyNodes`.
 
 **CNS health gate green.** `tsc --noEmit` green. 14 design commits + 6 docs commits = 20 commits since the start of Phase 1. The repo is at a clean checkpoint ready for Phase 2 (implementation).
 
 **What Phase 2 needs:**
+
 - The lib's `init` (build state from composition expression). Stub throws; needs to walk the composition tree, populate nodes and edges, build edgesByTarget/edgesByFrom.
 - The lib's `findReadyNodes` (Kahn's algorithm in dependency order).
 - The lib's mutation primitives (`publish`, `write`, `writeHumanInput`) — the consumer-facing half of the `WorkflowRuntime` service.
@@ -216,22 +218,22 @@ function: RED, watch fail, GREEN, refactor.
 
 12 new tests added across three test files. 73/73 green.
 
-  - `core/compose(fn)`: wraps a composition expression in a
-    per-compose Builder. The combinators (run, chain, all,
-    thenLoop) record their defs and edges into the Builder.
-    Result: a CompositionTree that init() can walk. DEC-CORE-015.
-  - `core/init(tree, id)`: walks CompositionTree.defs, builds
-    nodes + edges + derived fields. Replaces the pre-shard stub.
-    DEC-CORE-016.
-  - `core/getHumanInputDisplay(state, node, fieldKey)`: real
-    implementation. Source kind: literal / from_node / human
-    (with status pending or set). The function now takes state
-    so it can read edgesByTarget. DEC-CORE-017.
-  - `core/publish(state, key, output, partial, now)` and
-    `core/write(state, key, value)`: public mutation primitives
-    in core/operations.ts. The runner still inlines markStreaming
-    in runtime.ts; the migration to use core's publish is
-    TASK-31. DEC-CORE-018.
+- `core/compose(fn)`: wraps a composition expression in a
+  per-compose Builder. The combinators (run, chain, all,
+  thenLoop) record their defs and edges into the Builder.
+  Result: a CompositionTree that init() can walk. DEC-CORE-015.
+- `core/init(tree, id)`: walks CompositionTree.defs, builds
+  nodes + edges + derived fields. Replaces the pre-shard stub.
+  DEC-CORE-016.
+- `core/getHumanInputDisplay(state, node, fieldKey)`: real
+  implementation. Source kind: literal / from_node / human
+  (with status pending or set). The function now takes state
+  so it can read edgesByTarget. DEC-CORE-017.
+- `core/publish(state, key, output, partial, now)` and
+  `core/write(state, key, value)`: public mutation primitives
+  in core/operations.ts. The runner still inlines markStreaming
+  in runtime.ts; the migration to use core's publish is
+  TASK-31. DEC-CORE-018.
 
 Follow-up: TASK-31 (runner integration test) re-attempts the
 test that was rolled back on 2026-06-07.
@@ -253,14 +255,14 @@ Plan: 4 tests per the original TASK-31 spec.
 4 new tests in packages/runner/src/runtime.test.ts. 77/77
 green. DEC-RUNNER-009 closed.
 
-  - test 1: single-node workflow drives pending -> running ->
-    resolved, then workflow status === "completed".
-  - test 2: a failing program marks the node failed and the
-    workflow status === "failed".
-  - test 3: subscribers are notified >= 2 times during a
-    single-node flow (markRunning + markResolved).
-  - test 4: a 3-node workflow drives root -> a -> b in
-    dependency order.
+- test 1: single-node workflow drives pending -> running ->
+  resolved, then workflow status === "completed".
+- test 2: a failing program marks the node failed and the
+  workflow status === "failed".
+- test 3: subscribers are notified >= 2 times during a
+  single-node flow (markRunning + markResolved).
+- test 4: a 3-node workflow drives root -> a -> b in
+  dependency order.
 
 The runtime now accepts state.status "pending" as a valid
 starting state (was previously an early-exit). The orchestrator
@@ -275,42 +277,43 @@ wire format, and no SSE/WebSocket transports. The package's
 index.ts is empty.
 
 Plan:
-  - transport/live.ts: a LiveSubscriptionRegistry (re-uses the
-    runner's SubscriptionRegistry contract).
-  - transport/event-stream.ts: the WorkflowEvent discriminated
-    union, JSON-serializable, round-trippable.
-  - transport/transports/sse.ts: SSE structure (open/write/close).
-  - transport/transports/ws.ts: WebSocket structure.
-  - transport/index.ts: re-exports the public surface.
+
+- transport/live.ts: a LiveSubscriptionRegistry (re-uses the
+  runner's SubscriptionRegistry contract).
+- transport/event-stream.ts: the WorkflowEvent discriminated
+  union, JSON-serializable, round-trippable.
+- transport/transports/sse.ts: SSE structure (open/write/close).
+- transport/transports/ws.ts: WebSocket structure.
+- transport/index.ts: re-exports the public surface.
 
 ## 2026-06-07 — TASK-32 done: transport wire format + live subscription
 
 11 new tests added. 89/89 green. CNS validates.
 
-  - core/live.ts: LiveSubscriptionRegistry. One fan-out
-    primitive; transport wraps it with pattern matching,
-    runner wires it into RunOptions.liveRegistry. DEC-TRANSPORT-008.
-  - core/live.test.ts: 3 tests for register/notify/unsubscribe.
-  - transport/subscribe.ts: subscribe(registry, key, cb) and
-    subscribeSet(registry, pattern, cb) are now live (callbacks
-    fire on every notify, not just once). subscribe.test.ts
-    updated: 6 tests pass.
-  - transport/event-stream.ts: WorkflowEvent discriminated
-    union (6 kinds: node-added, node-updated, node-removed,
-    edge-added, edge-removed, workflow-status). JSON
-    serializable. encodeSseEvent formats SSE wire.
-  - transport/event-stream.test.ts: 3 tests for
-    roundtrip + SSE encoding + reject malformed.
-  - transport/transports/sse.ts: SseServer + SseClient.
-    Open(registry, sink) subscribes and writes SSE messages.
-    Parse(stream) yields WorkflowEvents. 2 tests.
-  - transport/transports/ws.ts: WsServer + WsClient. Same
-    pattern, JSON frames instead of SSE. 2 tests.
-  - transport/index.ts: re-exports the public surface.
-    Was `export {}` before.
-  - runner/runtime.ts: RunOptions accepts liveRegistry.
-    After every state mutation, runtime calls
-    liveRegistry.notify(result). 1 new test exercises this.
+- core/live.ts: LiveSubscriptionRegistry. One fan-out
+  primitive; transport wraps it with pattern matching,
+  runner wires it into RunOptions.liveRegistry. DEC-TRANSPORT-008.
+- core/live.test.ts: 3 tests for register/notify/unsubscribe.
+- transport/subscribe.ts: subscribe(registry, key, cb) and
+  subscribeSet(registry, pattern, cb) are now live (callbacks
+  fire on every notify, not just once). subscribe.test.ts
+  updated: 6 tests pass.
+- transport/event-stream.ts: WorkflowEvent discriminated
+  union (6 kinds: node-added, node-updated, node-removed,
+  edge-added, edge-removed, workflow-status). JSON
+  serializable. encodeSseEvent formats SSE wire.
+- transport/event-stream.test.ts: 3 tests for
+  roundtrip + SSE encoding + reject malformed.
+- transport/transports/sse.ts: SseServer + SseClient.
+  Open(registry, sink) subscribes and writes SSE messages.
+  Parse(stream) yields WorkflowEvents. 2 tests.
+- transport/transports/ws.ts: WsServer + WsClient. Same
+  pattern, JSON frames instead of SSE. 2 tests.
+- transport/index.ts: re-exports the public surface.
+  Was `export {}` before.
+- runner/runtime.ts: RunOptions accepts liveRegistry.
+  After every state mutation, runtime calls
+  liveRegistry.notify(result). 1 new test exercises this.
 
 The wiring closes the runner -> transport -> renderer data
 path. Renderers can now subscribe to a live state and get
@@ -319,33 +322,34 @@ real-time updates.
 ## 2026-06-07 — TASK-33 start: renderer-react
 
 Scaffold the React adapter package. Plan:
-  - package.json with @underwai/core + react peer deps.
-  - vitest.config.ts.
-  - provider.tsx: <WorkflowProvider registry={...} state={...} />.
-  - hooks.ts: useWorkflowState, useNode, useSubtree (useSyncExternalStore).
-  - registry.tsx: registerKind(kind, fn), getKindRenderer(kind).
-  - auto-render.tsx: <AutoRender state={...} /> walks DAG.
-  - index.ts: re-exports.
-  - 1 test: register a renderer, instantiate state with 3 nodes,
-    assert the renderer is called for each. Skip RTL.
+
+- package.json with @underwai/core + react peer deps.
+- vitest.config.ts.
+- provider.tsx: <WorkflowProvider registry={...} state={...} />.
+- hooks.ts: useWorkflowState, useNode, useSubtree (useSyncExternalStore).
+- registry.tsx: registerKind(kind, fn), getKindRenderer(kind).
+- auto-render.tsx: <AutoRender state={...} /> walks DAG.
+- index.ts: re-exports.
+- 1 test: register a renderer, instantiate state with 3 nodes,
+  assert the renderer is called for each. Skip RTL.
 
 ## 2026-06-07 — TASK-33 done: renderer-react
 
 5 source files + 1 test. 92/92 green. CNS validates.
 
-  - provider.tsx: <WorkflowProvider registry state children> wires
-    LiveSubscriptionRegistry + WorkflowState into React context.
-  - hooks.ts: useWorkflowState, useNode, useSubtree. All use
-    useSyncExternalStore. (DEC-RR-001.)
-  - registry.tsx: registerKind, getKindRenderer, clearRegistry,
-    defaultRenderer. (DEC-RR-002.)
-  - auto-render.tsx: <AutoRender state={...} /> walks the DAG
-    and calls each registered kind renderer. Unknown kinds use
-    defaultRenderer. (DEC-RR-003.)
-  - index.ts: re-exports.
-  - index.test.ts: 3 tests. Asserts on the *call* to render
-    (kind match) and on the element's props (data-auto-render),
-    not the rendered DOM. Per the audit: skip RTL. (DEC-RR-004.)
+- provider.tsx: <WorkflowProvider registry state children> wires
+  LiveSubscriptionRegistry + WorkflowState into React context.
+- hooks.ts: useWorkflowState, useNode, useSubtree. All use
+  useSyncExternalStore. (DEC-RR-001.)
+- registry.tsx: registerKind, getKindRenderer, clearRegistry,
+  defaultRenderer. (DEC-RR-002.)
+- auto-render.tsx: <AutoRender state={...} /> walks the DAG
+  and calls each registered kind renderer. Unknown kinds use
+  defaultRenderer. (DEC-RR-003.)
+- index.ts: re-exports.
+- index.test.ts: 3 tests. Asserts on the _call_ to render
+  (kind match) and on the element's props (data-auto-render),
+  not the rendered DOM. Per the audit: skip RTL. (DEC-RR-004.)
 
 The renderer is a thin adapter over the LiveSubscriptionRegistry.
 Consumers compose their own UI from useNode, useSubtree,
@@ -354,24 +358,25 @@ useWorkflowState.
 ## 2026-06-07 — TASK-34 start: renderer-log
 
 The smallest possible renderer. Two files:
-  - registry.ts: kind -> (node, indent) => string.
-  - runner.ts: runLogRenderer(registry, state, opts?) subscribes
-    via subscribeSet(registry, "*", ...) and prints each notify.
+
+- registry.ts: kind -> (node, indent) => string.
+- runner.ts: runLogRenderer(registry, state, opts?) subscribes
+  via subscribeSet(registry, "\*", ...) and prints each notify.
 
 ## 2026-06-07 — TASK-34 done: renderer-log
 
 3 source files (registry, runner, index). 3 tests. 95/95
 green. CNS validates.
 
-  - registry.ts: kind -> (node, indent) -> string. Default
-    renderer prints "<indent><kind> (<status>)". (DEC-RL-001.)
-  - runner.ts: runLogRenderer(registry, initialState,
-    {print, getState}) subscribes via subscribeSet(registry,
-    "*", onUpdate). On every notify, calls getState() and walks
-    the DAG. (DEC-RL-002.)
-  - index.test.ts: 3 tests. Initial render prints all 3
-    kinds with indentation by depth. Re-render on registry
-    notify works.
+- registry.ts: kind -> (node, indent) -> string. Default
+  renderer prints "<indent><kind> (<status>)". (DEC-RL-001.)
+- runner.ts: runLogRenderer(registry, initialState,
+  {print, getState}) subscribes via subscribeSet(registry,
+  "\*", onUpdate). On every notify, calls getState() and walks
+  the DAG. (DEC-RL-002.)
+- index.test.ts: 3 tests. Initial render prints all 3
+  kinds with indentation by depth. Re-render on registry
+  notify works.
 
 The runner takes a getState function from the consumer (the
 consumer owns the state). This is the v1.0 wire; a v1.1 could
@@ -399,17 +404,18 @@ judgment calls surfaced in-task (TASK-37, TASK-38, TASK-40
 each have a "JUDGMENT CALL — surface to user" callout).
 
 Tasks 35-43:
-  - TASK-35: bridge resolution + Fiber.interrupt (v1.0 contract
-    breaks; the two highest-priority fixes).
-  - TASK-36: SubscriptionRegistry duplication (one registry,
-    three adapters).
-  - TASK-37: WorkflowRuntime service shape (JUDGMENT CALL).
-  - TASK-38: DEC-CORE-018 reconciliation (JUDGMENT CALL).
-  - TASK-39: wording-drift partials reconcile (doc-only).
-  - TASK-40: prune phantom exports + YAML fix (small deletions).
-  - TASK-41: subscribeSet exact-key pattern (3-line fix).
-  - TASK-42: architecture doc stale on ResolvedInput (doc-only).
-  - TASK-43: WsClient typed send API.
+
+- TASK-35: bridge resolution + Fiber.interrupt (v1.0 contract
+  breaks; the two highest-priority fixes).
+- TASK-36: SubscriptionRegistry duplication (one registry,
+  three adapters).
+- TASK-37: WorkflowRuntime service shape (JUDGMENT CALL).
+- TASK-38: DEC-CORE-018 reconciliation (JUDGMENT CALL).
+- TASK-39: wording-drift partials reconcile (doc-only).
+- TASK-40: prune phantom exports + YAML fix (small deletions).
+- TASK-41: subscribeSet exact-key pattern (3-line fix).
+- TASK-42: architecture doc stale on ResolvedInput (doc-only).
+- TASK-43: WsClient typed send API.
 
 Execution order: 35 -> 36 -> [37 + 38 with clarifies] -> 41
 -> 43 -> 42 -> 40 -> 39. The 3 judgment-call tasks block on
@@ -422,16 +428,16 @@ CNS health gate: validate.py PASSED, graph.json OK.
 Plan-mode interview closed all 3 in-task judgment calls on
 TASK-37, TASK-38, TASK-40.
 
-  - TASK-37: WorkflowRuntime service = { publish, write,
-    writeHumanInput }. write = consumer injection; program
-    returns final output via Effect. Workflow-level 'paused'
-    deleted from state machine (7 -> 6). Per-node 'paused'
-    unaffected.
-  - TASK-38: delete core's publish/write. Runner is the only
-    mutator. Core becomes pure data-model + composition
-    layer.
-  - TASK-40 (writeHumanInput sub-bullet): delete the public
-    export, drop the _fiber/_stateRef parameters.
+- TASK-37: WorkflowRuntime service = { publish, write,
+  writeHumanInput }. write = consumer injection; program
+  returns final output via Effect. Workflow-level 'paused'
+  deleted from state machine (7 -> 6). Per-node 'paused'
+  unaffected.
+- TASK-38: delete core's publish/write. Runner is the only
+  mutator. Core becomes pure data-model + composition
+  layer.
+- TASK-40 (writeHumanInput sub-bullet): delete the public
+  export, drop the \_fiber/\_stateRef parameters.
 
 Intent.md patched with the resolved shapes. Execution order
 updated: no judgment-call tasks block on a `clarify` anymore.
@@ -447,14 +453,15 @@ example workflows first validates the design before TASK-35
 through TASK-43 lock it in.
 
 Resolved (plan-mode interview):
-  - 3 examples: linear pipeline w/ bridge, human-in-the-loop,
-    live subscription wall display.
-  - Single `packages/examples/` Vite app, three sub-routes.
-    Deployable, buildable, runs in CI.
-  - Examples first, then design audit (TASK-45), then the
-    fix tasks. Sequential, not parallel.
-  - Examples are real committed code (not sketches); the
-    "build and deploy" framing resolved the question.
+
+- 3 examples: linear pipeline w/ bridge, human-in-the-loop,
+  live subscription wall display.
+- Single `packages/examples/` Vite app, three sub-routes.
+  Deployable, buildable, runs in CI.
+- Examples first, then design audit (TASK-45), then the
+  fix tasks. Sequential, not parallel.
+- Examples are real committed code (not sketches); the
+  "build and deploy" framing resolved the question.
 
 TASK-44 added to intent.md: scaffold the examples package,
 write the three compositions + renderers, expand
@@ -481,7 +488,7 @@ injects values from outside the program). No pause method.
 The service holds the state. WorkflowRuntimeLive(opts)
 constructs a fresh service with its own stateRef. The
 stateRef is the source of truth; consumers call
-writeHumanInput *before* run, then run, and the run sees
+writeHumanInput _before_ run, then run, and the run sees
 the mutated state.
 
 WorkflowStatus reduced from 5 to 4: removed "paused".
@@ -504,10 +511,11 @@ deleted. Core is now a pure data + composition layer with
 no mutation primitives. The runner is the only mutator.
 
 Files:
-  - packages/core/src/operations.ts (-30 lines: publish and
-    write removed)
-  - packages/core/src/index.ts (re-exports cleaned)
-  - packages/core/src/publish-write.test.ts (DELETED: 3 tests)
+
+- packages/core/src/operations.ts (-30 lines: publish and
+  write removed)
+- packages/core/src/index.ts (re-exports cleaned)
+- packages/core/src/publish-write.test.ts (DELETED: 3 tests)
 
 Tests: 95/95 across the monorepo (was 98, minus the 3
 removed tests). The runner's 16 tests cover the same
@@ -536,27 +544,29 @@ description; the supported injection pattern is
 `write`/`writeHumanInput` before `run`.
 
 Side effects:
-  - `markPaused` no longer sets workflow-level "paused"
-    (phantom slot, removed in TASK-37). Per-node paused
-    survives.
-  - The runtime test for `markPaused` updated.
-  - serialize/deserialize: bridges are functions and
-    don't survive serialization. This is a known
-    limitation; consumers who need to serialize must
-    re-attach bridges. Documented in the resolveInput
-    test.
+
+- `markPaused` no longer sets workflow-level "paused"
+  (phantom slot, removed in TASK-37). Per-node paused
+  survives.
+- The runtime test for `markPaused` updated.
+- serialize/deserialize: bridges are functions and
+  don't survive serialization. This is a known
+  limitation; consumers who need to serialize must
+  re-attach bridges. Documented in the resolveInput
+  test.
 
 Files:
-  - packages/core/src/operations.ts (+resolveInput)
-  - packages/core/src/index.ts (re-export)
-  - packages/core/src/resolve-input.test.ts (4 tests, all
-    pass)
-  - packages/runner/src/runtime.ts (use resolveInput)
-  - packages/runner/src/mutations.ts (markPaused cleanup)
-  - packages/runner/src/mutations.test.ts (markPaused test
-    updated)
-  - packages/runner/src/runtime.test.ts (bridge test +
-    write-before-run test)
+
+- packages/core/src/operations.ts (+resolveInput)
+- packages/core/src/index.ts (re-export)
+- packages/core/src/resolve-input.test.ts (4 tests, all
+  pass)
+- packages/runner/src/runtime.ts (use resolveInput)
+- packages/runner/src/mutations.ts (markPaused cleanup)
+- packages/runner/src/mutations.test.ts (markPaused test
+  updated)
+- packages/runner/src/runtime.test.ts (bridge test +
+  write-before-run test)
 
 Tests: 101/101 across the monorepo. tsc clean.
 
@@ -566,13 +576,13 @@ The runner's phantom `SubscriptionRegistry` (Effect Context.Tag)
 was deleted in TASK-37. The runtime now uses two registries with
 distinct purposes:
 
-  1. In-process `subs` Set: subscribers of the WorkflowRuntime
-     service (yield* rt.subscribe). Used by tests and by
-     service-aware consumers.
-  2. `LiveSubscriptionRegistry` from @underwai/core: the
-     cross-package live registry. The runtime, transport's
-     subscribe/subscribeSet, and the renderers all wire into
-     this. Single source of truth for live updates.
+1. In-process `subs` Set: subscribers of the WorkflowRuntime
+   service (yield\* rt.subscribe). Used by tests and by
+   service-aware consumers.
+2. `LiveSubscriptionRegistry` from @underwai/core: the
+   cross-package live registry. The runtime, transport's
+   subscribe/subscribeSet, and the renderers all wire into
+   this. Single source of truth for live updates.
 
 The audit's "three adapters" concern is closed: there are now
 two adapters (service subscribe + LiveSubscriptionRegistry) with
@@ -582,8 +592,9 @@ A test confirms that both paths are notified on every state
 transition.
 
 Files:
-  - packages/runner/src/runtime.test.ts (1 new test verifying
-    dual notification)
+
+- packages/runner/src/runtime.test.ts (1 new test verifying
+  dual notification)
 
 Tests: 101/101 across the monorepo. tsc clean.
 
@@ -601,9 +612,10 @@ the new test sits at the bottom of `subscribeSet()`. The
 sibling's rewrite of the existing tests is preserved.
 
 Files:
-  - packages/transport/src/subscribe.ts (+6 lines: exact-
-    key path)
-  - packages/transport/src/subscribe.test.ts (+1 test)
+
+- packages/transport/src/subscribe.ts (+6 lines: exact-
+  key path)
+- packages/transport/src/subscribe.test.ts (+1 test)
 
 Tests: 102/102 across the monorepo. tsc clean.
 
@@ -622,10 +634,11 @@ Consumers parse incoming events and call write/writeHumanInput
 to send outgoing events.
 
 Files:
-  - packages/transport/src/event-stream.ts (+2 WorkflowEvent
-    variants)
-  - packages/transport/src/transports/ws.ts (+2 methods
-    on WsClient)
-  - packages/transport/src/transports/ws.test.ts (+2 tests)
+
+- packages/transport/src/event-stream.ts (+2 WorkflowEvent
+  variants)
+- packages/transport/src/transports/ws.ts (+2 methods
+  on WsClient)
+- packages/transport/src/transports/ws.test.ts (+2 tests)
 
 Tests: 104/104 across the monorepo. tsc clean.

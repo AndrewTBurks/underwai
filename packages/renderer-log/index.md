@@ -1,6 +1,6 @@
 ---
 parent: ../../.cns/index.md
-title: '@underwai/renderer-log'
+title: "@underwai/renderer-log"
 status: clean
 last_reconciled: 2026-06-07
 type: package

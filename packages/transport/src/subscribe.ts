@@ -16,12 +16,12 @@
 //
 // No batching flag, no delta flag, no prefix flag. (TASK-P, TASK-V
 // cancelled; TASK-C+D folded into a pattern grammar.)
-import type { Node, NodeKey, WorkflowState } from "@underwai/core"
-import { LiveSubscriptionRegistry } from "@underwai/core"
+import type { Node, NodeKey, WorkflowState } from "@underwai/core";
+import { LiveSubscriptionRegistry } from "@underwai/core";
 
 export type Subscription = {
-  unsubscribe: () => void
-}
+  unsubscribe: () => void;
+};
 
 export function subscribe(
   registry: LiveSubscriptionRegistry,
@@ -29,10 +29,10 @@ export function subscribe(
   onUpdate: (node: Node) => void,
 ): Subscription {
   const unsub = registry.register(key, (state) => {
-    const node = state.nodes[key as unknown as string]
-    if (node) onUpdate(node)
-  })
-  return { unsubscribe: unsub }
+    const node = state.nodes[key as unknown as string];
+    if (node) onUpdate(node);
+  });
+  return { unsubscribe: unsub };
 }
 
 export function subscribeSet(
@@ -41,9 +41,9 @@ export function subscribeSet(
   onUpdate: (nodes: Record<string, Node>) => void,
 ): Subscription {
   const unsub = registry.registerPattern(pattern, (state, all) => {
-    onUpdate(matchPattern(state, pattern, all))
-  })
-  return { unsubscribe: unsub }
+    onUpdate(matchPattern(state, pattern, all));
+  });
+  return { unsubscribe: unsub };
 }
 
 function matchPattern(
@@ -51,35 +51,35 @@ function matchPattern(
   pattern: string,
   all: Readonly<Record<string, Node>>,
 ): Record<string, Node> {
-  const result: Record<string, Node> = {}
-  const allKeys = Object.keys(all)
+  const result: Record<string, Node> = {};
+  const allKeys = Object.keys(all);
 
   if (pattern === "*") {
     for (const k of allKeys) {
-      result[k] = all[k]!
+      result[k] = all[k]!;
     }
-    return result
+    return result;
   }
 
   if (pattern.endsWith(".*") || pattern.endsWith(".")) {
-    const prefix = pattern.endsWith(".*") ? pattern.slice(0, -2) : pattern.slice(0, -1)
-    const prefixDot = prefix + "."
+    const prefix = pattern.endsWith(".*") ? pattern.slice(0, -2) : pattern.slice(0, -1);
+    const prefixDot = prefix + ".";
     for (const k of allKeys) {
       if (k.startsWith(prefixDot)) {
-        const suffix = k.slice(prefixDot.length)
+        const suffix = k.slice(prefixDot.length);
         if (!suffix.includes(".")) {
-          result[suffix] = all[k]!
+          result[suffix] = all[k]!;
         }
       }
     }
-    return result
+    return result;
   }
 
   // Exact-key pattern: the pattern is a full node key. Return
   // a single-entry record keyed by the pattern itself. No
   // trimming; the consumer asked for this exact key.
   if (all[pattern]) {
-    result[pattern] = all[pattern]!
+    result[pattern] = all[pattern]!;
   }
-  return result
+  return result;
 }

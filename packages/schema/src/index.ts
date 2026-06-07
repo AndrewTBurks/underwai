@@ -13,5 +13,5 @@
 // the principle "minimal API surface" — no surprise mutations of
 // the consumer's z object.
 
-export { human, getHumanMode } from "./human.js"
-export type { HumanMode, HumanSchema } from "./human.js"
+export { human, getHumanMode } from "./human.js";
+export type { HumanMode, HumanSchema } from "./human.js";

@@ -10,9 +10,10 @@ last_reconciled: 2026-06-06
 ---
 
 # Research
+
 ## Principles in this layer
 
-**Encode lessons in structure.** The "Open questions" section is the source of `intent.md` tasks. When a question is resolved by a design conversation or an arena, the question moves out of this doc and the resolution moves into the architecture or design doc. The research doc holds *unresolved* questions, not resolved history.
+**Encode lessons in structure.** The "Open questions" section is the source of `intent.md` tasks. When a question is resolved by a design conversation or an arena, the question moves out of this doc and the resolution moves into the architecture or design doc. The research doc holds _unresolved_ questions, not resolved history.
 
 **Exhaust the design space.** When prior art suggests a shape, the "What underwAI takes / What underwAI rejects" split is a deliberate boundary. The rejection column is not "we don't know" — it is a positive decision made after looking at the alternative.
 
@@ -22,14 +23,14 @@ Background, related work, and the questions we still need to answer.
 
 UnderwAI sits in the intersection of: typed LLM outputs, durable execution, DAG-based workflow systems, and structured-data-as-state. The closest prior art and our relationship to it:
 
-| Library | What it does | What underwAI takes | What underwAI rejects |
-|---|---|---|---|
-| **AI SDK** (`ai`, `@ai-sdk/*`) | Chat surface with tool calls and structured outputs | The "structured outputs" model; provider ecosystem | The chat-as-primary-interface framing |
-| **langgraph** | Python orchestrator with stateful nodes and edges | The DAG-of-nodes mental model; the "checkpoint" concept | The Python lock-in; the opaque-checkpoint data model |
-| **instructor** | Structured outputs from LLMs, via Pydantic / Zod | The Zod-as-schema choice for node I/O | Bolting onto a chat surface; the "validate the model output" framing |
-| **"use workflow"** (Vercel) | Resumable workflows, time-travel debugging | The determinism/replay vocabulary; the resumability story | The vercel-locked runtime; the JSX-as-workflow framing |
-| **Effect** | A runtime for typed async programs with composable failure | The whole composition layer | None — Effect is the lib's substrate |
-| **Zod** | TypeScript-first schema validation | The schema-as-type model for node I/O | None |
+| Library                        | What it does                                               | What underwAI takes                                       | What underwAI rejects                                                |
+| ------------------------------ | ---------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------- |
+| **AI SDK** (`ai`, `@ai-sdk/*`) | Chat surface with tool calls and structured outputs        | The "structured outputs" model; provider ecosystem        | The chat-as-primary-interface framing                                |
+| **langgraph**                  | Python orchestrator with stateful nodes and edges          | The DAG-of-nodes mental model; the "checkpoint" concept   | The Python lock-in; the opaque-checkpoint data model                 |
+| **instructor**                 | Structured outputs from LLMs, via Pydantic / Zod           | The Zod-as-schema choice for node I/O                     | Bolting onto a chat surface; the "validate the model output" framing |
+| **"use workflow"** (Vercel)    | Resumable workflows, time-travel debugging                 | The determinism/replay vocabulary; the resumability story | The vercel-locked runtime; the JSX-as-workflow framing               |
+| **Effect**                     | A runtime for typed async programs with composable failure | The whole composition layer                               | None — Effect is the lib's substrate                                 |
+| **Zod**                        | TypeScript-first schema validation                         | The schema-as-type model for node I/O                     | None                                                                 |
 
 ## Open questions
 
@@ -37,11 +38,11 @@ These are the questions that shape the v1 API. They live in `intent.md` as concr
 
 ### Persistence
 
-How is the workflow *definition* (the consumer's Effect programs) bound to the workflow *state* (the JSON-serializable DAG)? The lib can be portable across machines; the definition is the consumer's code and ships with the consumer's app. Resume is `init(definition) + deserialize(state) + findReadyNodes`. Is the definition versioned with the state, or is version-compatibility a consumer concern?
+How is the workflow _definition_ (the consumer's Effect programs) bound to the workflow _state_ (the JSON-serializable DAG)? The lib can be portable across machines; the definition is the consumer's code and ships with the consumer's app. Resume is `init(definition) + deserialize(state) + findReadyNodes`. Is the definition versioned with the state, or is version-compatibility a consumer concern?
 
 ### Multi-parent reduce
 
-A node with parents [A, B] is ready when both resolve; the lib gathers `{aField: A.output, bField: B.output}` and the consumer's Effect program receives that. But: does the consumer's program receive *both* as separate fields, or is there a `reduce` step that combines them into one input? My recommendation: implicit — the lib's input resolution is the reduce. But a "race" semantic (either parent is enough) might also be needed; that's an `effect: all | any` on the node.
+A node with parents [A, B] is ready when both resolve; the lib gathers `{aField: A.output, bField: B.output}` and the consumer's Effect program receives that. But: does the consumer's program receive _both_ as separate fields, or is there a `reduce` step that combines them into one input? My recommendation: implicit — the lib's input resolution is the reduce. But a "race" semantic (either parent is enough) might also be needed; that's an `effect: all | any` on the node.
 
 ### Transport
 
@@ -53,7 +54,7 @@ The `z.humanUpdatable(z.string())` wrapper is one possible shape. Alternatives: 
 
 ### Effect buy-in
 
-The lib is defined in Effect, but is the consumer's *defining* a workflow an Effect program too, or is it a plain TypeScript object that the lib translates into Effect internally? Affects the lib's surface: if the consumer writes Effect, the lib is a thin runtime; if the consumer writes plain TS, the lib is also a compiler.
+The lib is defined in Effect, but is the consumer's _defining_ a workflow an Effect program too, or is it a plain TypeScript object that the lib translates into Effect internally? Affects the lib's surface: if the consumer writes Effect, the lib is a thin runtime; if the consumer writes plain TS, the lib is also a compiler.
 
 ### Streaming
 
@@ -65,7 +66,7 @@ Three options for what a node's output looks like as it streams: (a) final value
 
 ### Long-running workflows
 
-How does a workflow survive a deploy, a machine restart, a year of inactivity? The state is JSON; the *runtime* (the Effect programs waiting to be triggered) is not. Resume is `init(definition) + deserialize(state) + findReadyNodes`. But: are Effect programs `idempotent`? Are there any non-deterministic side effects in the consumer's program? "use workflow" has opinions about this; we should too.
+How does a workflow survive a deploy, a machine restart, a year of inactivity? The state is JSON; the _runtime_ (the Effect programs waiting to be triggered) is not. Resume is `init(definition) + deserialize(state) + findReadyNodes`. But: are Effect programs `idempotent`? Are there any non-deterministic side effects in the consumer's program? "use workflow" has opinions about this; we should too.
 
 ## Things to read
 

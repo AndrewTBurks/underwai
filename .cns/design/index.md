@@ -10,6 +10,7 @@ last_reconciled: 2026-06-06
 ---
 
 # Design
+
 ## Principles in this layer
 
 **Laziness protocol.** Prefer deletion. New sections, new types, new combinators are rejected unless they cannot be expressed by composing the existing ones. The CNS already has five central nodes; a sixth is a sixth thing to read, and the bar is high.
@@ -25,9 +26,9 @@ The CNS uses frontmatter as the boundary between structural and prose content. E
 When to add a principle to a node's list:
 
 - The principle changes a decision in this node's content.
-- The principle is *load-bearing* in this layer (not just generally true).
+- The principle is _load-bearing_ in this layer (not just generally true).
 
-When *not* to add a principle:
+When _not_ to add a principle:
 
 - The principle is universally true (e.g., "be honest"). Don't pollute every node with universally-true principles.
 - The principle doesn't change a specific decision in this node.
@@ -64,7 +65,7 @@ Rationale:
 - Effect's combinators are the API surface. Consumers learn them once and use them everywhere.
 - The lib's job is narrow: data structure + runtime + transport. Composition is Effect's job.
 
-The lib is a *runtime for Effect programs*, not a *language that produces Effect programs*. The distinction matters: it means consumers can use `Effect.withSpan` for logging, `Effect.retry` for resilience, `Effect.race` for competing strategies, `Effect.all` for parallel — all of Effect's power, none of it reinvented.
+The lib is a _runtime for Effect programs_, not a _language that produces Effect programs_. The distinction matters: it means consumers can use `Effect.withSpan` for logging, `Effect.retry` for resilience, `Effect.race` for competing strategies, `Effect.all` for parallel — all of Effect's power, none of it reinvented.
 
 ## The renderer protocol's posture
 
@@ -76,16 +77,16 @@ The lib ships zero UI. The consumer supplies a renderer registry mapping `kind` 
 
 Reference renderers are convenience, not opinion. The lib does not encode any UI assumptions. A consumer could write a renderer that emits PDF, or audio, or a circuit-board layout.
 
-## What we are *not*
+## What we are _not_
 
-- Not an agent framework. The AI is a *resolver of typed positions in a graph*, not an "agent" in a loop with tools.
+- Not an agent framework. The AI is a _resolver of typed positions in a graph_, not an "agent" in a loop with tools.
 - Not a chat surface. The output is a typed DAG that renders, not a transcript.
 - Not a prompt-template engine. The consumer writes Effect programs; the lib does not have a "prompt" concept beyond the LLM call inside an Effect program.
 - Not tied to a specific LLM. The lib has no opinion about which model produced the value. Any effect — model call, human edit, computation, external API — can fill a node.
 
 ## Anti-references
 
-These libraries' *visual languages* and *data models* are explicitly rejected:
+These libraries' _visual languages_ and _data models_ are explicitly rejected:
 
 - **langchain / langgraph** — generic AI orchestration. Their "agent run" and "chain" terminology is not used. We have a single metaphor: the underwAI graph.
 - **AI SDK `<Tool>` / `<GenerateObject>`** — chat-surface primitives. Underlying capabilities (model calls, structured outputs) are reachable via plain Effect programs.
