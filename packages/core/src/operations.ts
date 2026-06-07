@@ -307,4 +307,49 @@ export function getHumanInputDisplay(
   return { source: "literal", value, fieldSchema: schema as never }
 }
 
+// resolveInput: for a node with all upstreams resolved, returns
+// the input value as the bridge-transformed upstream output. If
+// any upstream is unresolved, returns undefined.
+//
+// The composition API is single-parent-per-child, so a node has
+// at most one incoming edge. The bridge (if any) is stored on
+// the edge. The runtime calls this function before each program
+// execution to compute the actual input.
+export function resolveInput(
+  state: WorkflowState,
+  key: NodeKeyT,
+): unknown {
+  const edges = state.edgesByTarget[key] ?? []
+  if (edges.length === 0) {
+    // No incoming edges: this is a root node. Its input is
+    // whatever was set on the node directly.
+    const node = state.nodes[key as unknown as string]
+    return node?.input.value
+  }
+  if (edges.length > 1) {
+    // Multi-parent join: an object mapping each parent's key
+    // to its (bridged) resolved output. The user's def
+    // declares an object input schema.
+    const result: Record<string, unknown> = {}
+    for (const edge of edges) {
+      const upstream = state.nodes[edge.from as unknown as string]
+      if (!upstream || upstream.status.kind !== "resolved") {
+        return undefined
+      }
+      const value = edge.bridge
+        ? edge.bridge(upstream.status.finalOutput)
+        : upstream.status.finalOutput
+      result[edge.from as unknown as string] = value
+    }
+    return result
+  }
+  // Single-parent case: return the bridged upstream output.
+  const edge = edges[0]!
+  const upstream = state.nodes[edge.from as unknown as string]
+  if (!upstream || upstream.status.kind !== "resolved") return undefined
+  return edge.bridge
+    ? edge.bridge(upstream.status.finalOutput)
+    : upstream.status.finalOutput
+}
+
 export { NodeKey, WorkflowId, z }

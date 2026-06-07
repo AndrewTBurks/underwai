@@ -93,7 +93,7 @@ describe("markFailed()", () => {
 })
 
 describe("markPaused()", () => {
-  it("transitions to paused and sets workflow status to paused", () => {
+  it("transitions a node to paused; workflow status is unchanged", () => {
     const state = makeState({ kind: "pending" })
     const next = markPaused(state, NodeKey("root"), "T5")
     const node = next.nodes["root"]!
@@ -101,7 +101,10 @@ describe("markPaused()", () => {
     if (node.status.kind === "paused") {
       expect(node.status.pausedAt).toBe("T5")
     }
-    expect(next.status).toBe("paused")
+    // Per-node paused; workflow status stays as it was. The
+    // workflow-level "paused" status was a phantom slot and
+    // was removed in TASK-37.
+    expect(next.status).toBe("running")
   })
 })
 

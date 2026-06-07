@@ -26,7 +26,7 @@ import {
 } from "./runtime.js"
 import { compose, chain, run, LiveSubscriptionRegistry } from "@underwai/core"
 import { init } from "@underwai/core"
-import { WorkflowId } from "@underwai/core"
+import { NodeKey, WorkflowId } from "@underwai/core"
 import type { NodeDefinition } from "@underwai/core"
 import { z } from "zod"
 
@@ -142,5 +142,57 @@ describe("runWorkflow() integration", () => {
     )
     expect(result.status).toBe("completed")
     expect(notifyCount).toBeGreaterThanOrEqual(1)
+  })
+
+  it("passes the bridged upstream output to a child program", async () => {
+    const { tree } = compose(() => {
+      const root = run(def("root"))
+      return chain(root, (out: number) => out * 2, def("doubled"))
+    })
+    const state = init(tree, WorkflowId("wf-bridge-runtime"))
+    const programs = {
+      root: () => Effect.succeed(21) as never,
+      "root.doubled": (input: unknown) => Effect.succeed(input) as never,
+    }
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const rt = yield* WorkflowRuntime
+        return yield* rt.run({ state, programs })
+      }).pipe(Effect.provide(WorkflowRuntimeLive({ state, programs }))),
+    )
+    expect(result.status).toBe("completed")
+    const doubled = result.nodes["root.doubled"]!
+    if (doubled.status.kind === "resolved") {
+      // The bridge (out: number) => out * 2 was applied: 21 * 2 = 42
+      expect(doubled.status.finalOutput).toBe(42)
+    }
+  })
+
+  it("write before run resolves the node and skips the program", async () => {
+    // The audit's Fiber.interrupt concern is deferred: the
+    // current runtime runs programs sequentially (no in-flight
+    // fiber to interrupt). The interrupt pattern matters for
+    // the WebSocket transport where a client writes while a
+    // server-side program is mid-flight. That's a TASK-35+
+    // enhancement. For now, write-before-run is the supported
+    // way to inject values.
+    const { tree } = compose(() => run(def("root")))
+    const state = init(tree, WorkflowId("wf-write-before-run"))
+    const programs = {
+      root: () => Effect.succeed("should-not-run") as never,
+    }
+    const layer = WorkflowRuntimeLive({ state, programs })
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const rt = yield* WorkflowRuntime
+        yield* rt.write(NodeKey("root"), "injected")
+        return yield* rt.run({ state, programs })
+      }).pipe(Effect.provide(layer)),
+    )
+    const node = result.nodes["root"]!
+    expect(node.status.kind).toBe("resolved")
+    if (node.status.kind === "resolved") {
+      expect(node.status.finalOutput).toBe("injected")
+    }
   })
 })

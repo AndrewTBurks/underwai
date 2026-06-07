@@ -40,6 +40,7 @@ export {
   getHumanInputDisplay,
   getNode,
   init,
+  resolveInput,
   serialize,
 } from "./operations.js"
 

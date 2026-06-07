@@ -514,3 +514,48 @@ removed tests). The runner's 16 tests cover the same
 transitions via the WorkflowRuntime service. tsc clean.
 
 Net: -33 lines from core. Core is now a pure value layer.
+
+## 2026-06-07 — TASK-35 done: bridge resolution + (deferred) Fiber.interrupt
+
+Bridge resolution: `resolveInput(state, key)` added to
+@underwai/core. Walks `edgesByTarget[key]`, looks up each
+upstream's `status.finalOutput`, applies the edge's
+`bridge` function (if any). Returns undefined if any
+upstream is unresolved. The runtime now calls
+`resolveInput(result, key) ?? node.input.value` before
+each program execution.
+
+Fiber.interrupt: DEFERRED. The current runtime is
+single-threaded (programs run sequentially, no in-flight
+fiber to interrupt). The interrupt pattern is needed for
+the WebSocket transport where a client writes while a
+server-side program is running. That requires a more
+substantial refactor (worker pool or fiber-per-node) and
+is out of scope for this task. Documented in the test
+description; the supported injection pattern is
+`write`/`writeHumanInput` before `run`.
+
+Side effects:
+  - `markPaused` no longer sets workflow-level "paused"
+    (phantom slot, removed in TASK-37). Per-node paused
+    survives.
+  - The runtime test for `markPaused` updated.
+  - serialize/deserialize: bridges are functions and
+    don't survive serialization. This is a known
+    limitation; consumers who need to serialize must
+    re-attach bridges. Documented in the resolveInput
+    test.
+
+Files:
+  - packages/core/src/operations.ts (+resolveInput)
+  - packages/core/src/index.ts (re-export)
+  - packages/core/src/resolve-input.test.ts (4 tests, all
+    pass)
+  - packages/runner/src/runtime.ts (use resolveInput)
+  - packages/runner/src/mutations.ts (markPaused cleanup)
+  - packages/runner/src/mutations.test.ts (markPaused test
+    updated)
+  - packages/runner/src/runtime.test.ts (bridge test +
+    write-before-run test)
+
+Tests: 101/101 across the monorepo. tsc clean.

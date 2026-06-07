@@ -103,9 +103,11 @@ export function markPaused(
 ): WorkflowState {
   const node = state.nodes[nodeId as unknown as string]
   if (!node) return state
+  // Per-node "paused" only. The workflow-level "paused" status
+  // is a phantom slot (no transition into it) and was removed
+  // in TASK-37. The workflow's own status stays as-is.
   return {
     ...state,
-    status: "paused",
     nodes: {
       ...state.nodes,
       [nodeId as unknown as string]: {

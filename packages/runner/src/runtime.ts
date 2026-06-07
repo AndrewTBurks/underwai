@@ -11,7 +11,7 @@ import type {
   NodeKey,
   WorkflowState,
 } from "@underwai/core"
-import { LiveSubscriptionRegistry } from "@underwai/core"
+import { LiveSubscriptionRegistry, resolveInput } from "@underwai/core"
 import {
   markFailed,
   markPaused,
@@ -186,7 +186,9 @@ export const WorkflowRuntimeLive = (
                 yield* Ref.set(stateRef, result)
                 notify(result)
 
-                const programResult = yield* program(node.input.value).pipe(
+                const programResult = yield* program(
+                  resolveInput(result, key) ?? node.input.value,
+                ).pipe(
                   Effect.tap((output) =>
                     Ref.update(stateRef, (s) =>
                       markResolved(s, key, output, new Date().toISOString()),
