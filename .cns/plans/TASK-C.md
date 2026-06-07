@@ -1,6 +1,6 @@
 ---
 task: TASK-C
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: critical
 finding_refs: [A7, D4]
@@ -81,4 +81,27 @@ The wall-display uses `subscribeAll` (TASK-D), not prefix matches. Loop iteratio
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — pivoted twice from the plan.**
+
+**First pivot:** Andrew rejected the `{ prefix: true }` opt-in knob and the path-segment rule on a `subscribe` flag. Reasoning: "this is just really bad API design. super opaque. the best option would be to limit to only exact matches. if you matched multiple nodes, how would you even consume that in a type-safe way?"
+
+**Second pivot:** Andrew rejected `subscribeAll` as a separate function. Reasoning: "honestly we don't need subscribeAll even. it's wasteful to even include because the wildcard matching covers that completely." The wall-display case is `subscribeSet(state, "*", onUpdate)`, not a third function.
+
+**Third refinement:** the `subscribeSet` callback gets `(nodes: Record<string, Node>) => void`, not `(node: Node) => void`. The matched set is one record, keyed by relative key. A renderer that wants per-node status switching iterates `Object.values(nodes)`. This makes the callback shape a set, not a stream — the lib does one notification per matched-set update, not one per node.
+
+**Final shape for v1:**
+- `subscribe(state, key, onUpdate)` — single NodeKey, exact match. Callback: `(node: Node) => void`.
+- `subscribeSet(state, pattern, onUpdate)` — wildcard pattern, three cases (exact key / path-segment prefix / every node). Callback: `(nodes: Record<string, Node>) => void`.
+- `subscribeAll` is gone.
+- `SubscribeOptions` is gone. No flags.
+
+**Pattern grammar:**
+1. `"root.x"` — exact key, one-entry record.
+2. `"root.*"` — path-segment prefix, matches every descendant. Prefix stripped from keys in the callback.
+3. `"*"` — every node, prefix is empty, keys are full original.
+
+**Cancellations that landed together:** TASK-P (`{ batched: true }`) and TASK-V (`{ delta: true }`) were cancelled in the prior turn's review. Killing the prefix flag in TASK-C, the batched flag in TASK-P, and the delta flag in TASK-V collapses the subscription API to two methods with two signatures — the type is the contract.
+
+**Absorptions that landed together:** TASK-D's `subscribeAll` is absorbed into `subscribeSet` with the pattern `"*"`. The wall-display case is just the "every node" pattern.
+
+Patches in this commit: `docs/design.md` subscription section rewritten to two methods; `src/stub.ts` `subscribe` signature simplified, `subscribeSet` added with `Record<string, Node>` callback, `subscribeAll` and `SubscribeOptions` removed.

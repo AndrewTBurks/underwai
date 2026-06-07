@@ -1,6 +1,6 @@
 ---
 task: TASK-D
-status: pending
+status: absorbed
 source: interrogate-2026-06-06
 severity: critical
 finding_refs: [D3]
@@ -74,6 +74,30 @@ No key argument. No filter. Just "every node, on update, call me."
 - `docs/design.md` subscription section documents `subscribeAll`.
 - A test case (post-Phase-2): a single `subscribeAll` callback fires for every node update across the workflow.
 
+---
+
+# TASK-D: subscribeAll for the wall-display case — ABSORBED INTO TASK-C
+
+**This plan was absorbed into [`TASK-C.md`](./TASK-C.md) on 2026-06-06.** The original `subscribeAll(state, onUpdate)` proposal is now `subscribeSet(state, "*", onUpdate)` — the wall-display case is just the "every node" pattern in `subscribeSet`'s grammar.
+
+The absorption is the right laziness-protocol move. `subscribeAll` was a separate function that did one specific thing ("subscribe to every node"). After TASK-C's pivot to a wildcard-pattern `subscribeSet`, "every node" is a special case of the pattern grammar (`"*"`), not a separate function. Killing `subscribeAll` removes a function whose only caller would be the wall-display and whose signature overlaps with `subscribeSet`.
+
+## What lands in v1
+
+`subscribeSet(state, "*", onUpdate)` is the wall-display. The callback gets `Record<string, Node>` keyed by full original keys (because the prefix is empty). The wall-display renderer iterates the record and renders.
+
+The pattern grammar is documented in `docs/design.md` subscription section. TASK-C's plan file is the source of truth for the full grammar and the matching rule.
+
+## Source finding (preserved for the project log)
+
+> **D3. [warning] The wall-display use case (ThreadWeaver) needs a "subscribe to all nodes" API; not explicit in the design**
+>
+> *Location*: `docs/design.md` Subscription section
+>
+> *Finding*: ThreadWeaver's wall display renders *all* nodes simultaneously, with their spatial positions. The consumer needs to subscribe to *every* node. ...
+>
+> *Suggestion*: add `subscribeAll(state, onUpdate): Subscription` ... (rejected; absorbed into TASK-C's `subscribeSet`)
+
 ## Session state
 
-*(to be filled in during the design session)*
+*(absorbed; design decision lives in TASK-C.md)*
