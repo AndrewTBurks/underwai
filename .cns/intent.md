@@ -13,7 +13,7 @@ Each task has its own plan file in `.cns/plans/TASK-{letter}.md`. The plan file 
 Each task resolves one critical finding from the v1.1 interrogate.
 
 1. **TASK-A: Resolve the running + writeHumanInput race** *(B1, critical)*. → [`.cns/plans/TASK-A.md`](plans/TASK-A.md). The state machine says "if running, ignore the write." Human's write is lost. Pick (a) ignore-apply-on-next-ready, (b) cancel-and-rerun, (c) queue-and-rerun-on-complete, or (d) signal-the-effect.
-2. **TASK-B: Concurrent step() safety** *(B2, critical)*. → [`.cns/plans/TASK-B.md`](plans/TASK-B.md). `step()` is a synchronous state function; concurrent calls clobber. Pick (a) doc-only single-fiber, (b) Runtime object, (c) Effect-wrapped step, or (d) mutex.
+2. **TASK-B: Concurrent step() safety + WorkflowRuntime service** *(B2, B5, critical)*. → [`.cns/plans/TASK-B.md`](plans/TASK-B.md). `step()` is a synchronous state function; concurrent calls clobber. Plus the consumer's `Effect.gen` program has no path to `publish` / `write` / `writeHumanInput`. **Folded with TASK-T (originally B5) on 2026-06-06** — both gaps close in one refactor: `runWorkflow` (Effect-wrapped, single fiber) + `WorkflowRuntime` service.
 3. **TASK-C: Subscribe prefix semantics + default inversion** *(A7 + D4, critical)*. → [`.cns/plans/TASK-C.md`](plans/TASK-C.md). "Prefix match" is undefined; default is surprising. Define path-segment rule; invert default to exact-match, opt-in prefix.
 4. **TASK-D: subscribeAll for the wall-display case** *(D3, critical)*. → [`.cns/plans/TASK-D.md`](plans/TASK-D.md). Add `subscribeAll(state, onUpdate, opts?)` for the wall-display. (a) for v1, (b) with filters deferred.
 5. **TASK-E: Runtime implementation of z.human()** *(A2 + C5, critical)*. → [`.cns/plans/TASK-E.md`](plans/TASK-E.md). Pick (a) mutate _def, (b) wrap schema, or (c) Zod .meta() (Zod 4+ only).
@@ -32,13 +32,13 @@ Real but lower-priority refinements. Each is a design session + small patch. The
 13. **TASK-M: Stale re-execution coalescing** *(B4, warning)*. → [`.cns/plans/TASK-M.md`](plans/TASK-M.md). "Multiple writes coalesce; most recent value wins." Document the rule.
 14. **TASK-N: Effect buy-in as a documented limitation** *(B6, warning)*. → [`.cns/plans/TASK-N.md`](plans/TASK-N.md). Add a "Limitations" section to design.md.
 15. **TASK-O: `findReadyNodes` consistency** *(B7, warning)*. → [`.cns/plans/TASK-O.md`](plans/TASK-O.md). `findReadyNodes` returns `pending` OR `stale`. `paused` is NOT ready.
-16. **TASK-P: Batched subscription** *(D2, warning)*. → [`.cns/plans/TASK-P.md`](plans/TASK-P.md). Add `{ batched: true }` option. Default unbatched.
+16. **TASK-P: ~~Batched subscription~~ — CANCELLED 2026-06-06** *(D2, warning)*. → [`.cns/plans/TASK-P.md`](plans/TASK-P.md). Cut from v1. Reference React adapter batches `setState` natively; wall-display debounces in-renderer. No `batched` option ships. A one-line note in the subscription section of `docs/design.md` documents the v1 batching story.
 17. **TASK-Q: Stale UX reference behavior** *(D7, warning)*. → [`.cns/plans/TASK-Q.md`](plans/TASK-Q.md). Document one reference: "show previous output with 're-deriving' indicator."
 18. **TASK-R: `topologicalOrder` derived field** *(D6, warning)*. → [`.cns/plans/TASK-R.md`](plans/TASK-R.md). Add `topologicalOrder: ReadonlyArray<NodeKey>` to workflow state, computed at init.
-19. **TASK-S: `getHumanInputDisplay` helper** *(D8, warning)*. → [`.cns/plans/TASK-S.md`](plans/TASK-S.md). Add a helper that returns `{ value, status, proposed: boolean }`.
-20. **TASK-T: `WorkflowRuntime` Effect service** *(B5, warning)*. → [`.cns/plans/TASK-T.md`](plans/TASK-T.md). The lib provides a `WorkflowRuntime` service via Effect's `Context`.
+19. **TASK-S: `getHumanInputDisplay` helper** *(D8, warning)*. → [`.cns/plans/TASK-S.md`](plans/TASK-S.md). Add a helper. **Reshaped 2026-06-06:** the return type is a discriminated union on source kind (`literal` | `from_node` | `human` | `undefined`), not a `proposed: boolean` flag. The lib exposes the source; the renderer decides the UX.
+20. **TASK-T: ~~`WorkflowRuntime` Effect service~~ — MERGED INTO TASK-B 2026-06-06** *(B5, warning)*. → [`.cns/plans/TASK-T.md`](plans/TASK-T.md) (tombstone). Combined with TASK-B (B2). The combined plan ships as one refactor.
 21. **TASK-U: `thenLoop` family handle typing** *(A8, warning)*. → [`.cns/plans/TASK-U.md`](plans/TASK-U.md). Document that the family handle is `NodeRef<string>`.
-22. **TASK-V: Delta-based subscription callback** *(A5, warning)*. → [`.cns/plans/TASK-V.md`](plans/TASK-V.md). Add `(prev: Node | null, next: Node) => void` option.
+22. **TASK-V: ~~Delta-based subscription callback~~ — CANCELLED 2026-06-06** *(A5, warning)*. → [`.cns/plans/TASK-V.md`](plans/TASK-V.md). Cut from v1. Renderers shallow-compare inside their callback. No `delta` option ships. Same one-line note in the subscription section covers both cancelled features.
 
 ## Phase 2: prototype
 

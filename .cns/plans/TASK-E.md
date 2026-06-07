@@ -121,6 +121,21 @@ declare module "zod" {
 
 The lib reads `(schema._def as any).humanMode` to populate the human fields at `init()` time.
 
+## The "human-editable with upstream seed" case (named here)
+
+`HumanMode` is `"writeable" | "verified"`. Both modes mean "the field is human-editable." What `HumanMode` does *not* say is whether the field has a *seed* — an initial value the human can accept, override, or leave alone.
+
+A seed comes from one of three places:
+- A `from_node` source — the upstream node's `finalOutput` flows into this field.
+- A `literal` source — the workflow author hardcoded a default.
+- A `human` source with no value yet — no seed; the human must provide one.
+
+The third case is a `pending` human field. The first two are seeds. The renderer needs to know whether a seed exists, because the UX differs: a seeded value can be rendered as "Proposed: <value>" or as a confirmation step; an empty value is an empty input.
+
+The lib exposes the seed through `InputSource.kind` (TASK-H) and the human-mode through `HumanMode`. The renderer composes the two to answer "is this a proposal?" The lib does *not* invent a `proposed: boolean` flag (the original D8 suggestion), because the flag conflates the source question ("where did this value come from?") with the editability question ("can the human change it?"). The discriminated union in TASK-S's `getHumanInputDisplay` is the typed join between the two.
+
+This paragraph is named here, in the `HumanMode` plan, because every later human-input discussion needs the seed-vs-no-seed vocabulary and shouldn't have to re-derive it.
+
 ## What "done" looks like
 
 ### Patches

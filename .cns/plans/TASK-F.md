@@ -41,6 +41,17 @@ The runner uses `state.edgesByTarget[key]` for O(1) edge lookup. Serialization r
 
 This is enough for v1. `edgesByFrom` (the reverse index) is v1.1 if needed; `findSubtree` is the alternative for downstream queries.
 
+## Serialization contract (named here, applies project-wide)
+
+`WorkflowState` carries two kinds of fields: **source fields** (`nodes`, `edges`, `error`, `id`, `version`, `status`, `createdAt`, `updatedAt`) and **derived fields** (`edgesByTarget`, `topologicalOrder`, future derived fields). The contract is:
+
+- `serialize(state)` is a pure projection of the source fields. Derived fields are *not* serialized.
+- `deserialize(json)` recomputes all derived fields. The recompute is total: every derived field the lib defines is rebuilt from the source.
+- The lib's mutation primitives (`init`, `write`, `publish`, `writeHumanInput`, `stepInternal`) do *not* invalidate derived fields, because derived fields are derived from the source fields and recomputed only on `deserialize`.
+- Adding a new derived field to `WorkflowState` is not a breaking change. Adding a new source field is a breaking change (it changes the serialized shape).
+
+This contract is named once, here, because TASK-R also adds a derived field and a future plan will add another. The pattern needs to be explicit, not implicit, or the lib will drift.
+
 ## What "done" looks like
 
 ### Patches

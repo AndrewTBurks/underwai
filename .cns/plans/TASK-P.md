@@ -1,15 +1,48 @@
 ---
 task: TASK-P
-status: pending
+status: cancelled
+cancellation_reason: cut from v1 per 2026-06-06 review
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [D2]
 decision_required: false
 ---
 
-# TASK-P: Batched subscription
+# TASK-P: Batched subscription — CANCELLED
 
-## Source finding
+**Status: cut from v1. Replaced by a one-line note in the subscription section of `docs/design.md` describing the v1 batching story for the reference React adapter and the wall-display.**
+
+## Cancellation reason
+
+A `{ batched: true }` option on `subscribe` and `subscribeAll` would change the `onUpdate` callback shape (one `Node` vs. `ReadonlyArray<Node>`). That's a real reader-load cost for a feature with no current consumer. The review found three reasons to cut:
+
+1. The current v1 target is ThreadWeaver + a reference React adapter. React's `setState` is already batched, so a parallel `all` with 50 nodes triggers 50 `setState` calls inside one microtask, which React collapses. The reference renderer doesn't need a lib-level batch option.
+
+2. The wall-display case (the consumer TASK-P named as the primary beneficiary) is the same consumer that TASK-D's `subscribeAll` is being built for. The wall-display's renderer can debounce in five lines inside its own `useEffect` / setInterval cycle. A lib-level flag is overkill.
+
+3. The batched-option shape overlaps with the delta-option shape in TASK-V (both exist to suppress re-render noise). v1 has no `SubscribeDelta` union; the simpler `(node: Node) => void` is the only callback shape. Adding a `batched: true` that *changes* the callback shape is a new surface the lib then has to maintain forever.
+
+## What replaces this plan in v1
+
+A single sentence in the subscription section of `docs/design.md`:
+
+```
+For the wall-display case, debounce inside the renderer. The lib's
+contract is "one callback per node update." A renderer that wants
+"one callback per frame" buffers updates in its own subscriber.
+```
+
+No new API. No `batched` option. No test beyond what TASK-D's `subscribeAll` test already covers.
+
+## Verification of cancellation
+
+- `src/stub.ts` does *not* add `batched?: boolean` to `SubscribeOptions`.
+- `docs/design.md` subscription section has the one-line batching note.
+- TASK-V is also cut (see `/Users/andrew/.cns/plans/TASK-V.md` for the matching cancellation).
+
+## Source finding (preserved for context)
+
+The original D2 finding from `interrogate-2026-06-06` is preserved below for the project log.
 
 > **D2. [warning] The `subscribe` callback gets called once per node update, but a render frame might want batched updates**
 >
@@ -19,58 +52,8 @@ decision_required: false
 >
 > *Evidence*: the design says "the consumer re-renders on every status change." For a parallel fan-out, this is 3× the work per node.
 >
-> *Suggestion*: provide a batched subscription option: `subscribe(state, key, onUpdate, { batched: true })` where the callback receives a list of updated nodes and is called once per *frame* (the lib's notion of "frame" is "between two `step()` calls"). The default is "unbatched" (one call per update) for low-latency cases. The renderer's choice.
-
-## Problem statement
-
-For a parallel `all` with 50 nodes, the `onUpdate` callback fires 150 times per step (each node's status transition fires once). For a wall-display renderer that wants to update once per frame, this is wasteful.
-
-## Recommendation
-
-**Add `{ batched: true }` option to `subscribe` and `subscribeAll`.**
-
-The default is unbatched (one callback per node update). The `batched: true` option means "fire the callback once per step, with a list of updated nodes."
-
-```ts
-type SubscribeOptions = {
-  prefix?: boolean
-  batched?: boolean
-}
-
-// Unbatched (default)
-function subscribe(
-  state: WorkflowState,
-  key: NodeKey,
-  onUpdate: (node: Node) => void,
-  opts?: SubscribeOptions
-): Subscription
-
-// Batched
-function subscribe(
-  state: WorkflowState,
-  key: NodeKey,
-  onUpdate: (nodes: ReadonlyArray<Node>) => void,
-  opts?: SubscribeOptions & { batched: true }
-): Subscription
-```
-
-The lib's notion of "frame" is "between two `step()` calls." A batched subscriber gets the list of nodes that updated in the most recent frame.
-
-For v1.1, consider an explicit `batched: { windowMs: number }` option for time-based batching. For v1, the batch size is just "everything in this step."
-
-## What "done" looks like
-
-### Patches
-
-1. **`docs/design.md`** — subscription section. Add the `batched` option to `subscribe` and `subscribeAll`. Document the "frame" notion (between two `step()` calls).
-
-2. **`src/stub.ts`** — add `batched?: boolean` to `SubscribeOptions`. The stub doesn't implement the batching; that's Phase 2.
-
-### Verification
-
-- `tsc --noEmit` exit 0.
-- A test case (post-Phase-2): a batched subscriber to a parallel `all` with 50 nodes gets one callback per step with 50 nodes, not 150 callbacks.
+> *Suggestion*: provide a batched subscription option. ... (rejected; see cancellation reason above)
 
 ## Session state
 
-*(to be filled in during the design session)*
+*(cancelled; no design session held)*

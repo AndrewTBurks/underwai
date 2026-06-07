@@ -1,15 +1,26 @@
 ---
 task: TASK-T
-status: pending
+status: merged
+merged_into: TASK-B
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [B5]
-decision_required: false
 ---
 
-# TASK-T: WorkflowRuntime Effect service
+# TASK-T: WorkflowRuntime Effect service — MERGED INTO TASK-B
 
-## Source finding
+**This plan was merged into [`TASK-B.md`](./TASK-B.md) on 2026-06-06.** The combined plan covers both `runWorkflow` (the Effect-wrapped step that owns the single fiber) and the `WorkflowRuntime` service (the bridge from a consumer's `Effect.gen` program to `publish` / `write` / `writeHumanInput`).
+
+The merge is one refactor because:
+- The `WorkflowRuntime` service is only useful if the runner is a single fiber (TASK-B's `runWorkflow`). Without `runWorkflow`, the service has no privileged caller; consumers would still need a stateful runtime to drive the service.
+- The single-fiber `runWorkflow` is useless to a consumer's `Effect.gen` program without a way to call `publish` / `write` / `writeHumanInput` from inside the program. The service is the bridge.
+- Shipping them separately would leave v1 with two runners (imperative `step` and Effect-wrapped `runWorkflow`) and no clear contract for which one is the consumer-facing API.
+
+## Why the original finding still matters
+
+The original B5 finding identified a real gap: `publish(state, key, partial)` took a `state` argument, but a consumer's `Effect.gen` program has no path to `state`. The combined TASK-B plan closes the gap with the `WorkflowRuntime` service. The internal-state-taking methods (`_publish`, `_write`, `_writeHumanInput`) are the lib's own view; the consumer-facing methods (`publish`, `write`, `writeHumanInput`) are the Effect view. The service is the join.
+
+## Source finding (preserved for the project log)
 
 > **B5. [critical] Effect's `Effect.gen` and the consumer's `program` don't compose with the runner's `step` cleanly**
 >
@@ -21,60 +32,6 @@ decision_required: false
 >
 > *Suggestion*: option (a) is cleaner. The lib provides a `WorkflowRuntime` service via Effect's `Context`, with methods `publish`, `write`, `writeHumanInput`. The consumer's program is `Effect.gen(function* () { const runtime = yield* WorkflowRuntime; yield* runtime.publish(...) })`. The runner intercepts the program's yield, runs the program, and the lib's services update the state. The design needs to specify the service interface.
 
-## Problem statement
-
-The consumer's Effect program needs to call `publish` / `write` / `writeHumanInput` to interact with the lib's state machine. The current design doesn't say how the program gets access to these. The program can't take a `state` argument because the state is the runner's; passing it explicitly would require the consumer to thread it through every node.
-
-## Recommendation
-
-**Provide a `WorkflowRuntime` Effect service via `Context`. The consumer's program yields the service to access `publish` / `write` / `writeHumanInput`.**
-
-```ts
-import { Context, Effect } from "effect"
-
-type WorkflowRuntime = {
-  publish(partial: unknown): Effect.Effect<void>
-  write(finalOutput: unknown): Effect.Effect<void>
-  writeHumanInput(fieldKey: FieldKey, value: unknown): Effect.Effect<void>
-}
-
-const WorkflowRuntime = Context.GenericTag<WorkflowRuntime>("@underwai/WorkflowRuntime")
-
-// Consumer's program:
-const program = (input: TInput) => Effect.gen(function* () {
-  const runtime = yield* WorkflowRuntime
-  yield* runtime.publish(partialValue)
-  // ... do work ...
-  yield* runtime.write(finalValue)
-})
-
-// The lib provides WorkflowRuntime as part of its runWorkflow layer:
-export const WorkflowRuntimeLive = Layer.succeed(WorkflowRuntime, {
-  publish: (partial) => Effect.sync(() => /* update state */),
-  write: (finalOutput) => Effect.sync(() => /* update state */),
-  writeHumanInput: (fieldKey, value) => Effect.sync(() => /* update state */),
-})
-```
-
-The lib's `runWorkflow` Effect program provides `WorkflowRuntimeLive` as a layer. The consumer's program yields the service and uses it. The lib's internal `step` uses the same service to update state.
-
-This pairs with TASK-B (Effect-wrapped step): the runner is a single fiber, the consumer's programs run in child fibers of the runner, and the lib's `WorkflowRuntime` service is the bridge between them.
-
-## What "done" looks like
-
-### Patches
-
-1. **`docs/design.md`** — runtime section. Add a "WorkflowRuntime service" subsection. Define the service interface. Show the consumer's program using the service.
-
-2. **`docs/design.md`** — `NodeDefinition` type. Update to mention that the program can yield `WorkflowRuntime` from the Effect context.
-
-3. **`src/stub.ts`** — add a stub for `WorkflowRuntime` and `WorkflowRuntimeLive`. (Implementation in Phase 2.)
-
-### Verification
-
-- `tsc --noEmit` exit 0.
-- A test case (post-Phase-2): a streaming node's program calls `runtime.publish(partial)` multiple times, asserts the accumulator is updated. A human-update path calls `runtime.writeHumanInput(field, value)`, asserts the field is set and the downstream subtree is marked `stale`.
-
 ## Session state
 
-*(to be filled in during the design session)*
+*(merged; design session held against the combined TASK-B plan)*
