@@ -293,21 +293,57 @@ Sub-bullets:
 
 Verification: 2 new tests (write + writeHumanInput), all 95 existing tests still pass, `tsc -b` clean, CNS health gate green.
 
+### 44. Mock up example workflows. (TASK-44) — runs FIRST.
+
+**Why this comes first (2026-06-07 plan-mode interview).** Andrew's read: the conformance audit asked "does the code match the design?" but never asked "does the design match how a real consumer would actually use the library?" The TASK-35-43 set is "fix the code to match the design." If the design is wrong, fixing the code bakes in the wrong shape. Examples are how we validate the design before locking it in.
+
+A single `examples/` workspace package, deployable as a Vite app, with three sub-routes:
+
+- `examples/src/linear-pipeline.tsx` — `parse → (bridge: trim+uppercase) → display`. Exercises the bridge transform (TASK-35's load-bearing concern).
+- `examples/src/human-in-the-loop.tsx` — `ask_human → process → display`. The `ask_human` node has a human-marked field; the consumer injects a value via the service's `writeHumanInput` (the resolved shape from TASK-37). Exercises the consumer-injection semantics.
+- `examples/src/wall-display.tsx` — A workflow that runs slowly; the renderer subscribes via `transport.subscribeSet(registry, "*", onUpdate)` and updates the wall display on every state change. Exercises the live-subscription contract (TASK-32).
+
+Sub-bullets:
+- `packages/examples/package.json` — name `@underwai/examples`, deps on all 6 workspace packages + React + Vite. Add to `pnpm-workspace.yaml`.
+- `packages/examples/vite.config.ts` — Vite config with three routes; `pnpm dev` starts the wall display, `pnpm build` produces a deployable bundle.
+- `packages/examples/index.html` — root HTML; React Router for the three sub-routes.
+- Each example is a real composition + a real consumer of the renderer(s). The wall-display uses `renderer-react`; the human-in-the-loop uses both renderers (React for the human UI, log for the trace); the linear pipeline is CLI-only (renderer-log) for a smoke test.
+- Per the test-driven-development skill: the examples are not unit tests, but they must **build and run**. `pnpm --filter @underwai/examples build` should produce a working bundle. The integration test in `runtime.test.ts` should be expanded to run the linear-pipeline example end-to-end.
+
+Verification: `pnpm -r build` produces a deployable examples bundle; `pnpm --filter @underwai/examples dev` starts the wall display; the integration test in `runtime.test.ts` runs the linear-pipeline example and asserts the result. `tsc -b` clean, CNS health gate green.
+
+### 45. Audit the design against the examples. (TASK-45) — runs AFTER TASK-44, BEFORE TASK-35.
+
+**Why this exists (2026-06-07 plan-mode interview).** The conformance audit compared decisions to code, not decisions to consumer code. The examples are the consumer code. This task walks each example against the design and the resolved shapes from TASK-37/38, and reports: does the design hold, or does it need adjustment?
+
+Sub-bullets:
+- For each example, write a one-page "design check" document (in `examples/.design-checks/` or in the example file as a header comment — agent's choice at execution time) answering: does the resolved API surface (`compose`, `init`, `runWorkflow`, `WorkflowRuntime.{publish, write, writeHumanInput}`, `LiveSubscriptionRegistry`, `subscribe`/`subscribeSet`, `renderer-react`/`renderer-log`) actually let a consumer write this example without workarounds?
+- Concrete checks:
+  - The linear-pipeline example uses the bridge transform. Does the bridge resolution path through `init → runWorkflow` actually apply the transform? (TASK-35 will fix this; does the example reveal any other shape issue?)
+  - The human-in-the-loop example calls `service.writeHumanInput` mid-execution. Does the resolved service shape (TASK-37) actually expose this without forcing the consumer to reach into the runner's internals?
+  - The wall-display example subscribes via `transport.subscribeSet(registry, "*", onUpdate)`. Does the live-subscription contract (TASK-32 + TASK-36) actually let the renderer receive state updates in real time? Does the React renderer's `useSyncExternalStore` integration work?
+- If the design holds, this task's output is a 3-paragraph "design validated" note appended to `.cns/log.md`. TASK-35-43 proceed as written.
+- If the design needs adjustment, this task's output is a list of design changes (e.g., "the bridge should apply at edge resolution, not at program input," or "`writeHumanInput` should be a method on the `WorkflowState` not the service"). Each design change becomes a new sub-bullet in TASK-35 (or whichever task is responsible) before that task's code lands. No code lands before this audit is done.
+
+Verification: a written check per example, a single decision ("design holds" or "design needs adjustment + which tasks"), and the resulting updates to TASK-35-43 (if any) are encoded in intent. CNS health gate green.
+
 ### Suggested execution order
 
-1. **TASK-35** (bridge + Fiber.interrupt) — the two v1.0 contract breaks. Closes the design's load-bearing promises.
-2. **TASK-36** (SubscriptionRegistry merge) — closes the architectural smell. The runner's internal fan-out uses core's registry; DEC-TRANSPORT-008's "one registry, three adapters" is true again.
-3. **TASK-37** (WorkflowRuntime service shape) — already resolved in plan-mode. The service becomes `{ publish, write, writeHumanInput }`. Workflow-level `paused` is deleted (state machine 7→6).
-4. **TASK-38** (delete core's `publish`/`write`) — already resolved in plan-mode. Path (d): runner is the only mutator. Core shrinks by 2 functions + 1 test file.
-5. **TASK-41** (subscribeSet exact-key) — small, independent fix. Can run in parallel with TASK-35 if a parallel session is desired; the changes don't conflict.
-6. **TASK-43** (WsClient send API) — independent of TASK-35 through TASK-40.
-7. **TASK-42** (architecture doc stale) — CNS hygiene; can run any time.
-8. **TASK-40** (prune phantom exports) — small; coordinate with TASK-37 because the `WorkflowRuntime.pause` deletion overlaps.
-9. **TASK-39** (wording-drift reconcile) — last. Depends on TASK-35, 37, 38, 43 landing so the summaries patch against final state.
+1. **TASK-44** (mock up example workflows) — runs first. The design check before the code change.
+2. **TASK-45** (audit the design against the examples) — runs after TASK-44, before TASK-35. Validates the design; updates TASK-35-43 if needed.
+3. **TASK-35** (bridge + Fiber.interrupt) — the two v1.0 contract breaks. Closes the design's load-bearing promises. May absorb design changes from TASK-45.
+4. **TASK-36** (SubscriptionRegistry merge) — closes the architectural smell. The runner's internal fan-out uses core's registry; DEC-TRANSPORT-008's "one registry, three adapters" is true again.
+5. **TASK-37** (WorkflowRuntime service shape) — already resolved in plan-mode. The service becomes `{ publish, write, writeHumanInput }`. Workflow-level `paused` is deleted (state machine 7→6).
+6. **TASK-38** (delete core's `publish`/`write`) — already resolved in plan-mode. Path (d): runner is the only mutator. Core shrinks by 2 functions + 1 test file.
+7. **TASK-41** (subscribeSet exact-key) — small, independent fix. Can run in parallel with TASK-35 if a parallel session is desired; the changes don't conflict.
+8. **TASK-43** (WsClient send API) — independent of TASK-35 through TASK-40.
+9. **TASK-42** (architecture doc stale) — CNS hygiene; can run any time.
+10. **TASK-40** (prune phantom exports) — small; coordinate with TASK-37 because the `WorkflowRuntime.pause` deletion overlaps.
+11. **TASK-39** (wording-drift reconcile) — last. Depends on TASK-35, 37, 38, 43 landing so the summaries patch against final state.
 
-Per Andrew's "verify per theme" rule: each task gets its own commit (code + tests + intent mark + log entry + bubble + CNS health gate). The judgment-call tasks (37, 38, 40) are already resolved — no `clarify` is needed before the code commits land.
+Per Andrew's "verify per theme" rule: each task gets its own commit (code + tests + intent mark + log entry + bubble + CNS health gate). The judgment-call tasks (37, 38, 40) are already resolved — no `clarify` is needed before the code commits land. The new tasks (44, 45) are pre-work for the rest, not judgment calls.
 
-Per the "Subtract Before You Add" principle: TASK-38 and TASK-40 are net-deletion. TASK-42 is a doc patch, not code. TASK-39 is a doc reconcile. TASK-37 has a deletion component (workflow-level `paused`) plus an addition (the `write` and `writeHumanInput` service methods). The substantive net code work is TASK-35 (two functions), TASK-36 (refactor), TASK-37 (2 new methods + state-machine reduction), TASK-38 (deletion of 2 functions), TASK-41 (3 lines), and TASK-43 (two methods). TASK-40's net effect is small deletions plus the YAML fix.
+Per the "Subtract Before You Add" principle: TASK-38 and TASK-40 are net-deletion. TASK-42 is a doc patch, not code. TASK-39 is a doc reconcile. TASK-37 has a deletion component (workflow-level `paused`) plus an addition (the `write` and `writeHumanInput` service methods). The substantive net code work is TASK-35 (two functions), TASK-36 (refactor), TASK-37 (2 new methods + state-machine reduction), TASK-38 (deletion of 2 functions), TASK-41 (3 lines), and TASK-43 (two methods). TASK-40's net effect is small deletions plus the YAML fix. TASK-44 adds a new workspace package (the examples); TASK-45 is design work, not code.
 
 ### Suggested execution order (Phase 2 follow-up, original 30-34)
 
