@@ -1,25 +1,11 @@
 // @underwai/runner — runtime.ts
 //
-// The Effect-based orchestrator. The runner owns the in-flight fiber
-// per workflow. The fiber is interrupted when writeHumanInput marks
-// a node stale (TASK-A). The runtime exposes a service for consumer
-// Effects and a top-level runWorkflow program.
-//
-// This file is the wiring; the actual state transitions live in
-// mutations.ts. runWorkflow walks findReadyNodes, runs each ready
-// node's program, applies the resulting state mutation, and loops
-// until the workflow completes or pauses.
-//
-// Note (2026-06-07): a runtime integration test is staged but not
-// committed. The Effect 3 + TS + exactOptionalPropertyTypes typing
-// for the orchestration loop is fighting the implementation. The
-// public API (WorkflowRuntime service, runWorkflow entry point,
-// writeHumanInput helper) is in place; the test would need an
-// Effect-3-typed gen rewrite. The mutations in mutations.ts are
-// fully tested; consumers can drive a workflow by calling them
-// in sequence if they don't want to use runWorkflow yet.
-
-import { Context, Effect, Fiber, Ref } from "effect"
+// The WorkflowRuntime service: owns the workflow state, exposes
+// { run, publish, write, writeHumanInput, getState, subscribe }.
+// Programs use publish to surface partial output. The workflow
+// owner uses write / writeHumanInput to inject values from
+// outside the program.
+import { Context, Effect, Layer, Ref } from "effect"
 import type {
   Node,
   NodeKey,
@@ -28,67 +14,40 @@ import type {
 import { LiveSubscriptionRegistry } from "@underwai/core"
 import {
   markFailed,
+  markPaused,
   markResolved,
   markRunning,
   markStreaming,
+  markStale,
   writeHumanInput as writeHumanInputMutation,
 } from "./mutations.js"
 
-// WorkflowRuntime service. A consumer's Effect.gen requests the
-// runtime to publish progress (streaming) or pause for human input.
-export class WorkflowRuntime extends Context.Tag("@underwai/WorkflowRuntime")<
-  WorkflowRuntime,
-  {
-    readonly publish: (output: unknown, partial: boolean) => Effect.Effect<void>
-    readonly pause: () => Effect.Effect<void>
-  }
->() {}
+// WorkflowRuntime service interface.
+export interface WorkflowRuntimeShape {
+  readonly run: (opts: RunOptions) => Effect.Effect<WorkflowState, never, never>
+  readonly publish: (
+    output: unknown,
+    partial: boolean,
+  ) => Effect.Effect<WorkflowState, never, never>
+  readonly write: (
+    key: NodeKey,
+    value: unknown,
+  ) => Effect.Effect<WorkflowState, never, never>
+  readonly writeHumanInput: (
+    key: NodeKey,
+    value: unknown,
+  ) => Effect.Effect<WorkflowState, never, never>
+  readonly getState: () => Effect.Effect<WorkflowState, never, never>
+  readonly subscribe: (
+    cb: (state: WorkflowState) => void,
+  ) => Effect.Effect<void, never, never>
+}
 
-// SubscriptionRegistry: a small in-process fan-out for state changes.
-// Each entry maps a node key to a set of callbacks. The runner's
-// notify step calls all registered callbacks after every state
-// mutation.
-export class SubscriptionRegistry extends Context.Tag(
-  "@underwai/SubscriptionRegistry",
-)<
-  SubscriptionRegistry,
-  {
-    readonly register: (
-      key: NodeKey,
-      cb: (state: WorkflowState) => void,
-    ) => void
-    readonly unregister: (
-      key: NodeKey,
-      cb: (state: WorkflowState) => void,
-    ) => void
-    readonly notify: (state: WorkflowState) => void
-  }
->() {}
-
-export const SubscriptionRegistryLive = Layer.succeed(
-  SubscriptionRegistry,
-  (() => {
-    const subs = new Map<string, Set<(state: WorkflowState) => void>>()
-    return {
-      register: (key, cb) => {
-        const k = key as unknown as string
-        if (!subs.has(k)) subs.set(k, new Set())
-        subs.get(k)!.add(cb)
-      },
-      unregister: (key, cb) => {
-        subs.get(key as unknown as string)?.delete(cb)
-      },
-      notify: (state) => {
-        for (const [k, cbs] of subs.entries()) {
-          const node = state.nodes[k]
-          if (node) for (const cb of cbs) cb(state)
-        }
-      },
-    }
-  })(),
-)
-
-import { Layer } from "effect"
+// WorkflowRuntime Context.Tag. Identified by the underwai/ prefix
+// in the runtime's effect graph.
+export class WorkflowRuntime extends Context.Tag(
+  "@underwai/WorkflowRuntime",
+)<WorkflowRuntime, WorkflowRuntimeShape>() {}
 
 // RunOptions: how to start a workflow.
 export type RunOptions = {
@@ -97,118 +56,178 @@ export type RunOptions = {
     Record<string, (input: unknown) => Effect.Effect<unknown, Error, never>>
   >
   readonly maxIterations?: number
-  // Optional live registry. If provided, the runtime notifies it
-  // after every state mutation. Consumers (transport's
-  // subscribe/subscribeSet) can wire into this registry to receive
-  // real-time updates.
   readonly liveRegistry?: LiveSubscriptionRegistry
 }
 
-// runWorkflow: top-level Effect program. The runner drives a workflow
-// from pending to completed (or failed/paused). The current
-// implementation is a single Effect.gen that walks the DAG, runs
-// each ready node's program sequentially, and updates the state.
-// See runtime.test.ts for the (staged-not-committed) integration test.
-export function runWorkflow(
-  opts: RunOptions,
-): Effect.Effect<WorkflowState, never, SubscriptionRegistry> {
-  return Effect.gen(function* () {
-    const stateRef = yield* Ref.make(opts.state)
-    const registry = yield* SubscriptionRegistry
-    const maxIter = opts.maxIterations ?? 1000
-    const runtimeFor = (nodeKey: NodeKey) => ({
-      publish: (output: unknown, partial: boolean) =>
-        Effect.gen(function* () {
-          const now = new Date().toISOString()
-          yield* Ref.update(stateRef, (s) =>
-            markStreaming(s, nodeKey, output, partial, now),
-          )
-          const s = yield* Ref.get(stateRef)
-          registry.notify(s)
-        }),
-      pause: () => Effect.succeed(undefined),
-    })
+// WorkflowRuntimeLive: a Layer that constructs a fresh
+// WorkflowRuntime service. Each call creates a new service with
+// its own stateRef.
+//
+// Usage:
+//   const program = Effect.gen(function*() {
+//     const rt = yield* WorkflowRuntime
+//     const final = yield* rt.run({ state, programs })
+//   }).pipe(Effect.provide(WorkflowRuntimeLive({ state, programs })))
+export const WorkflowRuntimeLive = (
+  initialOpts: RunOptions,
+): Layer.Layer<WorkflowRuntime, never, never> =>
+  Layer.effect(
+    WorkflowRuntime,
+    Effect.gen(function* () {
+      const stateRef = yield* Ref.make<WorkflowState>(initialOpts.state)
+      const subs = new Set<(state: WorkflowState) => void>()
 
-    let iter = 0
-    const initial: WorkflowState = yield* Ref.get(stateRef)
-    let result: WorkflowState = initial
-    while (iter < maxIter) {
-      iter += 1
-      const state = result
-      if (state.status === "completed" || state.status === "failed") break
-      if (state.status === "paused") break
-      const ready = findReadyNodesLocal(state)
-      if (ready.length === 0) {
-        const allDone = Object.values(state.nodes).every(
-          (n) =>
-            n.status.kind === "resolved" ||
-            n.status.kind === "failed" ||
-            n.status.kind === "paused",
-        )
-        if (allDone) {
-          result = { ...state, status: "completed" }
-          yield* Ref.set(stateRef, result)
-          break
-        }
-        break
+      const notify = (state: WorkflowState) => {
+        for (const cb of subs) cb(state)
+        initialOpts.liveRegistry?.notify(state)
       }
-      for (const key of ready) {
-        const node = state.nodes[key as unknown as string]
-        if (!node) continue
-        const program = opts.programs[key as unknown as string]
-        if (!program) {
-          const now = new Date().toISOString()
-          result = markFailed(
-            state,
-            key,
-            { nodeId: key, message: `no program for ${key as unknown as string}` },
-            now,
-          )
-          yield* Ref.set(stateRef, result)
-          continue
-        }
-        const now = new Date().toISOString()
-        result = markRunning(state, key, now)
-        yield* Ref.set(stateRef, result)
-        registry.notify(result)
-        const runtimeLayer = Layer.succeed(
-          WorkflowRuntime,
-          runtimeFor(key),
-        )
-        const next = yield* program(node.input.value).pipe(
-          Effect.tap((output) =>
-            Ref.update(stateRef, (s) =>
-              markResolved(s, key, output, new Date().toISOString()),
-            ),
-          ),
-          Effect.catchAll((err) =>
-            Ref.update(stateRef, (s) =>
-              markFailed(
-                s,
-                key,
-                {
-                  nodeId: key,
-                  message: err instanceof Error ? err.message : String(err),
-                },
-                new Date().toISOString(),
-              ),
-            ),
-          ),
-          Effect.provide(runtimeLayer),
-        )
-        void next
-        result = yield* Ref.get(stateRef)
-        registry.notify(result)
-        opts.liveRegistry?.notify(result)
-      }
-    }
-    return result
-  })
-}
 
-// findReadyNodesLocal: a stripped-down version of core's findReadyNodes
-// that the runtime can call without an Effect context. (Same
-// algorithm; inlined for clarity.)
+      const service: WorkflowRuntimeShape = {
+        getState: () => Ref.get(stateRef),
+
+        subscribe: (cb) =>
+          Effect.sync(() => {
+            subs.add(cb)
+          }),
+
+        publish: (output, partial) =>
+          Effect.gen(function* () {
+            const s = yield* Ref.get(stateRef)
+            const key = currentKey
+            if (!key) return s
+            const next = markStreaming(
+              s,
+              key,
+              output,
+              partial,
+              new Date().toISOString(),
+            )
+            yield* Ref.set(stateRef, next)
+            notify(next)
+            return next
+          }),
+
+        write: (key, value) =>
+          Effect.gen(function* () {
+            const s = yield* Ref.get(stateRef)
+            const next = markResolved(s, key, value, new Date().toISOString())
+            yield* Ref.set(stateRef, next)
+            notify(next)
+            return next
+          }),
+
+        writeHumanInput: (key, value) =>
+          Effect.gen(function* () {
+            const s = yield* Ref.get(stateRef)
+            const next = writeHumanInputMutation(
+              s,
+              key,
+              value,
+              new Date().toISOString(),
+            )
+            yield* Ref.set(stateRef, next)
+            notify(next)
+            return next
+          }),
+
+        run: (opts) =>
+          Effect.gen(function* () {
+            const initial = yield* Ref.get(stateRef)
+            void opts
+            const maxIter = opts.maxIterations ?? 1000
+
+            currentKey = null
+
+            let iter = 0
+            let result = initial
+            while (iter < maxIter) {
+              iter += 1
+              const state = result
+              if (state.status === "completed" || state.status === "failed") {
+                break
+              }
+              const ready = findReadyNodesLocal(state)
+              if (ready.length === 0) {
+                const allDone = Object.values(state.nodes).every(
+                  (n) =>
+                    n.status.kind === "resolved" ||
+                    n.status.kind === "failed",
+                )
+                if (allDone) {
+                  result = { ...state, status: "completed" }
+                  yield* Ref.set(stateRef, result)
+                  notify(result)
+                  break
+                }
+                break
+              }
+              for (const key of ready) {
+                const node = state.nodes[key as unknown as string]
+                if (!node) continue
+                const program = opts.programs[key as unknown as string]
+                if (!program) {
+                  const now = new Date().toISOString()
+                  result = markFailed(
+                    state,
+                    key,
+                    {
+                      nodeId: key,
+                      message: `no program for ${key as unknown as string}`,
+                    },
+                    now,
+                  )
+                  yield* Ref.set(stateRef, result)
+                  notify(result)
+                  continue
+                }
+                const now = new Date().toISOString()
+                currentKey = key
+                result = markRunning(state, key, now)
+                yield* Ref.set(stateRef, result)
+                notify(result)
+
+                const programResult = yield* program(node.input.value).pipe(
+                  Effect.tap((output) =>
+                    Ref.update(stateRef, (s) =>
+                      markResolved(s, key, output, new Date().toISOString()),
+                    ),
+                  ),
+                  Effect.catchAll((err) =>
+                    Ref.update(stateRef, (s) =>
+                      markFailed(
+                        s,
+                        key,
+                        {
+                          nodeId: key,
+                          message: err instanceof Error ? err.message : String(err),
+                        },
+                        new Date().toISOString(),
+                      ),
+                    ),
+                  ),
+                )
+                void programResult
+                result = yield* Ref.get(stateRef)
+                notify(result)
+                currentKey = null
+              }
+            }
+            return result
+          }),
+      }
+
+      return service
+    }),
+  )
+
+// currentKey: the node the runtime is currently executing. Set
+// before each program call, cleared after. Used by publish() to
+// know which node to mark streaming.
+let currentKey: NodeKey | null = null
+
+// findReadyNodesLocal: a stripped-down version of core's
+// findReadyNodes that the runtime can call without an Effect
+// context. Same algorithm; inlined for clarity.
 function findReadyNodesLocal(
   state: WorkflowState,
 ): ReadonlyArray<NodeKey> {
@@ -238,7 +257,12 @@ function findReadyNodesLocal(
     if (!n) continue
     if (n.status.kind === "pending" || n.status.kind === "stale") {
       const isRoot = (inEdges[id] ?? []).length === 0
-      if (isRoot || (inEdges[id] ?? []).every((u) => state.nodes[u]?.status.kind === "resolved")) {
+      if (
+        isRoot ||
+        (inEdges[id] ?? []).every(
+          (u) => state.nodes[u]?.status.kind === "resolved",
+        )
+      ) {
         ready.push(id as unknown as NodeKey)
       }
     }
@@ -249,19 +273,23 @@ function findReadyNodesLocal(
   return ready
 }
 
-// writeHumanInput helper: mark the node stale. The public API is
-// via the runner; the runtime's WorkflowRuntime service does not
-// expose writeHumanInput (the runner's job, not the runtime's).
+// runWorkflow: convenience Effect. The service is the canonical
+// API; this is a thin wrapper for the common case.
+export function runWorkflow(
+  opts: RunOptions,
+): Effect.Effect<WorkflowState, never, WorkflowRuntime> {
+  return Effect.gen(function* () {
+    const rt = yield* WorkflowRuntime
+    return yield* rt.run(opts)
+  })
+}
+
+// writeHumanInput helper: pure state transition. Internal.
 export function writeHumanInput(
   state: WorkflowState,
-  _fiber: null | Fiber.RuntimeFiber<unknown, never>,
-  _stateRef: Ref.Ref<WorkflowState>,
   nodeId: NodeKey,
   value: unknown,
 ): WorkflowState {
-  // Mid-execution: the caller is expected to interrupt the fiber
-  // before calling. The state mutation marks the node stale with
-  // the new input value.
   return writeHumanInputMutation(
     state,
     nodeId,
@@ -269,3 +297,6 @@ export function writeHumanInput(
     new Date().toISOString(),
   )
 }
+
+// Re-export for backwards compatibility.
+export { markPaused, markStale }

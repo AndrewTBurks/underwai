@@ -30,7 +30,6 @@ export type NodeStatus =
 export type WorkflowStatus =
   | "pending"
   | "running"
-  | "paused"
   | "completed"
   | "failed"
 

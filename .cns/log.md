@@ -469,3 +469,30 @@ Execution order: 44 -> 45 -> 35 -> 36 -> 37 -> 38 -> 41 ->
 43 -> 42 -> 40 -> 39. Examples come first.
 
 CNS health gate: validate.py PASSED, graph.json OK.
+
+## 2026-06-07 — TASK-37 done: WorkflowRuntime service shape
+
+The service now has { run, publish, write, writeHumanInput,
+getState, subscribe }. publish is the program-side method
+(running program surfaces partial output). write and
+writeHumanInput are consumer-side (the workflow's owner
+injects values from outside the program). No pause method.
+
+The service holds the state. WorkflowRuntimeLive(opts)
+constructs a fresh service with its own stateRef. The
+stateRef is the source of truth; consumers call
+writeHumanInput *before* run, then run, and the run sees
+the mutated state.
+
+WorkflowStatus reduced from 5 to 4: removed "paused".
+The per-node "paused" state survives; it's used when a
+node has a human-marked field. The workflow-level
+"paused" status had no transition into it; it was a
+phantom slot. The state machine 5->4 is the laziest
+expression of the design.
+
+Tests: 16/16 in the runner (was 13/13). 3 new tests for
+the service methods (publish, write, writeHumanInput).
+98/98 across the monorepo. tsc clean.
+
+CNS health gate: validate.py PASSED, graph.json OK.

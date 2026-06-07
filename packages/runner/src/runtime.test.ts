@@ -13,17 +13,20 @@
 //      invoked at least once during the run.
 //   4. Subscribers are notified on every state transition
 //      (count >= 2 for a single-node flow).
+//   5. The 3-node workflow drives root -> a -> b in dependency
+//      order.
+//   6. The live registry receives notify on every state
+//      transition.
 import { describe, expect, it } from "vitest"
-import { Effect, Layer } from "effect"
+import { Effect } from "effect"
 import {
-  SubscriptionRegistry,
-  SubscriptionRegistryLive,
   WorkflowRuntime,
+  WorkflowRuntimeLive,
   runWorkflow,
 } from "./runtime.js"
-import { compose, chain, run } from "@underwai/core"
+import { compose, chain, run, LiveSubscriptionRegistry } from "@underwai/core"
 import { init } from "@underwai/core"
-import { LiveSubscriptionRegistry, WorkflowId } from "@underwai/core"
+import { WorkflowId } from "@underwai/core"
 import type { NodeDefinition } from "@underwai/core"
 import { z } from "zod"
 
@@ -44,9 +47,10 @@ describe("runWorkflow() integration", () => {
       root: (_input: unknown) => Effect.succeed("done") as never,
     }
     const result = await Effect.runPromise(
-      runWorkflow({ state, programs }).pipe(
-        Effect.provide(SubscriptionRegistryLive),
-      ),
+      Effect.gen(function* () {
+        const rt = yield* WorkflowRuntime
+        return yield* rt.run({ state, programs })
+      }).pipe(Effect.provide(WorkflowRuntimeLive({ state, programs }))),
     )
     expect(result.status).toBe("completed")
     const node = result.nodes["root"]!
@@ -60,9 +64,10 @@ describe("runWorkflow() integration", () => {
       root: (_input: unknown) => Effect.fail(new Error("boom")) as never,
     }
     const result = await Effect.runPromise(
-      runWorkflow({ state, programs }).pipe(
-        Effect.provide(SubscriptionRegistryLive),
-      ),
+      Effect.gen(function* () {
+        const rt = yield* WorkflowRuntime
+        return yield* rt.run({ state, programs })
+      }).pipe(Effect.provide(WorkflowRuntimeLive({ state, programs }))),
     )
     expect(result.status).toBe("failed")
     const node = result.nodes["root"]!
@@ -76,15 +81,16 @@ describe("runWorkflow() integration", () => {
       root: (_input: unknown) => Effect.succeed("done") as never,
     }
     let notifyCount = 0
-    const registry = Layer.succeed(SubscriptionRegistry, {
-      register: () => {},
-      unregister: () => {},
-      notify: () => {
+    const subProgram = Effect.gen(function* () {
+      const rt = yield* WorkflowRuntime
+      yield* rt.subscribe(() => {
         notifyCount += 1
-      },
+      })
+      return yield* rt.run({ state, programs })
     })
-    await Effect.runPromise(runWorkflow({ state, programs }).pipe(Effect.provide(registry)))
-    // At minimum: the initial markRunning, and the final markResolved.
+    await Effect.runPromise(
+      subProgram.pipe(Effect.provide(WorkflowRuntimeLive({ state, programs }))),
+    )
     expect(notifyCount).toBeGreaterThanOrEqual(2)
   })
 
@@ -102,9 +108,10 @@ describe("runWorkflow() integration", () => {
       "root.a.b": () => Effect.succeed("c") as never,
     }
     const result = await Effect.runPromise(
-      runWorkflow({ state, programs }).pipe(
-        Effect.provide(SubscriptionRegistryLive),
-      ),
+      Effect.gen(function* () {
+        const rt = yield* WorkflowRuntime
+        return yield* rt.run({ state, programs })
+      }).pipe(Effect.provide(WorkflowRuntimeLive({ state, programs }))),
     )
     expect(result.status).toBe("completed")
     expect(result.nodes["root"]?.status.kind).toBe("resolved")
@@ -123,11 +130,17 @@ describe("runWorkflow() integration", () => {
     live.registerPattern("*", () => {
       notifyCount += 1
     })
-    await Effect.runPromise(
-      runWorkflow({ state, programs, liveRegistry: live }).pipe(
-        Effect.provide(SubscriptionRegistryLive),
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const rt = yield* WorkflowRuntime
+        return yield* rt.run({ state, programs })
+      }).pipe(
+        Effect.provide(
+          WorkflowRuntimeLive({ state, programs, liveRegistry: live }),
+        ),
       ),
     )
+    expect(result.status).toBe("completed")
     expect(notifyCount).toBeGreaterThanOrEqual(1)
   })
 })
