@@ -1,6 +1,6 @@
 ---
 task: TASK-A
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: critical
 finding_refs: [B1]
@@ -102,4 +102,4 @@ pending → ready → running → resolved
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved.** Andrew picked: interrupt the in-flight Effect fiber via Effect's standard `Fiber.interrupt`. Transition is `running → stale → running`. Implementation is gated on TASK-B's `runWorkflow` refactor (the runner must own the fiber to interrupt it). The state machine text in `docs/design.md` defines the policy now; the runtime lands with TASK-B.
