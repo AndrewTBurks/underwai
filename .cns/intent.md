@@ -89,6 +89,94 @@ Implementation order, organized by package:
 **Tests** (after the implementation lands):
 29. **Per-package test suites** — `composition.test.ts`, `runner.test.ts`, `human-input.test.ts`, `streaming.test.ts`, `subscribe.test.ts`, `serialization.test.ts`.
 
+## Phase 2 follow-up: audit-closing + transport + renderers
+
+`decisions[]` in `packages/*/index.md` are settled; the design is locked. Phase 2 implementation shipped 4 of 6 packages, but the 2026-06-07 audit found that ~50% of the named surface area is implemented and ~50% is stubbed or missing. The 28-step Phase 2 plan above was the original spec; the audit revealed which steps shipped thin and which steps are still open. **This section is the new plan, derived from the audit, executed in dependency order, one package at a time.**
+
+The audit's verdicts:
+- **schema**: 100% complete. Ship.
+- **core keys/types/composition/operations primitives**: 100% complete. Ship.
+- **core operations (missing pieces)**: `init()` is a stub, `getHumanInputDisplay()` is a stub, `publish`/`write` core mutation primitives are missing entirely. Closed by TASK-30.
+- **runner mutations**: 100% complete in isolation. Ship.
+- **runner runtime**: structurally complete, integration test was rolled back due to Effect-3 + `exactOptionalPropertyTypes` typing friction (DEC-RUNNER-009). Closed by TASK-31.
+- **transport**: in-process `subscribe`/`subscribeSet` matcher is complete; wire-format layer (event stream, SSE, WebSocket) and live subscription registry are missing. Closed by TASK-32.
+- **renderers**: not started. Closed by TASK-33 (renderer-react) and TASK-34 (renderer-log).
+
+Per Andrew's preference: sequential one-at-a-time, with TDD per task, CNS health gate per commit. Andrew's interview-first rule applies to *judgment calls* within each task; the next 5 tasks are scoped enough that the agent asserts the non-pivots and asks only the load-bearing questions per task.
+
+### 30. Close core gaps: `init()` walks composition → WorkflowState; `getHumanInputDisplay()` real impl; add `publish` / `write` core mutation primitives. (TASK-30)
+
+The composition API returns NodeRefs but nothing actually walks a composition tree to build a WorkflowState. The "composition is the definition" promise is broken at runtime. Also: `getHumanInputDisplay()` is a stub (DEC-CORE-010 unenforced); `publish`/`write` core mutation primitives (named in `docs/design.md` and `.cns/architecture/index.md`) are missing.
+
+Sub-bullets:
+- `core/init(root: NodeRef<"root">, defs: ReadonlyMap<NodeKey, NodeDefinition>): WorkflowState` walks the composition tree, builds `nodes`, `edges` (with bridges), `edgesByTarget`, `edgesByFrom`, and marks the root `pending`. TDD: one test that builds a 3-node tree (root → a → b) and asserts the WorkflowState shape.
+- `core/getHumanInputDisplay(node, fieldKey)` returns a discriminated union on source kind (literal / from_node / human) with real semantics, not a stub. TDD: at minimum one test per variant.
+- `core/publish(state, key, output, partial)` and `core/write(state, key, input)` as pure functions in `operations.ts`. The runner already inlines this logic; the public API is the missing piece. Migrate the runner to use the core functions, then delete the duplicates.
+
+Verification: `tsc -b` clean, all 61 existing tests pass, new tests added; CNS health gate green.
+
+### 31. Runner integration test (`runWorkflow` end-to-end). (TASK-31)
+
+The runtime is structurally complete (Effect.gen walking the DAG, sequential program execution, state mutations via `mutations.ts`) but the integration test was rolled back on 2026-06-07 due to Effect 3 + `exactOptionalPropertyTypes` typing friction (DEC-RUNNER-009).
+
+Sub-bullets:
+- Write the integration test using the `runtimeFor` + `SubscriptionRegistryLive` pattern that was rolled back.
+- Test 1: single-node workflow drives `pending → running → resolved`, then workflow `status === "completed"`.
+- Test 2: a failing program marks the node `failed`, workflow `status === "failed"`.
+- Test 3: a program that calls `runtime.publish(output, partial)` leaves the final state as `resolved` but intermediate state is observable via the registry's `notify` callback.
+- Test 4: subscribers are notified on every state transition (count >= 2 for a single-node flow).
+
+Verification: 4 new tests pass, all existing tests still pass, `tsc -b` clean, CNS health gate green.
+
+### 32. Transport wire format + live subscription. (TASK-32)
+
+The in-process `subscribe`/`subscribeSet` pattern matcher is complete, but the design is broken: the callback fires *once* with the current value, not on every state change. There's no live registry, no fan-out from the runner, no `unsubscribe` mechanism, no wire format. The transport package's `index.ts` is `export {}` — the public surface is empty.
+
+Sub-bullets:
+- `transport/src/live.ts` — a `LiveSubscriptionRegistry` that the runner's `notify` step calls. `subscribe`/`subscribeSet` register callbacks; the runner writes to the registry on every state mutation. The public `subscribe`/`subscribeSet` API becomes live instead of one-shot.
+- `transport/src/event-stream.ts` — the `WorkflowEvent` discriminated union (`NodeAdded`, `NodeUpdated`, `NodeRemoved`, `EdgeAdded`, `EdgeRemoved`, `WorkflowStatusChanged`). Wire format is JSON; events serialize to `{ kind, key?, node?, edge?, status?, timestamp }`.
+- `transport/src/transports/sse.ts` — Server-Sent Events server + client. Server writes events to a Node `ReadableStream` (Web standard); client parses with `EventSource`. **Stub OK**: the structure (open / write / close) is real; the test exercises a mock stream.
+- `transport/src/transports/ws.ts` — WebSocket transport. Server uses `ws` package or a Node `WebSocket`; client wraps the consumer's `WebSocket`. **Stub OK**: structure real, test uses a mock.
+- `transport/src/index.ts` — re-exports the public surface.
+
+DEC-TRANSPORT-003 (event stream), DEC-TRANSPORT-004 (SSE), DEC-TRANSPORT-005 (WebSocket) all become REFLECTED.
+
+Verification: live subscribe test, event-stream serialize/deserialize roundtrip, SSE mock test, WS mock test. `tsc -b` clean, CNS health gate green.
+
+### 33. `@underwai/renderer-react` — React adapter. (TASK-33)
+
+The React renderer. Hooks-based: `useWorkflowState`, `useNode`, `useSubtree`. Registry: `kind → ReactElement`. No chat/agent UI affordances — the lib is workflow-shaped, not chat-shaped (DEC-RR-004).
+
+Sub-bullets:
+- `renderer-react/src/provider.tsx` — `<WorkflowProvider state={state} onChange={cb}>` context.
+- `renderer-react/src/hooks.ts` — `useWorkflowState()`, `useNode(key)`, `useSubtree(key)`. All use `useSyncExternalStore` against the live registry (DEC-RR-001).
+- `renderer-react/src/registry.tsx` — `registerKind(kind, fn)`, `getKindRenderer(kind)`. The registry is a `Map<kind, (node) => ReactElement>`.
+- `renderer-react/src/auto-render.tsx` — `<AutoRender state={state} />` walks the DAG and renders each node via the registry. Unknown kinds render a default `<pre>` with the node's status.
+- `renderer-react/src/index.ts` — re-exports.
+
+Verification: a test that registers a renderer, instantiates a state with 3 nodes, asserts the renderer is called for each. **Skip React Testing Library** — the lib's vitest is plain Node; the renderer exports React elements; assertions are on the *call* to render, not on the rendered DOM. `tsc -b` clean, CNS health gate green.
+
+### 34. `@underwai/renderer-log` — stdout log renderer. (TASK-34)
+
+The smallest possible renderer. Subscribes to the workflow via `subscribeSet(state, "*", onUpdate)`, prints to stdout. Every kind is renderable (default for unknown kinds).
+
+Sub-bullets:
+- `renderer-log/src/registry.ts` — `kind → (node, indent) => string`. Default: `(node, indent) => \`${indent}${node.kind} (${node.status.kind})\``.
+- `renderer-log/src/runner.ts` — `runLogRenderer(state, opts?)` — subscribes via `subscribeSet(state, "*", ...)`; on each notification, walks the DAG and prints.
+- `renderer-log/src/index.ts` — re-exports.
+
+Verification: a test that constructs a 3-node state, runs the renderer against a captured-stdout, asserts the output contains all three kinds. `tsc -b` clean, CNS health gate green.
+
+### Suggested execution order
+
+1. **TASK-30** (core gaps) — closes the foundation. Required for renderer-log/renderer-react tests to construct real workflows.
+2. **TASK-31** (runner integration test) — proves runWorkflow drives a workflow end-to-end. Required before renderers can subscribe to a live state.
+3. **TASK-32** (transport wire format + live) — closes the runner→renderer data path. The renderers depend on this.
+4. **TASK-33** (renderer-react) — the headline renderer. Depends on transport live.
+5. **TASK-34** (renderer-log) — the smallest renderer, good for smoke tests. Depends on transport live.
+
+Per Andrew's "verify per theme" rule: each task gets its own commit (code + tests + intent mark + log entry + bubble + CNS health gate). The five tasks are sequential, not parallel.
+
 ## Phase 3: integration
 
 - **`defineNode` helper for dual type guard.** v1.1.

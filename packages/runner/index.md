@@ -35,6 +35,11 @@ decisions:
   - id: DEC-RUNNER-008
     date: 2026-06-06
     author: agent
+    summary: '@underwai/runner depends on @underwai/core and @underwai/schema. Effect is a peer; the runtime is built on Effect.gen. Renderers depend on @underwai/runner; @underwai/runner does NOT depend on any renderer.'
+  - id: DEC-RUNNER-009
+    date: 2026-06-07
+    author: agent
+    summary: '`runWorkflow` is structurally complete (Effect.gen walking the DAG, sequential program execution, state mutations via mutations.ts) but the integration test was rolled back on 2026-06-07 due to Effect 3 + exactOptionalPropertyTypes typing friction. The public API is present; consumers can drive a workflow by calling mutations.ts in sequence if they do not want to depend on runWorkflow. The runtime is functional; it is the test that was hard. A follow-up should add the integration test once the typing pattern is settled.'
     summary: 'Depends on @underwai/core (data structure) and @underwai/schema (getHumanMode reads the marker on a node''s inputSchema). The WorkflowRuntime service is the only way for the consumer''s program to mutate state (TASK-B, TASK-T).'
 human_notes: |
 
