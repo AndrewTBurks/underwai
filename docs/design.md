@@ -263,6 +263,10 @@ The runner picks up nodes whose status is `pending` or `stale` and whose inputs 
 
 **Staleness propagation:** when a node goes `stale`, the downstream subtree is marked `stale` too. Sibling subtrees (other branches of a fan-out that don't depend on the changed input) are unaffected. `findSubtree(state, staleNodeKey)` returns the descendants to invalidate.
 
+**Re-execution coalescing.** When a node is `stale` and the runner picks it up, the runner transitions it to `running` (or `paused` if the input has open `verified` fields). Multiple writes to the same node before re-execution completes coalesce: the most recent value wins. The runner processes a node at most once per step — a second write while the node is `pending` / `running` / `paused` just updates the input; the runner picks it up on the next step.
+
+This is the natural Effect semantics. The `findReadyNodes` set is processed in `topologicalOrder`; a node's status flips to `running` when it's picked up, which prevents the runner from picking it up again until the next step. The "already in flight" check (TASK-B) is the enforcement mechanism.
+
 ### Subscription (three methods, three jobs)
 
 ```ts

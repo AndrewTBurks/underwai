@@ -1,6 +1,6 @@
 ---
 task: TASK-M
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [B4]
@@ -65,4 +65,6 @@ The "already in flight" check prevents double-execution.
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved (doc-only).** The re-execution coalescing rule: multiple writes to the same node before re-execution completes coalesce; the most recent value wins. The runner processes a node at most once per step. A second write while the node is `pending` / `running` / `paused` just updates the input; the runner picks it up on the next step.
+
+Patch: `docs/design.md` runtime section gains a "Re-execution coalescing" paragraph that documents the rule. The enforcement mechanism is TASK-B's single-fiber runner (the "already in flight" check on `running` status). No type change. No API change.
