@@ -63,7 +63,7 @@ function thenLoop<P extends string, K extends string>(
 1. The consumer never types a node key as a string. Keys are produced by the composition API and carried as template-literal types on the returned `NodeRef<Path>`.
 2. The composition API is the only way to create nodes. There is no `addNode(state, ...)` API.
 3. Multi-parent (fan-in) is implicit. The lib's input resolver gathers all upstream outputs into a node's input. No explicit `reduce` primitive.
-4. `thenLoop` produces a *family* of nodes: `root.refine[0]`, `root.refine[1]`, ..., `root.refine.final`. Each iteration's body and predicate are real nodes in the DAG.
+4. `thenLoop` produces a *family* of nodes: `root.refine[0]`, `root.refine[1]`, ..., `root.refine.final`. Each iteration's body and predicate are real nodes in the DAG. The handle `thenLoop` returns is `NodeRef<`${P}.${K}`>` — a *prefix* pointing at the family, not a list of members. The members are runtime; consumers address them via `subscribeSet(state, handle.key + ".*", onUpdate)`. The path generic still applies: the prefix is type-checked, the family's N is wildcard.
 5. `z.human(schema)` flags a field as human-writable. `.verified()` is a decorator that gates on human confirmation *before* the node runs.
 
 ### Data structure (flat, keyed, single source of truth)

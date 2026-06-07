@@ -1,6 +1,6 @@
 ---
 task: TASK-U
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [A8]
@@ -55,4 +55,6 @@ The `as NodeKey` cast is required because the key is a string at the type level.
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved (doc-only).** The original plan said the family handle is `NodeRef<string>`. With TASK-I's resolution, the handle is `NodeRef<`${P}.${K}`>` — a *prefix* pointing at the family, not a list of members. The members are runtime (the N and final in `root.refine[N]` and `root.refine.final`); the prefix is type-checked.
+
+The doc-only fix: clarify that `thenLoop` returns a single `NodeRef` (a prefix), and consumers use `subscribeSet(state, handle.key + ".*", onUpdate)` to address the family. Patch: `docs/design.md` combinator section paragraph 4 is updated.
