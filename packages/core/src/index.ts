@@ -1,15 +1,44 @@
 // @underwai/core public entry point.
 //
-// Phase 1 (design) ships a single stub file with all the type
-// definitions stubbed out. Phase 2 distributes the stub's contents
-// across:
-//   - src/keys.ts        — NodeKey<Path> brand + path template
-//   - src/types.ts       — WorkflowState, Node, Edge, ResolvedInput, etc.
-//   - src/composition.ts — run, then, all, thenLoop
-//   - src/operations.ts  — init, findReadyNodes, publish, write, etc.
-//   - src/index.ts       — this file (re-exports)
+// Re-exports the data structure (types), keys, composition API,
+// and operations. The pre-shard stub.ts is no longer needed; the
+// real implementation is distributed across keys.ts, types.ts,
+// composition.ts, and operations.ts.
 //
-// See ../index.md for the full design rationale and the plan files
-// that govern each piece.
+// Per the design: the lib trusts its internal types and parses
+// external data. Internal types are re-exported as-is; external
+// data is parsed at the boundary (init, deserialize).
 
-export * from "./stub.js"
+// Keys (value)
+export { NodeKey, WorkflowId } from "./keys.js"
+export type { FieldKey, WorkflowId as WorkflowIdT } from "./keys.js"
+
+// Data structure (type-only). NodeKey is re-exported as a type from
+// keys.ts (the canonical source) — types.ts imports it from there.
+export type {
+  Actor,
+  Edge,
+  HumanInputDisplay,
+  Node,
+  NodeStatus,
+  ResolvedInput,
+  SerializedError,
+  WorkflowState,
+  WorkflowStatus,
+} from "./types.js"
+
+// Composition API
+export { all, chain, run, thenLoop } from "./composition.js"
+export type { NodeDefinition, NodeRef } from "./composition.js"
+
+// Operations
+export {
+  deserialize,
+  findReadyNodes,
+  findSubtree,
+  getHumanFields,
+  getHumanInputDisplay,
+  getNode,
+  init,
+  serialize,
+} from "./operations.js"

@@ -23,6 +23,10 @@ decisions:
     date: 2026-06-06
     author: agent
     summary: Composition API is the only way to create nodes. The composition expression *is* the definition.
+  - id: DEC-CORE-014
+    date: 2026-06-07
+    author: agent
+    summary: 'The combinator is named `chain`, not `then`. `then` collides with the ESM module namespace''s thenable hook — vitest/Vite 8 invokes the exported `then` as a Promise resolver during module load, which throws "not implemented" and hangs the test. The pre-shard stub used `then`; the runtime name diverges. The semantics are unchanged: chain(parent, child) returns a NodeRef with the child''s path. Design-rationale: never name an export `then` in an ESM module.'
   - id: DEC-CORE-005
     date: 2026-06-06
     author: agent
@@ -54,7 +58,7 @@ decisions:
   - id: DEC-CORE-012
     date: 2026-06-06
     author: agent
-    summary: 'Then combinator has two overloads: parent.then(child) for direct match (parent.output shape === child.input shape), parent.then((out) => in_, child) for bridge function. Bridge is composition metadata on the Edge, not a node (TASK-H).'
+    summary: 'The `chain` combinator has two overloads: parent.chain(child) for direct match (parent.output shape === child.input shape), parent.chain((out) => in_, child) for bridge function. Bridge is composition metadata on the Edge, not a node (TASK-H).'
   - id: DEC-CORE-013
     date: 2026-06-06
     author: agent
