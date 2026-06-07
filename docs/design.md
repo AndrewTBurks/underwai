@@ -539,6 +539,20 @@ underwai/
     design.md               // this file
 ```
 
+## Limitations
+
+The following are deliberate constraints of the v1 design, not oversights. Each is named here so consumers know what they are agreeing to before they build.
+
+- **Effect is required.** The consumer's program must be an `Effect.Effect<TOutput, TError, TRequirements>`. There is no plain-async or plain-promise adapter. Consumers must learn Effect's composition primitives (`Effect.gen`, `Effect.tryPromise`, etc.) to use the lib. This is a deliberate bet: the lib's composition story is Effect's composition story, and a plain-async adapter would be a contradiction.
+
+- **Zod is required.** The lib validates inputs and outputs against Zod schemas. There is no plain-type or other-schema adapter. Consumers must use Zod (3.x for v1; 4.x is a future version that would use `.meta()` instead of the runtime marker on `_def`).
+
+- **The composition API is the only way to create nodes.** Consumers cannot add a node to the workflow by hand outside the composition API. The composition expression *is* the definition. This is what makes keys carry real type information.
+
+- **The consumer must learn the lib's state machine.** `pending`, `running`, `streaming`, `resolved`, `paused`, `stale`, `failed` are not optional. A consumer who wants to write a renderer or a transport must understand the state machine. The seven statuses are the source of truth for what a node is doing and what transitions are possible.
+
+- **The runner is an Effect service.** The lib owns the runner fiber. `runWorkflow` is the primary API; `stepInternal` is not consumer-facing. Concurrent `runWorkflow` calls are safe (each owns its own fiber); concurrent `stepInternal` calls are not. The consumer's `Effect.gen` programs access `publish` / `write` / `writeHumanInput` via the `WorkflowRuntime` service.
+
 ## Tradeoffs accepted
 
 - **The consumer writes more code (schema + Effect program) in exchange for a strict, schema-literal contract.** The lib is the runtime authority, not "we'll validate the model output later."

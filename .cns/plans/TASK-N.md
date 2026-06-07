@@ -1,6 +1,6 @@
 ---
 task: TASK-N
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [B6]
@@ -56,4 +56,4 @@ The following are deliberate constraints of the v1 design, not oversights:
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved (doc-only).** Added a "Limitations" section to `docs/design.md` listing the deliberate constraints: Effect is required, Zod is required, composition API is the only way to create nodes, the state machine must be learned, the runner is an Effect service. The "Tradeoffs accepted" section stays as the cost-benefit analysis. Patch: `docs/design.md` gains a new "Limitations" section before the "Tradeoffs accepted" section.
