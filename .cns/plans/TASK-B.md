@@ -1,6 +1,6 @@
 ---
 task: TASK-B
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: critical
 finding_refs: [B2, B5]
@@ -124,4 +124,4 @@ The `runWorkflow` Effect program provides `WorkflowRuntime` as part of its layer
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved (combined with TASK-T).** Andrew picked: `runWorkflow` as the primary API; `step` renamed to `stepInternal` (not consumer-facing); `WorkflowRuntime` is a class extending `Context.Tag` so the name is both type and value. `runWorkflow` provides the service as a layer; consumer `Effect.gen` programs `yield* WorkflowRuntime` to call publish / write / writeHumanInput. Patches land in design.md and stub.ts in this commit.

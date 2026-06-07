@@ -169,8 +169,34 @@ function writeHumanInput(
   value: unknown
 ): WorkflowState
 
-// The runner: take state, find ready nodes, run their Effect programs, update state.
-function step(state: WorkflowState): WorkflowState
+// Primary API. The lib owns the runner fiber. The consumer drives the
+// workflow forward by calling this Effect program; multiple concurrent
+// `runWorkflow` calls would each own their own fiber, but the typical
+// pattern is one `runWorkflow` per workflow instance for the lifetime
+// of the consumer's session.
+function runWorkflow(
+  definition: NodeDefinition,
+  state?: WorkflowState
+): Effect.Effect<WorkflowState, never, never>
+
+// The service a consumer's `Effect.gen` program yields to call
+// publish / write / writeHumanInput. The service is provided by the
+// `runWorkflow` Effect program as a layer; consumer programs that run
+// outside `runWorkflow` will not have access to the service. The
+// service is a class extending Effect's `Context.Tag` — the class
+// name is both the type and the value; consumers do
+// `yield* WorkflowRuntime` inside their `Effect.gen` program.
+type WorkflowRuntime = {
+  publish(partial: unknown): Effect.Effect<void>
+  write(finalOutput: unknown): Effect.Effect<void>
+  writeHumanInput(fieldKey: FieldKey, value: unknown): Effect.Effect<void>
+}
+
+// Low-level primitive. Internal. NOT consumer-facing. Concurrent
+// calls are unsafe: two `stepInternal` calls in flight will find the
+// same ready nodes, start duplicate Effect programs, and clobber
+// state. Tests may use this; consumers must use `runWorkflow`.
+function stepInternal(state: WorkflowState): WorkflowState
 ```
 
 **Node lifecycle state machine:**

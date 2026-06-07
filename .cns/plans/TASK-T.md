@@ -34,4 +34,4 @@ The original B5 finding identified a real gap: `publish(state, key, partial)` to
 
 ## Session state
 
-*(merged; design session held against the combined TASK-B plan)*
+**2026-06-06 — resolved as part of TASK-B.** See the session state in `TASK-B.md` for the design decision and the merged patch list.

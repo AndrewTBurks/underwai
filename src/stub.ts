@@ -15,7 +15,7 @@
 // This stub puts everything in one file for compile-checking; the real
 // implementation will split per the module map.
 
-import { Effect } from "effect"
+import { Context, Effect } from "effect"
 import type { ZodType, ZodTypeAny, z } from "zod"
 
 // =========================================================================
@@ -227,7 +227,35 @@ export function findSubtree(
 // runner.ts
 // =========================================================================
 
-export function step(_state: WorkflowState): WorkflowState {
+export function stepInternal(_state: WorkflowState): WorkflowState {
+  throw new Error("not implemented")
+}
+
+// Primary API: the lib owns the runner fiber. Consumers drive the
+// workflow forward by running this Effect program. The
+// `WorkflowRuntime` service is provided as a layer for the duration
+// of the program; consumer Effect.gen programs that run inside
+// `runWorkflow` yield the service to call publish / write /
+// writeHumanInput.
+//
+// The class IS the value and the type (Effect's Context.Tag idiom).
+// Consumers do `yield* WorkflowRuntime` in their Effect.gen program;
+// `runWorkflow` provides the live implementation as a layer.
+export class WorkflowRuntime extends Context.Tag(
+  "@underwai/WorkflowRuntime",
+)<
+  WorkflowRuntime,
+  {
+    publish(partial: unknown): Effect.Effect<void>
+    write(finalOutput: unknown): Effect.Effect<void>
+    writeHumanInput(fieldKey: FieldKey, value: unknown): Effect.Effect<void>
+  }
+>() {}
+
+export function runWorkflow(
+  _definition: NodeDefinition,
+  _state?: WorkflowState,
+): Effect.Effect<WorkflowState, never, never> {
   throw new Error("not implemented")
 }
 
