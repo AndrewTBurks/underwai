@@ -1,6 +1,6 @@
 ---
 task: TASK-H
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: critical
 finding_refs: [C3, C4]
@@ -79,4 +79,33 @@ The `Edge` type doesn't need a schema field — the schema is carried on the `In
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved (with significant pivot).** Andrew's question ("I don't really understand what InputSource even is") surfaced a deeper issue: the per-field `InputSource` discriminated union was the wrong shape. The original design's "literal / from_node / human" per-field source was confused — a field's source isn't a per-cycle thing, it's a composition-time wiring.
+
+The pivot:
+
+1. **`InputSource` is gone.** The runner doesn't ask "where did this field's value come from this cycle?" — it asks "what's the upstream?" via the edge list, "what's the human mode?" via `humanFields`, and "is this a literal?" by absence of edge and human mode. The bundle shape (`fields` + `fieldSchemas` + `humanFields`) is gone too — `ResolvedInput` is a single value, schema, and human-fields map.
+
+2. **`ResolvedInput = { value, schema, humanFields }`.** A single value, not a per-field bundle. The composition API enforces shape match between parent's output and child's input. No per-field wiring.
+
+3. **Edge drops `toField`.** Edge = `{ from, to }`. No per-field wiring metadata. The connection is positional: parent's `finalOutput` becomes child's `value` (wholesale).
+
+4. **Bridges are an optional function on the Edge.** `Edge = { from, to, bridge?: (parentOut) => unknown }`. The composition API has two overloads of `.then()`:
+   - `parent.then(child)` — direct match (parent.output shape === child.input shape).
+   - `parent.then((out) => in_, child)` — bridge overload; the bridge function is composition metadata, stored on the Edge, applied by the runner at edge resolution.
+
+5. **The composition API combinators enforce shape match.** When shapes don't match, the consumer writes a bridge function (or chains through a transform node). The lib doesn't auto-wire fields.
+
+This is a foundational move. The data structure now says: "the runner's job is to walk a DAG, run Effect programs at each node, and pipe the result downstream. The composition is the wiring." The per-field `InputSource` was a half-measure that the lib used to paper over the missing composition-level wiring.
+
+The `humanFields` map stays. It tracks which fields are human-editable and in which mode, derived from the input schema via `getHumanMode`. The runner uses it to know whether `writeHumanInput` marks the node `stale` (writeable) or pauses for confirmation (verified). The seed-vs-no-seed vocabulary (TASK-E) still applies: a `writeable` field may have a seed (from upstream) or not; a `verified` field pauses for confirmation regardless of seed.
+
+Patches in this commit:
+- `InputSource` and the per-field bundle shape are removed from `docs/design.md` and `src/stub.ts`.
+- `ResolvedInput` becomes `{ value, schema, humanFields }`.
+- `Edge = { from, to, bridge? }` replaces the old `{ from, to, toField }`.
+- The composition API's `then` has two overloads (direct match and bridge); the stub implements both signatures.
+- `docs/design.md` composition API section documents the two overloads.
+
+`tsc --noEmit` green. CNS health gate green.
+
+The plan's original "two-stage validation" recommendation (per-source validation against `source.schema`, then aggregate against `inputSchema`) is preserved: with the new shape, the per-source validation is `value` against `schema`, and the aggregate validation is the full input object (when the schema is a record) against `inputSchema`. The lib still does two stages; the per-source stage is now a single value check rather than a per-field map walk.
