@@ -1,6 +1,6 @@
 ---
 task: TASK-Q
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [D7]
@@ -55,4 +55,4 @@ The wall-display's natural behavior is this default. The chat-embedded case migh
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved (doc-only).** Documented the reference behavior for stale UX: a `stale` node shows its previous output with a "re-deriving" indicator. This is one reference, not a lib mandate — the lib's contract is the state machine, not the UI. Patch: `docs/design.md` runtime section gains a "Stale UX reference behavior" paragraph.
