@@ -66,7 +66,13 @@ export type WorkflowStatus =
   | "completed"
   | "failed"
 
-export type Actor = "system" | "human" | (string & {})
+export type Actor = string
+// Convention (not enforced by the type system): "system" for
+// the lib's own operations, "human" for human-driven operations
+// (writeHumanInput, etc.), any other string for consumer-defined
+// roles ("orchestrator", "reviewer", "agent-1", etc.). The lib
+// doesn't validate the actor; the consumer is responsible for
+// using meaningful values.
 
 export type HumanMode = "writeable" | "verified"
 

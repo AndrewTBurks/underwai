@@ -1,6 +1,6 @@
 ---
 task: TASK-L
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [A6, C7]
@@ -66,4 +66,4 @@ The lib doesn't validate the actor; the consumer is responsible for using meanin
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved.** Drop the brand. `type Actor = string`. The half-brand was confusing. Document the convention. Patch: `docs/design.md` and `src/stub.ts`. The lib doesn't validate the actor; the consumer is responsible for meaningful values. The convention: "system" for the lib's own operations, "human" for human-driven, any other string for consumer-defined roles.

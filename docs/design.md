@@ -93,7 +93,13 @@ type WorkflowStatus =
   | "completed"
   | "failed"
 
-type Actor = "system" | "human" | (string & {})
+type Actor = string
+// Convention (not enforced by the type system): "system" for
+// the lib's own operations, "human" for human-driven operations
+// (writeHumanInput, etc.), any other string for consumer-defined
+// roles ("orchestrator", "reviewer", "agent-1", etc.). The lib
+// doesn't validate the actor; the consumer is responsible for
+// using meaningful values.
 
 // Node input. Direct match: the parent's output IS the child's
 // input, same shape. The composition API has two overloads of
