@@ -70,19 +70,20 @@ export type Actor = "system" | "human" | (string & {})
 
 export type HumanMode = "writeable" | "verified"
 
+// Node input. Direct match: parent's output IS child's input, same
+// shape. The composition API has two overloads of .then():
+// `parent.then(child)` for direct match, and
+// `parent.then((out) => in_, child)` for a bridge function. The
+// bridge is composition metadata (stored on the Edge as
+// `Edge.bridge`), not a node. The runner applies the bridge at
+// edge resolution. ResolvedInput is a single value, not a
+// per-field bundle, because the composition API enforces shape
+// match.
 export type ResolvedInput = {
-  fields: Record<FieldKey, InputSource>
+  value: unknown
+  schema: ZodTypeAny
+  humanFields: ReadonlyMap<FieldKey, HumanMode>
 }
-
-export type InputSource =
-  | { kind: "literal"; value: unknown }
-  | { kind: "from_node"; nodeId: NodeKey }
-  | {
-      kind: "human"
-      fieldSchema: ZodTypeAny
-      value?: unknown
-      status: "pending" | "set"
-    }
 
 // Node. Shared fields are on the type once. Per-status data lives
 // in `node.status` (a discriminated union). The lib derives the
@@ -111,7 +112,11 @@ export type Node = {
 export type Edge = {
   from: NodeKey
   to: NodeKey
-  toField: FieldKey
+  // Optional bridge: transforms `from`'s output to `to`'s input
+  // shape. The composition API's `parent.then((out) => in_, child)`
+  // overload provides this. Direct match (no bridge) is the
+  // default. Bridges are composition metadata, not nodes.
+  bridge?: (parentOut: unknown) => unknown
 }
 
 export type SerializedError = {
@@ -214,9 +219,28 @@ export function run<S extends ZodTypeAny>(
   throw new Error("not implemented")
 }
 
+// Composition API — the only ways to create nodes.
+//
+// Two overloads of `.then()`:
+//   - Direct match: `parent.then(child)` — parent.output shape === child.input shape.
+//   - Bridge:       `parent.then((out) => in_, child)` — bridge function transforms
+//                   parent's output to child's input shape. The bridge is
+//                   composition metadata (stored on the Edge as `Edge.bridge`),
+//                   not a node.
+
 export function then<S extends ZodTypeAny>(
   _parent: NodeRef,
   _def: NodeDefinition<z.infer<S>, unknown>,
+): NodeRef<string>
+export function then<TOut, TIn>(
+  _parent: NodeRef,
+  _bridge: (parentOut: TOut) => TIn,
+  _def: NodeDefinition<TIn, unknown>,
+): NodeRef<string>
+export function then(
+  _parent: NodeRef,
+  _arg2: NodeDefinition<unknown, unknown> | ((parentOut: unknown) => unknown),
+  _arg3?: NodeDefinition<unknown, unknown>,
 ): NodeRef<string> {
   throw new Error("not implemented")
 }

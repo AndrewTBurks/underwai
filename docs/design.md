@@ -24,7 +24,11 @@ The consumer never types node keys. They use a small set of combinators that ret
 ```ts
 // Combinators
 function run<S extends ZodTypeAny>(def: NodeDef<S>): NodeRef<"root">
+// Direct match: parent.output shape === child.input shape.
 function then<S extends ZodTypeAny>(parent: NodeRef, def: NodeDef<S>): NodeRef<"${parent.path}.${def.kind}">
+// Bridge: bridge function transforms parent.output to child.input shape.
+// Bridge is composition metadata, stored on the Edge.
+function then<TOut, TIn>(parent: NodeRef, bridge: (out: TOut) => TIn, def: NodeDef<TIn>): NodeRef<"${parent.path}.${def.kind}">
 function all(...args: [...NodeRef[]]): NodeRef<"${parent.path}.all[N]">         // array form: discriminated union output
 function all(args: Record<string, NodeRef>): NodeRef<"${parent.path}.all.${key}"> // object form: record output
 function thenLoop<B, P>(
@@ -70,19 +74,31 @@ type WorkflowStatus =
 
 type Actor = "system" | "human" | (string & {})
 
+// Node input. Direct match: the parent's output IS the child's
+// input, same shape. The composition API has two overloads of
+// .then() — `parent.then(child)` for direct match, and
+// `parent.then((out) => in_, child)` for a bridge function. The
+// bridge is composition metadata (stored on the Edge as
+// `Edge.bridge`), not a node. The runner applies the bridge at
+// edge resolution. ResolvedInput is a single value, not a
+// per-field bundle, because the composition API enforces shape
+// match.
 type ResolvedInput = {
-  fields: Record<FieldKey, InputSource>
+  // The current input value. Sourced from upstream.finalOutput
+  // (after any bridge transform), from a literal at the
+  // composition root, or from a human write via writeHumanInput.
+  value: unknown
+  // The schema. Validates the value (two-stage: per-source
+  // validation against fieldSchemas, then aggregate against
+  // inputSchema). For non-bundle inputs, fieldSchemas is a
+  // single-entry record keyed by the input field name.
+  schema: ZodTypeAny
+  // Editable metadata. Derived from the schema at init via
+  // getHumanMode. Used by the state machine to know whether
+  // writeHumanInput marks the node stale (writeable) or pauses
+  // for confirmation (verified).
+  humanFields: ReadonlyMap<FieldKey, HumanMode>
 }
-
-type InputSource =
-  | { kind: "literal"; value: unknown }
-  | { kind: "from_node"; nodeId: NodeKey }
-  | {
-      kind: "human"
-      fieldSchema: ZodTypeAny
-      value?: unknown
-      status: "pending" | "set"
-    }
 
 // Node. The canonical shape (with rationale, per-status semantics,
 // and the discriminated-union variants) is in
@@ -98,7 +114,11 @@ type InputSource =
 type Edge = {
   from: NodeKey
   to: NodeKey
-  toField: FieldKey
+  // Optional bridge: transforms `from`'s output to `to`'s input
+  // shape. The composition API's `parent.then((out) => in_, child)`
+  // overload provides this. Direct match (no bridge) is the
+  // default. Bridges are composition metadata, not nodes.
+  bridge?: (parentOut: unknown) => unknown
 }
 
 type SerializedError = {
