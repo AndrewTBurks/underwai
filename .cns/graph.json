@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-07T05:35:11.764725+00:00",
+  "generated": "2026-06-07T05:55:05.412060+00:00",
   "nodes": [
     {
       "path": ".cns/architecture/index.md",
@@ -98,7 +98,7 @@
       "type": "package",
       "parent": "../../.cns/index.md",
       "status": "dirty",
-      "decision_count": 5
+      "decision_count": 6
     },
     {
       "path": "packages/transport/index.md",

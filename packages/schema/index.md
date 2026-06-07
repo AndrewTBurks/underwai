@@ -23,7 +23,11 @@ decisions:
   - id: DEC-SCHEMA-005
     date: 2026-06-06
     author: agent
-    summary: 'HumanSchema<T> = T & { __humanMode: HumanMode; verified(): HumanSchema<T> }. The & intersection is the type-theoretic cleanest shape.'
+    summary: 'HumanSchema<T> = ZodType<T["_output"], T["_def"], T["_input"]> & { __humanMode: HumanMode; verified(): HumanSchema<T> }. The ZodType rebind is required; without it the intersection collapses T''s generics.'
+  - id: DEC-SCHEMA-006
+    date: 2026-06-07
+    author: agent
+    summary: 'Canonical API is `human(z.string())` (named import). The `z.human()` namespace mutation is NOT shipped. Zod 3 freezes the z namespace object (Object.isFrozen(z) === true), so the standard zod-extension pattern (zod-prisma, tRPC) does not work without forking. Consumers who want the namespace syntax do `import { human }` and call human() directly. This is the minimal-API-surface shape: no surprise mutations of the consumer''s z object.'
 human_notes: |
 
 status: dirty
@@ -32,7 +36,7 @@ last_reconciled: 2026-06-06
 
 # @underwai/schema
 
-The Zod extension. `z.human()` flags a schema as human-writable; `.verified()` is a decorator that gates on human confirmation. Standalone — depends on Zod only, not on `@underwai/core`.
+The Zod extension. `human()` (named import) flags a schema as human-writable; `.verified()` is a decorator that gates on human confirmation. Standalone — depends on Zod only, not on `@underwai/core`.
 
 ## What lives here
 

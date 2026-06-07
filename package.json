@@ -8,12 +8,14 @@
   "scripts": {
     "typecheck": "tsc -b",
     "build": "tsc -b",
-    "test": "echo 'no test runner configured yet — see CNS intent.md Phase 2 step 8' && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "effect": "^3.0.0",
     "typescript": "^5.4.0",
+    "vitest": "^4.1.8",
     "zod": "^3.22.0"
   },
   "packageManager": "pnpm@9.0.0"
