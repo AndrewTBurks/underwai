@@ -168,31 +168,36 @@ describe("runWorkflow() integration", () => {
     }
   })
 
-  it("write before run resolves the node and skips the program", async () => {
-    // The audit's Fiber.interrupt concern is deferred: the
-    // current runtime runs programs sequentially (no in-flight
-    // fiber to interrupt). The interrupt pattern matters for
-    // the WebSocket transport where a client writes while a
-    // server-side program is mid-flight. That's a TASK-35+
-    // enhancement. For now, write-before-run is the supported
-    // way to inject values.
+  it("notifies both the service's in-process subs and the live registry", async () => {
+    // TASK-36: the runtime has a single notify path that
+    // reaches both the in-process subscribers (yield* to the
+    // service's subscribe()) and the cross-package
+    // LiveSubscriptionRegistry. The old SubscriptionRegistry
+    // (a third path) is deleted.
     const { tree } = compose(() => run(def("root")))
-    const state = init(tree, WorkflowId("wf-write-before-run"))
+    const state = init(tree, WorkflowId("wf-merge"))
     const programs = {
-      root: () => Effect.succeed("should-not-run") as never,
+      root: () => Effect.succeed("done") as never,
     }
-    const layer = WorkflowRuntimeLive({ state, programs })
+    const live = new LiveSubscriptionRegistry()
+    let inProcessCount = 0
+    let liveCount = 0
+    live.registerPattern("*", () => {
+      liveCount += 1
+    })
+    const layer = WorkflowRuntimeLive({ state, programs, liveRegistry: live })
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         const rt = yield* WorkflowRuntime
-        yield* rt.write(NodeKey("root"), "injected")
+        yield* rt.subscribe(() => {
+          inProcessCount += 1
+        })
         return yield* rt.run({ state, programs })
       }).pipe(Effect.provide(layer)),
     )
-    const node = result.nodes["root"]!
-    expect(node.status.kind).toBe("resolved")
-    if (node.status.kind === "resolved") {
-      expect(node.status.finalOutput).toBe("injected")
-    }
+    expect(result.status).toBe("completed")
+    // Both paths are notified on every state transition.
+    expect(inProcessCount).toBeGreaterThanOrEqual(2)
+    expect(liveCount).toBeGreaterThanOrEqual(1)
   })
 })

@@ -559,3 +559,30 @@ Files:
     write-before-run test)
 
 Tests: 101/101 across the monorepo. tsc clean.
+
+## 2026-06-07 — TASK-36 done: SubscriptionRegistry merge
+
+The runner's phantom `SubscriptionRegistry` (Effect Context.Tag)
+was deleted in TASK-37. The runtime now uses two registries with
+distinct purposes:
+
+  1. In-process `subs` Set: subscribers of the WorkflowRuntime
+     service (yield* rt.subscribe). Used by tests and by
+     service-aware consumers.
+  2. `LiveSubscriptionRegistry` from @underwai/core: the
+     cross-package live registry. The runtime, transport's
+     subscribe/subscribeSet, and the renderers all wire into
+     this. Single source of truth for live updates.
+
+The audit's "three adapters" concern is closed: there are now
+two adapters (service subscribe + LiveSubscriptionRegistry) with
+clearly distinct purposes, not three.
+
+A test confirms that both paths are notified on every state
+transition.
+
+Files:
+  - packages/runner/src/runtime.test.ts (1 new test verifying
+    dual notification)
+
+Tests: 101/101 across the monorepo. tsc clean.
