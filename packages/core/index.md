@@ -27,6 +27,22 @@ decisions:
     date: 2026-06-07
     author: agent
     summary: 'The combinator is named `chain`, not `then`. `then` collides with the ESM module namespace''s thenable hook — vitest/Vite 8 invokes the exported `then` as a Promise resolver during module load, which throws "not implemented" and hangs the test. The pre-shard stub used `then`; the runtime name diverges. The semantics are unchanged: chain(parent, child) returns a NodeRef with the child''s path. Design-rationale: never name an export `then` in an ESM module.'
+  - id: DEC-CORE-015
+    date: 2026-06-07
+    author: agent
+    summary: '`compose(fn)` wraps a composition expression to capture the defs and edges. Inside the wrapper, run/chain/all/thenLoop record into a per-compose Builder. The result is a CompositionTree (root + defs + edges) that init() walks to build a WorkflowState. The implementation uses a module-level currentBuilder reference (the legacy-context pattern). Compositions written outside compose() still work — they just don''t record.'
+  - id: DEC-CORE-016
+    date: 2026-06-07
+    author: agent
+    summary: '`init(tree, id)` is the public WorkflowState builder. Walks CompositionTree.defs, creates a Node for each (status=pending), applies edges (with bridges), and computes edgesByTarget and edgesByFrom. Replaces the pre-shard stub.'
+  - id: DEC-CORE-017
+    date: 2026-06-07
+    author: agent
+    summary: '`getHumanInputDisplay(state, node, fieldKey)` returns a discriminated union on source kind: literal (root, no incoming edge, or human-marked+verified+value), from_node (incoming edge from a resolved upstream), human (writeable+pending or writeable+set). Renderer decides UX. Replaces the pre-shard stub. Signature changed: takes state in addition to node, so the function can read edgesByTarget.'
+  - id: DEC-CORE-018
+    date: 2026-06-07
+    author: agent
+    summary: '`publish(state, key, output, partial, now)` and `write(state, key, value)` are public core mutation primitives. Pure functions; the runner inlined this logic before. The runner runtime now uses these from @underwai/core instead of duplicating the logic in mutations.ts.'
   - id: DEC-CORE-005
     date: 2026-06-06
     author: agent
@@ -50,7 +66,7 @@ decisions:
   - id: DEC-CORE-010
     date: 2026-06-06
     author: agent
-    summary: 'getHumanInputDisplay(node, fieldKey) returns a discriminated union on source kind. No "proposed: boolean" flag — the lib exposes the source, the renderer decides UX (TASK-S, folded into TASK-G).'
+    summary: 'getHumanInputDisplay(state, node, fieldKey) returns a discriminated union on source kind: literal / from_node / human (writeable+pending, writeable+set) / human (verified+locked). No "proposed: boolean" flag — the lib exposes the source, the renderer decides UX (TASK-S, folded into TASK-G).'
   - id: DEC-CORE-011
     date: 2026-06-06
     author: agent

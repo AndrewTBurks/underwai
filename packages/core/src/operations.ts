@@ -36,8 +36,56 @@ import type {
 } from "./types.js"
 import { z } from "zod"
 
-export function init(_root: unknown): WorkflowState {
-  throw new Error("not implemented")
+// init: build a WorkflowState from a CompositionTree. Walks the
+// tree's defs, creates a Node for each, applies edges with bridges,
+// and builds the derived indices.
+export function init(
+  tree: import("./composition.js").CompositionTree,
+  id: WorkflowId,
+): WorkflowState {
+  const now = new Date().toISOString()
+  const nodes: Record<string, Node> = {}
+  for (const [key, def] of tree.defs.entries()) {
+    nodes[key] = {
+      id: key as never,
+      kind: def.kind,
+      inputSchema: def.inputSchema as ZodTypeAny,
+      input: {
+        value: undefined,
+        schema: def.inputSchema as ZodTypeAny,
+        humanFields: new Map(),
+      },
+      outputSchema: def.outputSchema as ZodTypeAny,
+      status: { kind: "pending" },
+      actor: "system",
+      createdAt: now,
+      updatedAt: now,
+    }
+  }
+  // Build derived fields.
+  const edgesByTarget: Record<NodeKeyT, ReadonlyArray<Edge>> = {}
+  const edgesByFrom: Record<NodeKeyT, ReadonlyArray<Edge>> = {}
+  for (const e of tree.edges) {
+    const t = e.to as unknown as string
+    const f = e.from as unknown as string
+    const tgts = (edgesByTarget[t as unknown as NodeKeyT] ?? []) as Edge[]
+    tgts.push(e)
+    edgesByTarget[t as unknown as NodeKeyT] = tgts
+    const srcs = (edgesByFrom[f as unknown as NodeKeyT] ?? []) as Edge[]
+    srcs.push(e)
+    edgesByFrom[f as unknown as NodeKeyT] = srcs
+  }
+  return {
+    id,
+    version: 1,
+    status: "pending",
+    nodes,
+    edges: tree.edges,
+    edgesByTarget,
+    edgesByFrom,
+    createdAt: now,
+    updatedAt: now,
+  }
 }
 
 export function getNode(state: WorkflowState, key: NodeKeyT): Node {
@@ -198,11 +246,114 @@ function walkSchema(
   }
 }
 
+// getHumanInputDisplay: helper for renderers. Returns a discriminated
+// union on source kind: literal / from_node / human. The lib exposes
+// the source; the renderer decides the UX. (TASK-S, folded into TASK-G.)
+//
+// Decision rules:
+//   - If the field's schema is human-marked (verified) and has a
+//     value: literal (the value is locked in; no human UI needed).
+//   - If the field's schema is human-marked (writeable) and has a
+//     value: human + status "set" (the human has typed it).
+//   - If the field's schema is human-marked (writeable) and is empty:
+//     human + status "pending" (waiting for human input).
+//   - If the node has an incoming edge and the upstream is resolved:
+//     from_node (the value flowed from upstream).
+//   - Otherwise: literal (the value is just a constant at the root).
 export function getHumanInputDisplay(
-  _node: Node,
-  _fieldKey: FieldKey,
+  state: WorkflowState,
+  node: Node,
+  _fieldKey: string,
 ): HumanInputDisplay {
-  throw new Error("not implemented")
+  // Inspect the field schema. For a top-level call, we look at the
+  // whole node's input schema; for per-field calls, the caller
+  // would need a separate API. For now, the top-level call is the
+  // contract: getHumanInputDisplay(state, node, "(root)").
+  const schema = node.input.schema
+  const mode = getHumanMode(schema as never)
+  const value = node.input.value
+
+  if (mode === "verified" && value !== undefined) {
+    return { source: "literal", value, fieldSchema: schema as never }
+  }
+  if (mode === "writeable") {
+    return {
+      source: "human",
+      value,
+      fieldSchema: schema as never,
+      status: value === undefined ? "pending" : "set",
+    }
+  }
+
+  // Walk incoming edges. If any upstream is resolved, the value
+  // flowed from there.
+  const id = node.id as unknown as string
+  const inEdges = state.edgesByTarget[id as never] ?? []
+  for (const edge of inEdges) {
+    const upId = edge.from as unknown as string
+    const up = state.nodes[upId]
+    if (up && up.status.kind === "resolved") {
+      const upstreamValue =
+        up.status.kind === "resolved" ? up.status.finalOutput : undefined
+      return {
+        source: "from_node",
+        value: upstreamValue,
+        fieldSchema: schema as never,
+        upstream: edge.from,
+      }
+    }
+  }
+
+  return { source: "literal", value, fieldSchema: schema as never }
 }
 
 export { NodeKey, WorkflowId, z }
+
+// publish: transition a running node to streaming with the given
+// output. Pure function. The runner's runtime service uses this;
+// consumers who want a public core-level API use it directly.
+export function publish(
+  state: WorkflowState,
+  key: NodeKeyT,
+  output: unknown,
+  partial: boolean,
+  now: string,
+): WorkflowState {
+  const node = state.nodes[key as unknown as string]
+  if (!node) return state
+  return {
+    ...state,
+    nodes: {
+      ...state.nodes,
+      [key as unknown as string]: {
+        ...node,
+        status: { kind: "streaming", output, outputPartial: partial },
+        updatedAt: now,
+      },
+    },
+  }
+}
+
+// write: update a node's input value. The schema and humanFields
+// are preserved. The caller is responsible for any state-machine
+// transitions (writeHumanInput is the proper API for human writes;
+// write is the lower-level primitive the runner uses internally).
+export function write(
+  state: WorkflowState,
+  key: NodeKeyT,
+  value: unknown,
+): WorkflowState {
+  const node = state.nodes[key as unknown as string]
+  if (!node) return state
+  return {
+    ...state,
+    nodes: {
+      ...state.nodes,
+      [key as unknown as string]: {
+        ...node,
+        input: { ...node.input, value },
+        updatedAt: new Date().toISOString(),
+      },
+    },
+  }
+}

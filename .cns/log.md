@@ -191,3 +191,47 @@ CNS health gate green: `validate.py` PASSED, `graph.py --check` OK. `tsc -b` gre
 The skill says: "a completed plan that has been distributed into CNS nodes is stale; delete it." The standard shard pipeline's "delete the source plan file" step applies here, but the distribution is already done. The deletion is the final step.
 
 The deleted content is preserved in the git history (22 individual plan files, ~94,000 chars total, all resolved). Anyone who needs to revisit a decision can grep git for the file or look at the cross-references in the package `index.md` files.
+
+---
+
+## 2026-06-07 — Phase 2 audit + intent re-plan
+
+A parallel subagent audited the 4 implemented packages against the
+design spec. The verdict: ~50% of the named surface area is
+implemented. Tests pass (61/61) but only cover what exists.
+
+The follow-up is encoded in intent.md as TASK-30 through TASK-34
+(five new top-level tasks). Execution order: 30 → 31 → 32 → 33 → 34.
+Each task closes one of: core gaps, runner integration test, transport
+wire format + live subscription, renderer-react, renderer-log.
+
+## 2026-06-07 — TASK-30 start: close core gaps
+
+`init()` walks a composition tree and produces a WorkflowState.
+`getHumanInputDisplay()` real implementation. `publish`/`write`
+core mutation primitives (currently inlined in the runner). TDD per
+function: RED, watch fail, GREEN, refactor.
+
+## 2026-06-07 — TASK-30 done: core gaps closed
+
+12 new tests added across three test files. 73/73 green.
+
+  - `core/compose(fn)`: wraps a composition expression in a
+    per-compose Builder. The combinators (run, chain, all,
+    thenLoop) record their defs and edges into the Builder.
+    Result: a CompositionTree that init() can walk. DEC-CORE-015.
+  - `core/init(tree, id)`: walks CompositionTree.defs, builds
+    nodes + edges + derived fields. Replaces the pre-shard stub.
+    DEC-CORE-016.
+  - `core/getHumanInputDisplay(state, node, fieldKey)`: real
+    implementation. Source kind: literal / from_node / human
+    (with status pending or set). The function now takes state
+    so it can read edgesByTarget. DEC-CORE-017.
+  - `core/publish(state, key, output, partial, now)` and
+    `core/write(state, key, value)`: public mutation primitives
+    in core/operations.ts. The runner still inlines markStreaming
+    in runtime.ts; the migration to use core's publish is
+    TASK-31. DEC-CORE-018.
+
+Follow-up: TASK-31 (runner integration test) re-attempts the
+test that was rolled back on 2026-06-07.

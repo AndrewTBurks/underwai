@@ -115,6 +115,8 @@ Sub-bullets:
 
 Verification: `tsc -b` clean, all 61 existing tests pass, new tests added; CNS health gate green.
 
+**Status (2026-06-07): DONE.** 12 new tests added (4 init, 5 getHumanInputDisplay, 3 publish/write). 73/73 green. DEC-CORE-015 (compose) through DEC-CORE-018 (publish/write) added. The init() shape required a `compose()` wrapper (DEC-CORE-015) so the combinators can record their defs and edges; this was not in the original plan but is the laziest path. The runner migration to use core's publish/write is a follow-up; the runner's runtime.ts still inlines markStreaming/markRunning — that's TASK-31.
+
 ### 31. Runner integration test (`runWorkflow` end-to-end). (TASK-31)
 
 The runtime is structurally complete (Effect.gen walking the DAG, sequential program execution, state mutations via `mutations.ts`) but the integration test was rolled back on 2026-06-07 due to Effect 3 + `exactOptionalPropertyTypes` typing friction (DEC-RUNNER-009).

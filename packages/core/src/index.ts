@@ -28,8 +28,8 @@ export type {
 } from "./types.js"
 
 // Composition API
-export { all, chain, run, thenLoop } from "./composition.js"
-export type { NodeDefinition, NodeRef } from "./composition.js"
+export { all, chain, compose, run, thenLoop } from "./composition.js"
+export type { CompositionTree, NodeDefinition, NodeRef } from "./composition.js"
 
 // Operations
 export {
@@ -40,5 +40,7 @@ export {
   getHumanInputDisplay,
   getNode,
   init,
+  publish,
   serialize,
+  write,
 } from "./operations.js"
