@@ -176,7 +176,145 @@ Verification: a test that constructs a 3-node state, runs the renderer against a
 
 **Status (2026-06-07): DONE.** 3 source files (registry, runner, index). 3 tests. 95/95 green. The runner takes a `getState` function (consumer-owned state pattern); subscribes via `subscribeSet(registry, "*", onUpdate)`; on every notify calls `getState()` and walks the DAG. Default renderer prints `"<indent><kind> (<status>)"`.
 
+### 35. Close the v1.0 contract breaks: bridge resolution + Fiber.interrupt. (TASK-35)
+
+The conformance audit found two real v1.0 contract promises the code does not keep. Both are in the runner. Both are listed in the design (`docs/design.md:109` for the bridge, DEC-RUNNER-002 for the interrupt). The composition API produces `Edge.bridge` correctly; the runner never applies it. The state-mutation half of the human-input race exists; the `Fiber.interrupt` half is missing entirely.
+
+Sub-bullets:
+- **Bridge resolution in the runtime loop.** When a node enters the "ready" set, look up its incoming edges via `state.edgesByTarget[key]`. For each, look up the upstream's `status.finalOutput` (if `resolved`), apply the `Edge.bridge` if present, and use the transformed value as the program's input. If the upstream is not `resolved`, the node is not ready (this is the current rule). Test: a 2-node workflow with a bridge that doubles a number; the child receives the doubled value.
+- **Mid-execution `Fiber.interrupt`.** When a consumer calls `writeHumanInput` on a running node, the runtime must (a) interrupt the in-flight Effect fiber (via `Effect.fiberId` + `Fiber.interrupt(fiberId)`) and (b) mark the node `stale` so the loop re-runs. Today only (b) works. The integration is in the runtime's loop where it `Effect.fork`s each program. Test: a slow program that calls `writeHumanInput` after 100ms; the fiber is interrupted within 50ms; the node is `stale`; the next loop iteration re-runs.
+- **Per the test-driven-development skill:** RED each function explicitly. RED: write a 2-node bridge test, watch it fail (child sees untransformed value), GREEN: implement bridge resolution, watch it pass. RED: write a Fiber.interrupt test, watch it fail (the program runs to completion despite `writeHumanInput`), GREEN: implement interrupt, watch it pass.
+
+Verification: at least 2 new tests (bridge + interrupt), all 95 existing tests still pass, `tsc -b` clean, CNS health gate green.
+
+### 36. Reconcile `SubscriptionRegistry` duplication. (TASK-36)
+
+DEC-TRANSPORT-008's "one registry, three adapters" promise is broken. The runner has its own `SubscriptionRegistry` (an Effect `Context.Tag` at `runner/src/runtime.ts:51-89`) that is functionally identical to core's `LiveSubscriptionRegistry` (`core/src/live.ts:12-54`). The runner uses its own for internal fan-out and only optionally notifies core's through `RunOptions.liveRegistry`. Two registries, two paths.
+
+Sub-bullets:
+- The runner's `Context.Tag` should resolve to a `LiveSubscriptionRegistry` instance, not a parallel class. In the runtime's layer construction, instantiate a `LiveSubscriptionRegistry` and pass it as the `Context.Tag`'s value. All `register`/`unregister`/`notify` calls inside the runner should hit the same object that consumers wire up.
+- Delete the duplicate `SubscriptionRegistry` class body in `runner/src/runtime.ts`. Replace with `export const SubscriptionRegistry = Context.Tag<...>(...).of(liveRegistry)` or equivalent Effect pattern.
+- Update the runner's `SubscriptionRegistryLive` to be a thin layer that constructs one `LiveSubscriptionRegistry` and returns it. The `Runtime` layer depends on the same instance.
+
+Verification: existing 5 runtime tests still pass; a new test that asserts the runner's internal `SubscriptionRegistry` and core's `LiveSubscriptionRegistry` are the same object when wired through a Layer. `tsc -b` clean, CNS health gate green.
+
+### 37. Reconcile `WorkflowRuntime` service shape with the design. (TASK-37)
+
+The design (`docs/design.md:235-239`) says the `WorkflowRuntime` service has `publish`, `write`, `writeHumanInput`. The code (`runner/src/runtime.ts:39-45`) has `publish` and `pause` (a no-op). `pause` is not in the design; `write` and `writeHumanInput` are in the design but not in the service.
+
+**JUDGMENT CALL — surface to user.** Two paths:
+
+(a) Add `write` and `writeHumanInput` methods to the `WorkflowRuntime` service, drop the `pause` no-op. The service then matches the design exactly. Cost: changes the public API of `@underwai/runner` for any consumer who was using `pause` (zero, per the audit — no test or code calls it).
+
+(b) Update the design to match the code: drop `write`/`writeHumanInput` from the service; the program returns its output, so `write` is implicit on return. Document `pause` as a deliberate "I want to halt and ask for human input" affordance.
+
+I recommend (a). The design's shape is the one consumers will read first; the code's divergence is an implementation drift, not a deliberate choice.
+
+Sub-bullets:
+- Per Andrew's preference, surface the call as a `clarify` before the first code commit. If Andrew says (b), the change is one-line (`docs/design.md` edit). If (a), the change is the service type + implementation + a test that exercises `service.write` and `service.writeHumanInput`.
+- Whichever path: update DEC-RUNNER-004's summary to match. The current summary is the design's signature; the code's signature is the deliberate divergence. After the fix, the summary must match the chosen path.
+
+Verification: 1+ new test (whichever shape), all 95 existing tests still pass, `tsc -b` clean, CNS health gate green.
+
+### 38. Reconcile DEC-CORE-018 with the actual architecture. (TASK-38)
+
+DEC-CORE-018's summary says "the runner runtime now uses these from `@underwai/core` instead of duplicating the logic in `mutations.ts`." The audit confirmed the runner does not import core's `publish` or `write`. The runner's `markStreaming` is signature-identical to core's `publish` and could be replaced by it. The runner's `markResolved` sets `status: { kind: "resolved", finalOutput, resolvedAt }` and has no core equivalent.
+
+**JUDGMENT CALL — surface to user.** Two paths:
+
+(a) Migrate the runner to use core's `publish`; add a `markResolved` to core and migrate the runner to use it. Pure-deletion refactor: drop the runner's `markStreaming` (1 function) and the runner's `markResolved` becomes a one-line call into core. The 5 other `mark*` functions in the runner stay (they cover transitions core doesn't yet support).
+
+(b) Rewrite the decision summary to reflect the actual architecture: "The runner's mutations are a complete set covering all 6 status transitions; core's `publish` is a primitive that one of the runner's mutations happens to share a signature with. They live in different packages because they serve different consumers." The summary is the lazier fix.
+
+I recommend (a). The `principle-migrate-callers-then-delete-legacy-apis` skill applies here: introducing a new internal API while old callers exist is the right time to migrate; the runner is the only caller of its own `markStreaming`, so migration is a one-commit change.
+
+Sub-bullets:
+- Per Andrew's preference, surface the call as a `clarify` before the first code commit.
+- If (a): add `markResolved(state, key, finalOutput, now): WorkflowState` to `core/src/operations.ts` (returns a new state with `status: { kind: "resolved", finalOutput, resolvedAt: now }`). Update `runner/src/mutations.ts` to import and re-export from core. Drop the runner's `markResolved` body. Add 1 test for the new core function. Update the runner's `markStreaming` to be a one-line call into core's `publish`.
+
+Verification: 1+ new test, all 95 existing tests still pass, no new files (pure migration), `tsc -b` clean, CNS health gate green.
+
+### 39. Reconcile wording-drift partials in decision summaries. (TASK-39)
+
+Six partial decisions are summary-lags-code cases. The code is right; the summaries describe a slightly different shape. Patch the summaries to match the code so future audits don't catch them as false positives.
+
+Sub-bullets (one patch per decision):
+- **DEC-SCHEMA-001** — "mutates `_def.humanMode`" → "clones the schema and attaches a new `_def` with `humanMode`." The behavior is the same; the wording matters because mutating-in-place implies shared mutation across callsites, which the code explicitly avoids.
+- **DEC-CORE-010** — four-variant enumeration (literal / from_node / human+pending / human+set / human+verified+locked) → three-variant (literal / from_node / human). The verified+locked case collapses to literal. Document the collapse: "verified human-marked fields with a value are constants; the value is locked in, no human UI needed."
+- **DEC-CORE-017** — same enumeration fix; same `getHumanInputDisplay` signature change to (state, node, fieldKey); the `_fieldKey` parameter is reserved for a future per-field API. Document the reservation.
+- **DEC-CORE-018** — fixed by TASK-38; do not patch until TASK-38 lands.
+- **DEC-RUNNER-002** — fixed by TASK-35; do not patch until TASK-35 lands.
+- **DEC-RUNNER-004** — fixed by TASK-37; do not patch until TASK-37 lands.
+- **DEC-TRANSPORT-005** — fixed by TASK-43; do not patch until TASK-43 lands.
+
+Verification: a fresh conformance audit pass shows 0 wording-drift partials for the decisions patched. CNS health gate green.
+
+### 40. Prune phantom exports, dead helpers, and the YAML formatting bug. (TASK-40)
+
+A small list of < 50 lines of dead or phantom code that an audit caught. Per the `principle-laziness-protocol` skill: bias toward deletion.
+
+Sub-bullets:
+- `runner/src/runtime.ts:43` — drop the `pause: () => Effect.succeed(undefined)` no-op from the `WorkflowRuntime` service. (Note: TASK-37 may also touch this; coordinate by doing TASK-40 *after* TASK-37 lands or by skipping this bullet if TASK-37 already removed it.)
+- `core/src/live.ts:10` — drop the `LiveCallback` type. Not referenced by any other package. (Verified: `search_files LiveCallback` returns 0 hits in code outside `live.ts` itself.)
+- `renderer-react/src/registry.tsx:49-51` — drop `defaultElement`. `AutoRender` calls `defaultRenderer` directly; `defaultElement` is dead.
+- `renderer-react/src/registry.tsx:36-41` + `index.ts:9` — drop `RegistryContext` and `useRegistry`. `AutoRender` uses the global registry, not the context. No consumer uses the context.
+- `transport/src/sse.ts:79` — replace the dynamic `import("../event-stream.js")` with the already-static import at the top of the file (line 15). The dynamic import is dead and slow.
+- `runner/index.md:43` — fix the stray `summary:` at the top level (a YAML formatting bug that strict-mode validators reject).
+- **Optional** (judgment call below): `runner.writeHumanInput` exported with `_fiber` and `_stateRef` unused parameters — the signature implies a fiber-aware API the implementation does not deliver. Either (i) delete the export and let consumers use `mutations.writeHumanInput` directly, or (ii) leave it as a documented extension hook. I recommend (i) per laziness.
+
+**JUDGMENT CALL — surface to user.** The `runner.writeHumanInput` extension hook: delete or keep? (i) Delete: the signature is misleading and no consumer uses the fiber/stateRef parameters. (ii) Keep: the hook is a documented extension point for future fiber-aware work. I recommend (i).
+
+Verification: `pnpm test` still passes 95/95, `tsc -b` clean, CNS health gate green (after the YAML fix in particular).
+
+### 41. `subscribeSet` exact-key pattern is a no-op. (TASK-41)
+
+DEC-TRANSPORT-007 lists three pattern cases: `"*"` (every node), `"prefix.*"` (direct children), and "exact key" (a single key). The code implements two. The else-branch at `transport/src/subscribe.ts:78` returns an empty record for an exact-key pattern. The pattern is registered but the callback never produces a match.
+
+Sub-bullets:
+- In `matchPattern`, before the `return result` at line 78, add: `if (all.hasOwnProperty(pattern)) result[pattern] = all[pattern]!`. The exact-key case is a single-node match with the full key as the result key.
+- Add a test: `subscribeSet(registry, "root.a", onUpdate)` registers, `registry.notify(state)` fires the callback with `{ "root.a": state.nodes["root.a"] }`.
+- Per the test-driven-development skill: RED, watch fail, GREEN, watch pass.
+
+Verification: 1 new test, all 95 existing tests still pass, `tsc -b` clean, CNS health gate green.
+
+### 42. Architecture doc is stale on `ResolvedInput` shape. (TASK-42)
+
+`.cns/architecture/index.md:117-130` says `ResolvedInput = { fields: Record<FieldKey, InputSource> }` with `InputSource = { kind: "literal" | "from_node" | "human", ... }`. This contradicts DEC-CORE-002 and `docs/design.md:113-128`, both of which settled on `ResolvedInput = { value, schema, humanFields }` (single value, the bridge transform already applied). The code follows the design; the architecture doc is the contradiction. The architecture doc is supposed to be the source of truth for the data model.
+
+Sub-bullets:
+- Patch `.cns/architecture/index.md:117-130` to match DEC-CORE-002 and the design: `ResolvedInput = { value: unknown; schema: ZodTypeAny; humanFields: ReadonlyMap<FieldKey, HumanMode> }`. Document `InputSource` as a separate type that the runner's input resolver uses to *build* a `ResolvedInput` (i.e., a transitional type, not a stored shape).
+- Add a one-line cross-reference: "(For the data-flow contract — after the bridge has been applied — see DEC-CORE-002. The `InputSource` is the resolver's working type, not the stored shape.)"
+
+Verification: `validate.py` PASSED, a search for "InputSource" in code returns 0 hits (the type was purely a doc invention; confirming it stays in the doc and out of the code is the test).
+
+### 43. WebSocket client send API: typed `write`/`writeHumanInput`. (TASK-43)
+
+DEC-TRANSPORT-005 says the WebSocket client sends `write`/`writeHumanInput` operations. The code's `WsClient.parse(ws)` (ws.ts:74-79) is receive-only. The `WsLike.send(frame: string)` (line 69) is a low-level passthrough. The bidirectional shape is half-shipped.
+
+Sub-bullets:
+- Add typed methods on `WsClient`: `client.write(key, value): void` and `client.writeHumanInput(key, value): void`. Both format the operation as a `WorkflowEvent` (or a separate `ClientOperation` discriminated union) and call `ws.send(json)`.
+- Add a discriminated union `ClientOperation = { kind: "write", key, value } | { kind: "writeHumanInput", key, value }`. The transport's `WsServer.open` can optionally accept an `onClientOperation` callback to round-trip the operations back to the runtime.
+- Per the test-driven-development skill: RED, watch fail, GREEN, watch pass.
+
+Verification: 2 new tests (write + writeHumanInput), all 95 existing tests still pass, `tsc -b` clean, CNS health gate green.
+
 ### Suggested execution order
+
+1. **TASK-35** (bridge + Fiber.interrupt) — the two v1.0 contract breaks. Closes the design's load-bearing promises.
+2. **TASK-36** (SubscriptionRegistry merge) — closes the architectural smell. The runner's internal fan-out uses core's registry; DEC-TRANSPORT-008's "one registry, three adapters" is true again.
+3. **TASK-37** (WorkflowRuntime service shape) — needs a `clarify` to Andrew before code lands.
+4. **TASK-38** (DEC-CORE-018 reconciliation) — needs a `clarify` to Andrew before code lands.
+5. **TASK-41** (subscribeSet exact-key) — small, independent fix. Can run in parallel with TASK-35 if a parallel session is desired; the changes don't conflict.
+6. **TASK-43** (WsClient send API) — independent of TASK-35 through TASK-40.
+7. **TASK-42** (architecture doc stale) — CNS hygiene; can run any time.
+8. **TASK-40** (prune phantom exports) — small; coordinate with TASK-37 because the `WorkflowRuntime.pause` deletion overlaps.
+9. **TASK-39** (wording-drift reconcile) — last. Depends on TASK-35, 37, 38, 43 landing so the summaries patch against final state.
+
+Per Andrew's "verify per theme" rule: each task gets its own commit (code + tests + intent mark + log entry + bubble + CNS health gate). The judgment-call tasks (37, 38, 40) need a `clarify` first per the "Surface judgment calls *before* executing" rule.
+
+Per the "Subtract Before You Add" principle: the prunes in TASK-40 are net-deletion. TASK-42 is a doc patch, not code. TASK-39 is a doc reconcile. The substantive code work is TASK-35 (two functions), TASK-36 (refactor), TASK-41 (3 lines), TASK-43 (two methods), and the post-clarify versions of TASK-37 and TASK-38.
+
+### Suggested execution order (Phase 2 follow-up, original 30-34)
 
 1. **TASK-30** (core gaps) — closes the foundation. Required for renderer-log/renderer-react tests to construct real workflows.
 2. **TASK-31** (runner integration test) — proves runWorkflow drives a workflow end-to-end. Required before renderers can subscribe to a live state.

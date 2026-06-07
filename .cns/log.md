@@ -376,3 +376,43 @@ green. CNS validates.
 The runner takes a getState function from the consumer (the
 consumer owns the state). This is the v1.0 wire; a v1.1 could
 push state through subscribeSet's callback.
+
+## 2026-06-07 — Conformance audit encoded
+
+A subagent walked 49 design decisions against the code. Findings:
+35 implemented, 13 partial, 1 unimplemented, 0 cancelled-but-shipped.
+The 1 unimplemented is `Edge.bridge` resolution (DEC-RUNNER-007).
+The 13 partials split 6/13 wording drift and 7/13 real implementation
+gaps. The audit is in this session's prior turn; the user asked to
+encode all actions (not just the top 5) into intent.md.
+
+Consolidating into TASK-35 through TASK-40 + 2 judgment calls. Per
+the consolidation pattern: small tasks where the work is coherent,
+not 13+ individual items. Wording-drift partials go in a single
+doc-reconcile task; code fixes for the load-bearing contracts go in
+focused tasks.
+
+## 2026-06-07 — Conformance-audit follow-ups encoded as TASK-35..43
+
+9 new intent tasks encoded from the conformance audit, plus 2
+judgment calls surfaced in-task (TASK-37, TASK-38, TASK-40
+each have a "JUDGMENT CALL — surface to user" callout).
+
+Tasks 35-43:
+  - TASK-35: bridge resolution + Fiber.interrupt (v1.0 contract
+    breaks; the two highest-priority fixes).
+  - TASK-36: SubscriptionRegistry duplication (one registry,
+    three adapters).
+  - TASK-37: WorkflowRuntime service shape (JUDGMENT CALL).
+  - TASK-38: DEC-CORE-018 reconciliation (JUDGMENT CALL).
+  - TASK-39: wording-drift partials reconcile (doc-only).
+  - TASK-40: prune phantom exports + YAML fix (small deletions).
+  - TASK-41: subscribeSet exact-key pattern (3-line fix).
+  - TASK-42: architecture doc stale on ResolvedInput (doc-only).
+  - TASK-43: WsClient typed send API.
+
+Execution order: 35 -> 36 -> [37 + 38 with clarifies] -> 41
+-> 43 -> 42 -> 40 -> 39. The 3 judgment-call tasks block on
+the user's `clarify` answers before code lands.
+
+CNS health gate: validate.py PASSED, graph.json OK.
