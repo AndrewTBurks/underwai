@@ -1,6 +1,6 @@
 ---
 task: TASK-R
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [D6]
@@ -57,4 +57,12 @@ The order is computed once at `init()` and never changes (the topology is set at
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved (no field; in-function computation).** Andrew: don't store the order; compute on demand.
+
+The original plan added a `topologicalOrder: ReadonlyArray<NodeKey>` field on `WorkflowState` (derived, recomputed on init/deserialize). The laziness-protocol argument wins: the order is cheap to compute, and storing it adds a derived field to the contract for marginal benefit.
+
+The result: `findReadyNodes(state): ReadonlyArray<NodeKey>` returns the ready set *in dependency order* directly. The function does Kahn's algorithm using `edgesByFrom` (already a derived field from TASK-F). The iteration order of the result is the contract — the runner iterates the array in order, transitions each node to `running`, moves to the next.
+
+A side discussion surfaced a labeling issue: I offered a "return Set, runner sorts" option that I labeled as a footgun-but-you-might-pick-it. Andrew did pick it. I pushed back: the Set-return-with-hidden-sort is genuinely broken (a consumer who reads the Set directly gets the wrong iteration order, runs nodes whose dependencies aren't ready, breaks the workflow). We re-asked with two real options: (a) change the return type to `ReadonlyArray<NodeKey>`; (c) keep `Set<NodeKey>` AND add the `topologicalOrder` field on the state. Andrew chose (a).
+
+Patch: `findReadyNodes` return type changes from `Set<NodeKey>` to `ReadonlyArray<NodeKey>` in `docs/design.md`, `.cns/architecture/index.md`, and `src/stub.ts`. Runtime narrative updated to say "in dependency order" rather than "in `topologicalOrder`." `tsc --noEmit` green.
