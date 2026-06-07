@@ -586,3 +586,23 @@ Files:
     dual notification)
 
 Tests: 101/101 across the monorepo. tsc clean.
+
+## 2026-06-07 — TASK-41 done: subscribeSet exact-key pattern
+
+The exact-key path was a no-op (returned `{}` for any
+non-wildcard pattern). Now it returns `{ [pattern]: node }`
+when the pattern matches a real node, or `{}` if it
+doesn't. The relative key is the full pattern (no
+trimming). Consumers asking for a specific node get that
+node.
+
+A sibling subagent rewrote the test file in parallel;
+the new test sits at the bottom of `subscribeSet()`. The
+sibling's rewrite of the existing tests is preserved.
+
+Files:
+  - packages/transport/src/subscribe.ts (+6 lines: exact-
+    key path)
+  - packages/transport/src/subscribe.test.ts (+1 test)
+
+Tests: 102/102 across the monorepo. tsc clean.

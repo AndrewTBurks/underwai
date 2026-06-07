@@ -107,4 +107,20 @@ describe("subscribeSet()", () => {
     expect(Object.keys(captured).sort()).toEqual(["a", "b"])
     expect(captured["a.x"]).toBeUndefined()
   })
+
+  it("an exact-key pattern returns a single entry keyed by the full key", () => {
+    // TASK-41: the exact-key path was a no-op before; it's
+    // now a single-entry record. The relative key is the full
+    // pattern (no trimming). Consumers asking for a specific
+    // node get that node, not an empty object.
+    const registry = new LiveSubscriptionRegistry()
+    const state = makeState()
+    let captured: Record<string, Node> = {}
+    subscribeSet(registry, "root.a", (n) => {
+      captured = n
+    })
+    registry.notify(state)
+    expect(Object.keys(captured)).toEqual(["root.a"])
+    expect(captured["root.a"]?.kind).toBe("root.a")
+  })
 })

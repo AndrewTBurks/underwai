@@ -75,5 +75,11 @@ function matchPattern(
     return result
   }
 
+  // Exact-key pattern: the pattern is a full node key. Return
+  // a single-entry record keyed by the pattern itself. No
+  // trimming; the consumer asked for this exact key.
+  if (all[pattern]) {
+    result[pattern] = all[pattern]!
+  }
   return result
 }
