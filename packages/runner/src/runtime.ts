@@ -25,6 +25,7 @@ import type {
   NodeKey,
   WorkflowState,
 } from "@underwai/core"
+import { LiveSubscriptionRegistry } from "@underwai/core"
 import {
   markFailed,
   markResolved,
@@ -96,6 +97,11 @@ export type RunOptions = {
     Record<string, (input: unknown) => Effect.Effect<unknown, Error, never>>
   >
   readonly maxIterations?: number
+  // Optional live registry. If provided, the runtime notifies it
+  // after every state mutation. Consumers (transport's
+  // subscribe/subscribeSet) can wire into this registry to receive
+  // real-time updates.
+  readonly liveRegistry?: LiveSubscriptionRegistry
 }
 
 // runWorkflow: top-level Effect program. The runner drives a workflow
@@ -193,6 +199,7 @@ export function runWorkflow(
         void next
         result = yield* Ref.get(stateRef)
         registry.notify(result)
+        opts.liveRegistry?.notify(result)
       }
     }
     return result

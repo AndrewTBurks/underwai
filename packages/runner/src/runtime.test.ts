@@ -23,7 +23,7 @@ import {
 } from "./runtime.js"
 import { compose, chain, run } from "@underwai/core"
 import { init } from "@underwai/core"
-import { WorkflowId } from "@underwai/core"
+import { LiveSubscriptionRegistry, WorkflowId } from "@underwai/core"
 import type { NodeDefinition } from "@underwai/core"
 import { z } from "zod"
 
@@ -110,5 +110,24 @@ describe("runWorkflow() integration", () => {
     expect(result.nodes["root"]?.status.kind).toBe("resolved")
     expect(result.nodes["root.a"]?.status.kind).toBe("resolved")
     expect(result.nodes["root.a.b"]?.status.kind).toBe("resolved")
+  })
+
+  it("notifies the live registry on every state transition", async () => {
+    const { tree } = compose(() => run(def("root")))
+    const state = init(tree, WorkflowId("wf-5"))
+    const programs = {
+      root: (_input: unknown) => Effect.succeed("done") as never,
+    }
+    const live = new LiveSubscriptionRegistry()
+    let notifyCount = 0
+    live.registerPattern("*", () => {
+      notifyCount += 1
+    })
+    await Effect.runPromise(
+      runWorkflow({ state, programs, liveRegistry: live }).pipe(
+        Effect.provide(SubscriptionRegistryLive),
+      ),
+    )
+    expect(notifyCount).toBeGreaterThanOrEqual(1)
   })
 })

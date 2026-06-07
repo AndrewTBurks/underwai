@@ -1,94 +1,74 @@
 // @underwai/transport — subscribe.ts
 //
 // The in-process subscription layer. Two methods:
-//   - subscribe(state, key, onUpdate): single key, exact match.
-//     onUpdate is called once with the matching Node when called.
-//   - subscribeSet(state, pattern, onUpdate): wildcard pattern.
-//     onUpdate is called once with a Record<NodeKey, Node> keyed
-//     by the relative key (the part after the pattern prefix).
-//     Bare "*" matches every node, with relative keys being the
-//     full keys. "prefix.*" matches descendants of "prefix",
-//     with relative keys being the suffix (e.g., "a", "a.b").
+//   - subscribe(registry, key, onUpdate): single key, exact match.
+//     onUpdate is called on every state change that touches the key.
+//   - subscribeSet(registry, pattern, onUpdate): wildcard pattern.
+//     onUpdate is called on every state change with a
+//     Record<NodeKey, Node> keyed by the relative key (the part
+//     after the pattern prefix).
+//
+// Pattern grammar:
+//   - "*" matches every node. Relative keys are the full keys.
+//   - "prefix.*" matches direct children of prefix. Relative keys
+//     are the suffix (e.g., "a", "b") with no further dots.
+//   - "prefix." (no wildcard) is equivalent to "prefix.*".
 //
 // No batching flag, no delta flag, no prefix flag. (TASK-P, TASK-V
 // cancelled; TASK-C+D folded into a pattern grammar.)
-
 import type { Node, NodeKey, WorkflowState } from "@underwai/core"
+import { LiveSubscriptionRegistry } from "@underwai/core"
 
 export type Subscription = {
   unsubscribe: () => void
 }
 
 export function subscribe(
-  state: WorkflowState,
+  registry: LiveSubscriptionRegistry,
   key: NodeKey,
   onUpdate: (node: Node) => void,
 ): Subscription {
-  // Push-based: invoke once with the current value, return the
-  // unsubscribe handle. (Future: wire into the runner's state-changed
-  // event stream; for v1.0, this is a one-shot read.)
-  const node = state.nodes[key as unknown as string]
-  if (node) {
-    onUpdate(node)
-  }
-  return {
-    unsubscribe: () => {},
-  }
+  const unsub = registry.register(key, (state) => {
+    const node = state.nodes[key as unknown as string]
+    if (node) onUpdate(node)
+  })
+  return { unsubscribe: unsub }
 }
 
 export function subscribeSet(
-  state: WorkflowState,
+  registry: LiveSubscriptionRegistry,
   pattern: string,
   onUpdate: (nodes: Record<string, Node>) => void,
 ): Subscription {
-  // "*" matches every node. "prefix.*" matches descendants of prefix.
-  const matched = matchPattern(state, pattern)
-  onUpdate(matched)
-  return {
-    unsubscribe: () => {},
-  }
+  const unsub = registry.registerPattern(pattern, (state, all) => {
+    onUpdate(matchPattern(state, pattern, all))
+  })
+  return { unsubscribe: unsub }
 }
 
 function matchPattern(
-  state: WorkflowState,
+  _state: WorkflowState,
   pattern: string,
+  all: Readonly<Record<string, Node>>,
 ): Record<string, Node> {
   const result: Record<string, Node> = {}
-  const allKeys = Object.keys(state.nodes)
+  const allKeys = Object.keys(all)
 
   if (pattern === "*") {
     for (const k of allKeys) {
-      result[k] = state.nodes[k]!
+      result[k] = all[k]!
     }
     return result
   }
 
-  // "prefix.*" — direct children of prefix, NOT transitive.
-  if (pattern.endsWith(".*")) {
-    const prefix = pattern.slice(0, -2)
-    const prefixDot = prefix + "."
-    for (const k of allKeys) {
-      if (k.startsWith(prefixDot)) {
-        // Only direct children: the suffix after "prefix." must
-        // not contain a further dot.
-        const suffix = k.slice(prefixDot.length)
-        if (!suffix.includes(".")) {
-          result[suffix] = state.nodes[k]!
-        }
-      }
-    }
-    return result
-  }
-
-  // "prefix." (no wildcard) — direct children of prefix, NOT transitive.
-  if (pattern.endsWith(".")) {
-    const prefix = pattern.slice(0, -1)
+  if (pattern.endsWith(".*") || pattern.endsWith(".")) {
+    const prefix = pattern.endsWith(".*") ? pattern.slice(0, -2) : pattern.slice(0, -1)
     const prefixDot = prefix + "."
     for (const k of allKeys) {
       if (k.startsWith(prefixDot)) {
         const suffix = k.slice(prefixDot.length)
         if (!suffix.includes(".")) {
-          result[suffix] = state.nodes[k]!
+          result[suffix] = all[k]!
         }
       }
     }

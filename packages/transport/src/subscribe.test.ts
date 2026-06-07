@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { subscribe, subscribeSet } from "./subscribe.js"
 import type { Node, WorkflowState } from "@underwai/core"
-import { NodeKey, WorkflowId } from "@underwai/core"
+import { LiveSubscriptionRegistry, NodeKey, WorkflowId } from "@underwai/core"
 
 function makeState(): WorkflowState {
   const make = (k: string): Node => ({
@@ -34,55 +34,76 @@ function makeState(): WorkflowState {
 }
 
 describe("subscribe()", () => {
-  it("invokes the callback with the matching node", () => {
+  it("invokes the callback with the matching node on notify", () => {
+    const registry = new LiveSubscriptionRegistry()
     const state = makeState()
     let captured: Node | undefined
-    subscribe(state, NodeKey("root.a"), (n) => {
+    subscribe(registry, NodeKey("root.a"), (n) => {
       captured = n
     })
+    registry.notify(state)
     expect(captured?.kind).toBe("root.a")
   })
 
   it("does not invoke the callback when the key is missing", () => {
+    const registry = new LiveSubscriptionRegistry()
     const state = makeState()
     let called = false
-    subscribe(state, NodeKey("missing"), () => {
+    subscribe(registry, NodeKey("missing"), () => {
       called = true
     })
+    registry.notify(state)
     expect(called).toBe(false)
+  })
+
+  it("unsubscribe stops further notifications", () => {
+    const registry = new LiveSubscriptionRegistry()
+    const state = makeState()
+    let count = 0
+    const sub = subscribe(registry, NodeKey("root.a"), () => {
+      count += 1
+    })
+    registry.notify(state)
+    sub.unsubscribe()
+    registry.notify(state)
+    expect(count).toBe(1)
   })
 })
 
 describe("subscribeSet()", () => {
   it("'*' matches every node keyed by full key", () => {
+    const registry = new LiveSubscriptionRegistry()
     const state = makeState()
     let captured: Record<string, Node> = {}
-    subscribeSet(state, "*", (n) => {
+    subscribeSet(registry, "*", (n) => {
       captured = n
     })
+    registry.notify(state)
     expect(Object.keys(captured).length).toBe(4)
     expect(captured["root.a"]?.kind).toBe("root.a")
   })
 
   it("'prefix.*' matches direct children keyed by relative path", () => {
+    const registry = new LiveSubscriptionRegistry()
     const state = makeState()
     let captured: Record<string, Node> = {}
-    subscribeSet(state, "root.*", (n) => {
+    subscribeSet(registry, "root.*", (n) => {
       captured = n
     })
+    registry.notify(state)
     expect(Object.keys(captured).sort()).toEqual(["a", "b"])
     expect(captured["a"]?.kind).toBe("root.a")
-    // "root.a.x" is not a direct child of "root" — has to match a
-    // deeper pattern.
     expect(captured["a.x"]).toBeUndefined()
   })
 
   it("'prefix.' (no wildcard) matches direct children keyed by relative path", () => {
+    const registry = new LiveSubscriptionRegistry()
     const state = makeState()
     let captured: Record<string, Node> = {}
-    subscribeSet(state, "root.", (n) => {
+    subscribeSet(registry, "root.", (n) => {
       captured = n
     })
+    registry.notify(state)
     expect(Object.keys(captured).sort()).toEqual(["a", "b"])
     expect(captured["a.x"]).toBeUndefined()
   })

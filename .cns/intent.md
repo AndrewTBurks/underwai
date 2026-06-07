@@ -147,6 +147,8 @@ DEC-TRANSPORT-003 (event stream), DEC-TRANSPORT-004 (SSE), DEC-TRANSPORT-005 (We
 
 Verification: live subscribe test, event-stream serialize/deserialize roundtrip, SSE mock test, WS mock test. `tsc -b` clean, CNS health gate green.
 
+**Status (2026-06-07): DONE.** 11 new tests added (3 live registry, 6 live subscribe, 2 SSE, 2 WS, 1 live-registry wired through runner, 3 event-stream). 89/89 green. `LiveSubscriptionRegistry` lives in `@underwai/core` (DEC-TRANSPORT-008) — single source of truth for fan-out; transport wraps it with pattern matching, the runner wires it into `RunOptions.liveRegistry`. `WorkflowEvent` (DEC-TRANSPORT-009) is the wire format; SSE and WebSocket transports emit/consume it. Note: there were 2 distinct Transport-3/4/5 decisions in the package's frontmatter that were unimplemented stubs; both are now reflected in code.
+
 ### 33. `@underwai/renderer-react` — React adapter. (TASK-33)
 
 The React renderer. Hooks-based: `useWorkflowState`, `useNode`, `useSubtree`. Registry: `kind → ReactElement`. No chat/agent UI affordances — the lib is workflow-shaped, not chat-shaped (DEC-RR-004).

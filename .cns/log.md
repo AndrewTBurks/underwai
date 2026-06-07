@@ -266,3 +266,52 @@ The runtime now accepts state.status "pending" as a valid
 starting state (was previously an early-exit). The orchestrator
 flips to "completed" when all nodes are resolved. This was
 the friction point from the rolled-back 2026-06-07 attempt.
+
+## 2026-06-07 — TASK-32 start: transport wire format + live subscription
+
+The audit found transport's subscribe/subscribeSet are one-shot
+(no live fan-out from the runner), there's no event-stream
+wire format, and no SSE/WebSocket transports. The package's
+index.ts is empty.
+
+Plan:
+  - transport/live.ts: a LiveSubscriptionRegistry (re-uses the
+    runner's SubscriptionRegistry contract).
+  - transport/event-stream.ts: the WorkflowEvent discriminated
+    union, JSON-serializable, round-trippable.
+  - transport/transports/sse.ts: SSE structure (open/write/close).
+  - transport/transports/ws.ts: WebSocket structure.
+  - transport/index.ts: re-exports the public surface.
+
+## 2026-06-07 — TASK-32 done: transport wire format + live subscription
+
+11 new tests added. 89/89 green. CNS validates.
+
+  - core/live.ts: LiveSubscriptionRegistry. One fan-out
+    primitive; transport wraps it with pattern matching,
+    runner wires it into RunOptions.liveRegistry. DEC-TRANSPORT-008.
+  - core/live.test.ts: 3 tests for register/notify/unsubscribe.
+  - transport/subscribe.ts: subscribe(registry, key, cb) and
+    subscribeSet(registry, pattern, cb) are now live (callbacks
+    fire on every notify, not just once). subscribe.test.ts
+    updated: 6 tests pass.
+  - transport/event-stream.ts: WorkflowEvent discriminated
+    union (6 kinds: node-added, node-updated, node-removed,
+    edge-added, edge-removed, workflow-status). JSON
+    serializable. encodeSseEvent formats SSE wire.
+  - transport/event-stream.test.ts: 3 tests for
+    roundtrip + SSE encoding + reject malformed.
+  - transport/transports/sse.ts: SseServer + SseClient.
+    Open(registry, sink) subscribes and writes SSE messages.
+    Parse(stream) yields WorkflowEvents. 2 tests.
+  - transport/transports/ws.ts: WsServer + WsClient. Same
+    pattern, JSON frames instead of SSE. 2 tests.
+  - transport/index.ts: re-exports the public surface.
+    Was `export {}` before.
+  - runner/runtime.ts: RunOptions accepts liveRegistry.
+    After every state mutation, runtime calls
+    liveRegistry.notify(result). 1 new test exercises this.
+
+The wiring closes the runner -> transport -> renderer data
+path. Renderers can now subscribe to a live state and get
+real-time updates.

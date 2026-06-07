@@ -33,6 +33,14 @@ decisions:
     date: 2026-06-06
     author: agent
     summary: 'subscribeSet''s pattern grammar: exact key, or "prefix.*" for path-segment prefix, or "*" for every node. The matched set is keyed by relative key (the matched prefix is stripped for namespaces; "*" returns the original keys).'
+  - id: DEC-TRANSPORT-008
+    date: 2026-06-07
+    author: agent
+    summary: 'LiveSubscriptionRegistry lives in @underwai/core. It is a small in-process fan-out: register(key, cb) / registerPattern(pattern, cb) / notify(state). The transport layer wraps it with pattern matching; the runner runtime calls notify after every state mutation (when runWorkflow is given a liveRegistry in RunOptions). The React renderer wraps it with useSyncExternalStore. One registry, three adapters. (TASK-32 wiring.)'
+  - id: DEC-TRANSPORT-009
+    date: 2026-06-07
+    author: agent
+    summary: 'WorkflowEvent is a discriminated union on kind: node-added, node-updated, node-removed, edge-added, edge-removed, workflow-status. Each event is JSON-serializable. encodeSseEvent formats an event as an SSE message (event: <kind>\ndata: <json>\n\n). The SseServer and WsServer wrap a LiveSubscriptionRegistry and emit one event per node per notify, plus a workflow-status event. The SseClient and WsClient parse incoming frames back into WorkflowEvents. (DEC-TRANSPORT-003 + DEC-TRANSPORT-004 + DEC-TRANSPORT-005 reflected in code.)'
 human_notes: |
 
 last_reconciled: 2026-06-06

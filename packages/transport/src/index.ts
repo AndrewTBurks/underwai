@@ -1,11 +1,14 @@
 // @underwai/transport public entry point.
-//
-// Phase 1 ships an empty package. Phase 2 implements:
-//   - src/subscribe.ts    — in-process subscribe / subscribeSet
-//   - src/event-stream.ts — WorkflowEvent stream (the wire format)
-//   - src/transports/sse.ts  — SSE server + client (v1.0)
-//   - src/transports/ws.ts   — WebSocket server + client (v1.0)
-//
-// See ../index.md for the design rationale.
-
-export {}
+export { subscribe, subscribeSet } from "./subscribe.js"
+export type { Subscription } from "./subscribe.js"
+export {
+  deserializeEvent,
+  encodeSseEvent,
+  serializeEvent,
+  workflowEventSchema,
+} from "./event-stream.js"
+export type { SerializedNode, WorkflowEvent } from "./event-stream.js"
+export { SseClient, SseServer } from "./transports/sse.js"
+export type { SseEventStream, SseSink } from "./transports/sse.js"
+export { WsClient, WsServer } from "./transports/ws.js"
+export type { WsClose, WsLike, WsSend } from "./transports/ws.js"
