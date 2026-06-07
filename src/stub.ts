@@ -285,22 +285,40 @@ export function writeHumanInput(
 }
 
 // =========================================================================
-// subscribe.ts — Node-granularity subscription
+// subscribe.ts — two subscription methods, one for each job
 // =========================================================================
 
 export type Subscription = {
   unsubscribe(): void
 }
 
-export type SubscribeOptions = {
-  exact?: boolean
-}
-
+// 1. Single node, exact match. The callback gets the full updated
+// Node. Use this for: "I care about exactly this node."
 export function subscribe(
   _state: WorkflowState,
   _key: NodeKey,
   _onUpdate: (node: Node) => void,
-  _opts?: SubscribeOptions,
+): Subscription {
+  throw new Error("not implemented")
+}
+
+// 2. Wildcard pattern. The pattern is a string with three cases,
+// all in one method:
+//   - "root.x" — exact key, one-entry record in the callback
+//   - "root.*" — path-segment prefix, matches every descendant of
+//     "root." Prefix is stripped from the keys in the callback.
+//   - "*" — every node, prefix is empty, keys are full original.
+//
+// The callback gets the matched set as a Record keyed by relative
+// key. For the exact-key case, the record has one entry. For the
+// path-segment case, the keys are the matched node's key with the
+// pattern's prefix stripped. For "*", the keys are the full
+// original keys. subscribeSet is a "namespace raise," not a
+// filter.
+export function subscribeSet(
+  _state: WorkflowState,
+  _pattern: string,
+  _onUpdate: (nodes: Record<string, Node>) => void,
 ): Subscription {
   throw new Error("not implemented")
 }

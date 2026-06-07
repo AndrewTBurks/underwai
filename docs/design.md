@@ -217,21 +217,56 @@ The runner picks up nodes whose status is `pending` or `stale` and whose inputs 
 
 **Staleness propagation:** when a node goes `stale`, the downstream subtree is marked `stale` too. Sibling subtrees (other branches of a fan-out that don't depend on the changed input) are unaffected. `findSubtree(state, staleNodeKey)` returns the descendants to invalidate.
 
-### Subscription (Node-granularity, not event-granularity)
+### Subscription (three methods, three jobs)
 
 ```ts
 type Subscription = {
   unsubscribe(): void
 }
 
+// 1. Subscribe to a single node. Exact match on the key. The
+// callback gets the full updated Node.
 function subscribe(
   state: WorkflowState,
   key: NodeKey,
   onUpdate: (node: Node) => void
 ): Subscription
+
+// 2. Subscribe to every node in the workflow. No key. The
+// wall-display case (TASK-D). The callback gets the full updated
+// Node with its original key.
+function subscribeAll(
+  state: WorkflowState,
+  onUpdate: (node: Node) => void
+): Subscription
+
+// 3. Wildcard pattern. The pattern is a string with `*` as the
+// path-segment wildcard suffix: "root.*" matches all descendants
+// of "root." A bare "*" matches every node. The callback gets
+// the matched set as a Record keyed by relative key — the prefix
+// is stripped, so subscribeSet is a "namespace raise," not a
+// filter. The consumer sees relative keys ("x", "y", "refine[0]");
+// for "*", the prefix is empty and the keys are the full original
+// keys. One consistent shape across all patterns.
+function subscribeSet(
+  state: WorkflowState,
+  pattern: string,
+  onUpdate: (nodes: Record<string, Node>) => void
+): Subscription
 ```
 
-The callback receives the **full updated `Node`**. The consumer's renderer switches on `node.status`:
+The three methods are distinct paths, not flags on a single method. There is no `prefix`, no `exact`, no `batched`, no `delta` option in v1. Each method's signature is its type.
+
+**Pattern grammar.** Three cases, all in `subscribeSet`:
+1. **Exact key.** `"root.x"` matches only `"root.x"`. Same as `subscribe` with a single key, but the callback gets a one-entry record.
+2. **Path-segment prefix.** Pattern ends in `.*`. `"root.*"` matches every node whose key starts with `"root."` (path-segment rule, dot is the boundary). The prefix is stripped from the keys in the callback's record.
+3. **Every node.** Bare `"*"`. Matches every node. The prefix is empty, so the relative key equals the full key.
+
+The pattern grammar is the type. No `prefix` / `exact` flag, no `batched` / `delta` option.
+
+**Renderers subscribe, the lib never invents one.** The renderer picks the method that matches its need; the lib does not pick for it. The wall-display uses `subscribeSet(state, "*", onUpdate)`. The loop-family consumer uses `subscribeSet(state, "root.refine.*", onUpdate)`. The single-node consumer uses `subscribe(state, "root.x" as NodeKey, onUpdate)`.
+
+The `subscribe` callback receives the **full updated `Node`**. The consumer's renderer switches on `node.status`:
 
 ```ts
 const sub = subscribe(state, "root.refine.final" as NodeKey, (node) => {
@@ -247,9 +282,39 @@ const sub = subscribe(state, "root.refine.final" as NodeKey, (node) => {
 })
 ```
 
-**Subscription matches by key prefix by default.** `subscribe(state, "root.refine", onUpdate)` matches every node in the loop family: `root.refine[0]`, `root.refine[1]`, ..., `root.refine.final`. The consumer can opt into exact match: `subscribe(state, "root.refine.final", onUpdate, { exact: true })`.
+The `subscribeSet` callback receives the matched set keyed by relative key. A renderer that wants per-node status switching iterates `Object.values(nodes)`:
 
-**Wire format (v1.1+) is `WorkflowEvent`-driven.** Transports (SSE, WebSocket) consume a more minimal `WorkflowEvent` stream from the runner. The in-process `Node`-granularity model is a *projection* of the same event log. The consumer never sees `WorkflowEvent` in-process; the transport does.
+```ts
+const sub = subscribeSet(state, "root.refine.*", (nodes) => {
+  for (const node of Object.values(nodes)) {
+    switch (node.status) {
+      case "pending":   renderPending(node); break
+      case "running":   renderRunning(node); break
+      case "streaming": renderStreaming(node); break
+      case "resolved":  renderResolved(node); break
+      case "paused":    renderPaused(node); break
+      case "stale":     renderStale(node); break
+      case "failed":    renderFailed(node); break
+    }
+  }
+})
+```
+
+The `subscribe` callback receives the **full updated `Node`**. The consumer's renderer switches on `node.status`:
+
+```ts
+const sub = subscribe(state, "root.refine.final" as NodeKey, (node) => {
+  switch (node.status) {
+    case "pending":   renderPending(); break
+    case "running":   renderRunning(); break
+    case "streaming": renderStreaming(node.output); break
+    case "resolved":  renderResolved(node.finalOutput); break
+    case "paused":    renderPaused(node); break
+    case "stale":     renderStale(node); break
+    case "failed":    renderFailed(node); break
+  }
+})
+```
 
 ### Streaming (accumulator + final)
 
