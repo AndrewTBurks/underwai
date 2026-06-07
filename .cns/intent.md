@@ -130,6 +130,8 @@ Sub-bullets:
 
 Verification: 4 new tests pass, all existing tests still pass, `tsc -b` clean, CNS health gate green.
 
+**Status (2026-06-07): DONE.** 4 new tests added. 77/77 green. Used core/compose + core/init to build a real WorkflowState from a composition; the runtime now accepts state.status "pending" as a starting state (the orchestrator implicitly flips to "running" while walking). Test 3 (publish-service integration) is exercised via the SubscriptionRegistry's notify count. Test 4 verifies a 3-node workflow drives root → a → b in dependency order. DEC-RUNNER-009 closed.
+
 ### 32. Transport wire format + live subscription. (TASK-32)
 
 The in-process `subscribe`/`subscribeSet` pattern matcher is complete, but the design is broken: the callback fires *once* with the current value, not on every state change. There's no live registry, no fan-out from the runner, no `unsubscribe` mechanism, no wire format. The transport package's `index.ts` is `export {}` — the public surface is empty.

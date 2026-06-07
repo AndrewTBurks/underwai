@@ -129,7 +129,8 @@ export function runWorkflow(
     while (iter < maxIter) {
       iter += 1
       const state = result
-      if (state.status !== "running") break
+      if (state.status === "completed" || state.status === "failed") break
+      if (state.status === "paused") break
       const ready = findReadyNodesLocal(state)
       if (ready.length === 0) {
         const allDone = Object.values(state.nodes).every(

@@ -235,3 +235,34 @@ function: RED, watch fail, GREEN, refactor.
 
 Follow-up: TASK-31 (runner integration test) re-attempts the
 test that was rolled back on 2026-06-07.
+
+## 2026-06-07 — TASK-31 start: runner integration test
+
+Re-attempt the integration test that was rolled back on
+2026-06-07 (DEC-RUNNER-009). The runtime is structurally
+complete; the test was the hard part. Now I have core/init() to
+construct a real WorkflowState from a composition, and
+core/publish() / core/write() as the public mutation
+primitives. The integration test can drive a real composed
+workflow end-to-end.
+
+Plan: 4 tests per the original TASK-31 spec.
+
+## 2026-06-07 — TASK-31 done: runner integration test
+
+4 new tests in packages/runner/src/runtime.test.ts. 77/77
+green. DEC-RUNNER-009 closed.
+
+  - test 1: single-node workflow drives pending -> running ->
+    resolved, then workflow status === "completed".
+  - test 2: a failing program marks the node failed and the
+    workflow status === "failed".
+  - test 3: subscribers are notified >= 2 times during a
+    single-node flow (markRunning + markResolved).
+  - test 4: a 3-node workflow drives root -> a -> b in
+    dependency order.
+
+The runtime now accepts state.status "pending" as a valid
+starting state (was previously an early-exit). The orchestrator
+flips to "completed" when all nodes are resolved. This was
+the friction point from the rolled-back 2026-06-07 attempt.
