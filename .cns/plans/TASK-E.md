@@ -1,6 +1,6 @@
 ---
 task: TASK-E
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: critical
 finding_refs: [A2, C5]
@@ -153,4 +153,8 @@ This paragraph is named here, in the `HumanMode` plan, because every later human
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved.** Andrew confirmed option (a): clone-and-mutate `_def.humanMode`. The runtime `human()` function clones the input schema and sets the marker on the clone's `_def`. The `getHumanMode()` helper reads the marker. The seed-vs-no-seed vocabulary is in the design doc (named in the prior turn's review). Target: Zod 3.x.
+
+Patches in this commit: `docs/design.md` Human-in-the-loop section gains a "Runtime implementation" code block and a "Seed vs. no-seed vocabulary" paragraph. `src/stub.ts` schemas section gains the `human()` runtime function and the `getHumanMode()` helper. The `declare module "zod"` block is preserved (it was the type-level declaration; the runtime function is the implementation).
+
+The `_def` mutation is the standard Zod-extension pattern (tRPC, zod-prisma, etc.). The clone prevents shared-mutation across `z.human()` callsites. If Zod's internals change in 4.x, the lib switches to `.meta()`. The principled answer is a v1.1 hardening, not a v1 prerequisite.
