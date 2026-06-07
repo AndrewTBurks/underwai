@@ -6,6 +6,59 @@ principles: [boundary-discipline, type-system-discipline, laziness-protocol]
 links:
   - id: node
     path: .cns/architecture/node.md
+decisions:
+  - id: DEC-CORE-001
+    date: 2026-06-06
+    author: agent
+    summary: 'Node["status"] is a discriminated union. Per-status data lives on the variants that own them (TASK-G). Folds TASK-G, TASK-J, TASK-K, TASK-S.'
+  - id: DEC-CORE-002
+    date: 2026-06-06
+    author: agent
+    summary: ResolvedInput = { value, schema, humanFields }. Single value, not a per-field bundle (TASK-H).
+  - id: DEC-CORE-003
+    date: 2026-06-06
+    author: agent
+    summary: Edge = { from, to, bridge? }. No toField. Bridges are an optional function on the edge, applied by the runner at edge resolution (TASK-H).
+  - id: DEC-CORE-004
+    date: 2026-06-06
+    author: agent
+    summary: Composition API is the only way to create nodes. The composition expression *is* the definition.
+  - id: DEC-CORE-005
+    date: 2026-06-06
+    author: agent
+    summary: 'Path generic on NodeKey<Path> is non-negotiable. Combinator signatures thread the path through end-to-end (TASK-I). Brand on NodeKey rejects raw strings; path generic rejects "wrong node ref."'
+  - id: DEC-CORE-006
+    date: 2026-06-06
+    author: agent
+    summary: 'findReadyNodes returns ReadonlyArray<NodeKey> in dependency order. Kahn''s algorithm using edgesByFrom. Iteration order is the contract. No topologicalOrder field on WorkflowState (TASK-R).'
+  - id: DEC-CORE-007
+    date: 2026-06-06
+    author: agent
+    summary: Derived fields (edgesByTarget, edgesByFrom) are recomputed on deserialize(). Serialized form is the linear edges array. The serialization contract is in docs/design.md (TASK-F).
+  - id: DEC-CORE-008
+    date: 2026-06-06
+    author: agent
+    summary: 'type Actor = string. Half-brand on the closed union was confusing. Document the convention: "system" for the lib''s own operations, "human" for human-driven, any other string for consumer-defined roles (TASK-L).'
+  - id: DEC-CORE-009
+    date: 2026-06-06
+    author: agent
+    summary: getHumanFields(node) reads the schema on demand. No humanFields cache on Node. The helper walks inputSchema and returns the human-mode map (TASK-K, folded into TASK-G).
+  - id: DEC-CORE-010
+    date: 2026-06-06
+    author: agent
+    summary: 'getHumanInputDisplay(node, fieldKey) returns a discriminated union on source kind. No "proposed: boolean" flag — the lib exposes the source, the renderer decides UX (TASK-S, folded into TASK-G).'
+  - id: DEC-CORE-011
+    date: 2026-06-06
+    author: agent
+    summary: ResolvedInput.value is the current input value. Sourced from upstream.finalOutput (after any bridge transform), from a literal at the composition root, or from a human write via writeHumanInput. The composition API enforces shape match (TASK-H).
+  - id: DEC-CORE-012
+    date: 2026-06-06
+    author: agent
+    summary: 'Then combinator has two overloads: parent.then(child) for direct match (parent.output shape === child.input shape), parent.then((out) => in_, child) for bridge function. Bridge is composition metadata on the Edge, not a node (TASK-H).'
+  - id: DEC-CORE-013
+    date: 2026-06-06
+    author: agent
+    summary: Subscription methods (subscribe, subscribeSet) live in @underwai/transport, not in core. Core exposes the data structure and composition API only.
 human_notes: |
 
 status: dirty
@@ -20,10 +73,10 @@ The data structure. The foundation. No imports from `@underwai/schema` or `@unde
 
 The pre-shard file plan (from `.cns/intent.md` Phase 2):
 
-- `src/keys.ts` — `NodeKey<Path>`, brand, path template-literal. The branded key that rejects raw strings at the call site. The Path generic threads through the composition API so the consumer's `subscribe(state, ref.key, ...)` is type-checked against the ref's path. (TASK-I)
-- `src/types.ts` — the data structure: `WorkflowState`, `Node` (a discriminated union on `Node["status"]`), `Edge`, `ResolvedInput`, `SerializedError`, `Actor`, `HumanMode`. (TASK-G, TASK-H, TASK-L, TASK-S)
-- `src/composition.ts` — the only way to create nodes: `run`, `then` (two overloads: direct match and bridge function), `all` (array and object forms), `thenLoop` (family of nodes). (TASK-C, TASK-H, TASK-I, TASK-U)
-- `src/operations.ts` — state derivations and mutations: `init`, `getNode`, `serialize`, `deserialize`, `findReadyNodes`, `findSubtree`, `publish`, `write`, `writeHumanInput`. Plus the `getHumanFields` and `getHumanInputDisplay` helpers. (TASK-F, TASK-K, TASK-O, TASK-R, TASK-S)
+- `src/keys.ts` — `NodeKey<Path>`, brand, path template-literal. The branded key that rejects raw strings at the call site. The Path generic threads through the composition API so the consumer's `subscribe(state, ref.key, ...)` is type-checked against the ref's path.
+- `src/types.ts` — the data structure: `WorkflowState`, `Node` (a discriminated union on `Node["status"]`), `Edge`, `ResolvedInput`, `SerializedError`, `Actor`, `HumanMode`.
+- `src/composition.ts` — the only way to create nodes: `run`, `then` (two overloads: direct match and bridge function), `all` (array and object forms), `thenLoop` (family of nodes).
+- `src/operations.ts` — state derivations and mutations: `init`, `getNode`, `serialize`, `deserialize`, `findReadyNodes`, `findSubtree`, `publish`, `write`, `writeHumanInput`. Plus the `getHumanFields` and `getHumanInputDisplay` helpers.
 - `src/index.ts` — the public re-exports. The only file the consumer imports from.
 
 The current pre-shard artifact lives at `src/stub.ts` — a single file with all the type definitions stubbed out (real implementation is Phase 2). The stub was moved here from the project root on 2026-06-06 when the pre-shard landed. Phase 2 distributes the stub's contents across `keys.ts`, `types.ts`, `composition.ts`, and `operations.ts`.
@@ -31,38 +84,13 @@ The current pre-shard artifact lives at `src/stub.ts` — a single file with all
 ## Boundary
 
 - **Imports from:** `zod` (peer), `effect` (peer, only in `composition.ts` and `operations.ts` where Effect types are used).
-- **Exports to:** `@underwai/runner` (uses `WorkflowState`, `Node`, `Edge`, `ResolvedInput`, `NodeKey`, `Actor`, `HumanMode`, the composition API), `@underwai/transport` (v1.1+), `@underwai/renderer-react` (v1.1+), `@underwai/renderer-log` (v1.1+).
-- **What does NOT live here:** the `z.human()` runtime (`@underwai/schema`), the Effect service and runner logic (`@underwai/runner`).
+- **Exports to:** `@underwai/runner` (uses `WorkflowState`, `Node`, `Edge`, `ResolvedInput`, `NodeKey`, `Actor`, `HumanMode`, the composition API), `@underwai/transport` (subscription and wire format), `@underwai/renderer-react` (registry + auto-render), `@underwai/renderer-log` (registry).
+- **What does NOT live here:** the `z.human()` runtime (`@underwai/schema`), the Effect service and runner logic (`@underwai/runner`), the subscription API and transports (`@underwai/transport`).
 
-## Design decisions that govern this package
+## For the v1.0 implementation phase
 
-- **The data structure is the boundary.** Every value crossing the package boundary is validated against a Zod schema. Internal types are trusted within the package; external data (workflow state, effect programs, human inputs) is parsed at the edge.
-- **The composition API is the only way to create nodes.** Consumers cannot add a node to the workflow by hand outside the composition API. The composition expression *is* the definition.
-- **The Path generic is non-negotiable.** (TASK-I) Combinator signatures carry the path through end-to-end. The brand on `NodeKey` rejects raw strings; the path generic rejects "wrong node ref" at the call site.
-- **`Node["status"]` is a discriminated union.** (TASK-G) Per-status data lives on the variants that own them. There is no top-level `output` or `finalOutput`; both are on the `streaming` and `resolved` variants.
-- **`ResolvedInput` is a single value, not a per-field bundle.** (TASK-H) The composition API enforces shape match between parent's output and child's input.
-- **`Edge = { from, to, bridge? }`.** (TASK-H) No `toField`. Bridges are an optional function on the Edge, applied by the runner at edge resolution.
-- **No `topologicalOrder` field on `WorkflowState`.** (TASK-R) `findReadyNodes` returns in dependency order directly (Kahn's algorithm using `edgesByFrom`).
-- **Derived fields are recomputed on `deserialize()`.** (TASK-F) The serialized form is the linear `edges` array; `edgesByTarget` and `edgesByFrom` are rebuilt. The serialization contract is in `docs/design.md`.
+When v1.0 implementation begins, the agent reads this file, opens `src/stub.ts` (the pre-shard artifact with all the types stubbed out), and distributes the contents into the four `src/*` files. The stub has every type and function declaration in one place; the split is mechanical. The composability of the result is verified by `tsc -b` and the per-package typecheck.
 
-## Plan files that touch this package
-
-- [`.cns/plans/TASK-A.md`](../../.cns/plans/TASK-A.md) — writeHumanInput race; the policy lives in `operations.ts`.
-- [`.cns/plans/TASK-B.md`](../../.cns/plans/TASK-B.md) — `WorkflowRuntime` service is in `@underwai/runner`, but the data structure changes (single-fiber runner) live here.
-- [`.cns/plans/TASK-C.md`](../../.cns/plans/TASK-C.md) — `subscribe` is in `@underwai/transport`; the `NodeKey<Path>` types it consumes live here.
-- [`.cns/plans/TASK-F.md`](../../.cns/plans/TASK-F.md) — `edgesByTarget` and `edgesByFrom` live on `WorkflowState` (here).
-- [`.cns/plans/TASK-G.md`](../../.cns/plans/TASK-G.md) — `Node["status"]` discriminated union (here).
-- [`.cns/plans/TASK-H.md`](../../.cns/plans/TASK-H.md) — `ResolvedInput`, `Edge`, the composition API.
-- [`.cns/plans/TASK-I.md`](../../.cns/plans/TASK-I.md) — `NodeKey<Path>` and the path-generic combinator signatures.
-- [`.cns/plans/TASK-J.md`](../../.cns/plans/TASK-J.md) — folded into TASK-G (output/finalOutput on variants).
-- [`.cns/plans/TASK-K.md`](../../.cns/plans/TASK-K.md) — folded into TASK-G (`getHumanFields` helper).
-- [`.cns/plans/TASK-L.md`](../../.cns/plans/TASK-L.md) — `type Actor = string`.
-- [`.cns/plans/TASK-O.md`](../../.cns/plans/TASK-O.md) — `findReadyNodes` returns `pending` OR `stale`; `paused` is NOT.
-- [`.cns/plans/TASK-R.md`](../../.cns/plans/TASK-R.md) — `findReadyNodes` returns `ReadonlyArray<NodeKey>` in dependency order.
-- [`.cns/plans/TASK-S.md`](../../.cns/plans/TASK-S.md) — `getHumanInputDisplay` returns a discriminated union on source kind.
-
-## For the implementation phase
-
-When Phase 2 starts, the agent reads this file, opens `src/stub.ts` (the pre-shard artifact with all the types stubbed out), and distributes the contents into the four `src/*` files. The stub has every type and function declaration in one place; the split is mechanical. The composability of the result is verified by `tsc --noEmit` and the per-package typecheck.
+The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the type shapes, the composition API, and the serialization contract. Prose in the body is for the file plan and the boundary; the *why* lives in the decisions array.
 
 The data structure is small enough to fit in your head. The composition API is four combinators. The state machine is seven statuses. The runner is an Effect program that walks the DAG. Most of the implementation work is *verifying the design*, not building the design — the design is settled.

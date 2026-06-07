@@ -4,6 +4,35 @@ type: package
 parent: ../../.cns/index.md
 status: dirty
 shipped_in: v1.0
+decisions:
+  - id: DEC-TRANSPORT-001
+    date: 2026-06-06
+    author: agent
+    summary: 'Two subscription methods, no flags. subscribe is exact-key match; subscribeSet is wildcard pattern with `*` as the path-segment wildcard; bare `*` matches every node. No { prefix: true } or { exact: boolean } knob (TASK-C).'
+  - id: DEC-TRANSPORT-002
+    date: 2026-06-06
+    author: agent
+    summary: 'Callback receives the full updated Node (subscribe) or a Record<string, Node> keyed by relative key (subscribeSet). The consumer''s renderer switches on node.status.'
+  - id: DEC-TRANSPORT-003
+    date: 2026-06-06
+    author: agent
+    summary: Wire format is the WorkflowEvent stream — a discriminated union on event kind (NodeAdded, NodeUpdated, NodeRemoved, EdgeAdded, etc.). The in-process Node-granularity model is a projection of the same event log.
+  - id: DEC-TRANSPORT-004
+    date: 2026-06-06
+    author: agent
+    summary: 'SSE transport: server pushes the WorkflowEvent stream to a client over an HTTP connection. One-way (server → client). v1.0.'
+  - id: DEC-TRANSPORT-005
+    date: 2026-06-06
+    author: agent
+    summary: 'WebSocket transport: bidirectional. Server pushes events; client sends write/writeHumanInput operations. v1.0.'
+  - id: DEC-TRANSPORT-006
+    date: 2026-06-06
+    author: agent
+    summary: No batching or delta flags. TASK-P (batched) and TASK-V (delta) are cancelled. React adapter batches setState natively; wall-display debounces in-renderer. Renderers shallow-compare inside their callback.
+  - id: DEC-TRANSPORT-007
+    date: 2026-06-06
+    author: agent
+    summary: 'subscribeSet''s pattern grammar: exact key, or "prefix.*" for path-segment prefix, or "*" for every node. The matched set is keyed by relative key (the matched prefix is stripped for namespaces; "*" returns the original keys).'
 human_notes: |
 
 last_reconciled: 2026-06-06
@@ -28,24 +57,11 @@ The subscription API and the wire format. Sits on top of `@underwai/core`. v1.0 
 - **Will export to:** `@underwai/renderer-react` (v1.1+, subscribes to the event stream), `@underwai/renderer-log` (v1.1+), consumer code.
 - **What will NOT live here:** the data structure, the runner. This package is the bridge between in-memory state and external observers.
 
-## Design decisions that govern this package
-
-- **Two subscription methods, no flags.** (TASK-C) `subscribe` is exact-key match; `subscribeSet` is wildcard pattern (`"root.*"` for descendants, `"*"` for every node). No `{ prefix: true }` or `{ exact: boolean }` knob.
-- **Callback receives the full updated `Node`.** The consumer's renderer switches on `node.status`. (TASK-S — the `getHumanInputDisplay` helper is in `@underwai/core`; this package subscribes to its results.)
-- **Wire format is event-stream, not Node-granularity.** Transports consume a more minimal `WorkflowEvent` stream from the runner. The in-process model is a *projection* of the same event log.
-- **No batching or delta flags.** (TASK-P, TASK-V, both cancelled) The React adapter batches `setState` natively; the wall-display debounces in-renderer. Renderers shallow-compare inside their callback.
-
-## Plan files that touch this package
-
-- [`.cns/plans/TASK-C.md`](../../.cns/plans/TASK-C.md) — subscribe / subscribeSet.
-- [`.cns/plans/TASK-D.md`](../../.cns/plans/TASK-D.md) — absorbed into TASK-C.
-- [`.cns/plans/TASK-P.md`](../../.cns/plans/TASK-P.md) — cancelled; no `batched` option.
-- [`.cns/plans/TASK-S.md`](../../.cns/plans/TASK-S.md) — `getHumanInputDisplay` is in `@underwai/core`; this package's subscribers consume its results.
-- [`.cns/plans/TASK-V.md`](../../.cns/plans/TASK-V.md) — cancelled; no `delta` option.
-
 ## For the v1.0 implementation phase
 
 When v1.0 implementation begins, the agent reads this file, opens `.cns/architecture/index.md` § "Subscription" for the API contract, and implements subscribe.ts, event-stream.ts, and the two transports (sse.ts, ws.ts).
+
+The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the subscription API (no flags), the wire format (the WorkflowEvent stream), and the transports (SSE one-way, WebSocket bidirectional). Prose in the body is for the file plan; the *why* lives in the decisions array.
 
 The transport package is part of v1.0 because the v1 deliverable is "a lib that has a way to be consumed." Without transport, the runner is observable only by an in-process consumer. The wire format is the bridge to renderers that run on different machines (the wall-display, the chat-embedded story) and to non-React consumers (the log renderer can be a CLI tool that tails the event stream over WebSocket).
 

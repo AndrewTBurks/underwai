@@ -4,6 +4,31 @@ type: package
 parent: ../../.cns/index.md
 status: dirty
 shipped_in: v1.0
+decisions:
+  - id: DEC-RL-001
+    date: 2026-06-06
+    author: agent
+    summary: 'Every kind is renderable. The registry has a default (node, indent) => string for unknown kinds, so adding a new kind to the lib doesn''t break this renderer. (Laziness protocol: shipping a registry that requires per-kind registration would mean every new kind touches this package.)'
+  - id: DEC-RL-002
+    date: 2026-06-06
+    author: agent
+    summary: 'Subscription via subscribeSet(state, "*", onUpdate). Re-renders the whole tree on every change. For test/debug use, performance is not the priority (TASK-D, absorbed into TASK-C).'
+  - id: DEC-RL-003
+    date: 2026-06-06
+    author: agent
+    summary: 'No "AI chat" or "agent" UI affordances. This package is a workflow logger. The output is a typed DAG that prints, not a transcript.'
+  - id: DEC-RL-004
+    date: 2026-06-06
+    author: agent
+    summary: 'stdout, not stderr. State changes are the primary output, not diagnostics. (The lib''s own logs go to stderr; this renderer''s output goes to stdout.)'
+  - id: DEC-RL-005
+    date: 2026-06-06
+    author: agent
+    summary: 'Stale UX reference (TASK-Q): print [re-deriving] next to stale nodes. Coalesced re-execution (TASK-M): log the coalesced state, not the intermediate writes.'
+  - id: DEC-RL-006
+    date: 2026-06-06
+    author: agent
+    summary: A --watch mode (delta stream) is a v1.1+ extension if the wall-display case ever needs it. v1.0 ships without it; the registry structure leaves room for --watch to be added without breaking the public API (TASK-V cancelled).
 human_notes: |
 
 last_reconciled: 2026-06-06
@@ -26,23 +51,11 @@ The stdout log renderer. For tests, debugging, and the "I just want to see what'
 - **Will export to:** consumer code (the test fixture, the debug CLI).
 - **What will NOT live here:** the data structure, the runner, the transport. This package is a thin debug renderer.
 
-## Design decisions that govern this package
-
-- **Every `kind` is renderable.** The registry has a default `(node, indent) => string` for unknown kinds, so adding a new `kind` to the lib doesn't break this renderer. (Laziness protocol: shipping a registry that requires per-kind registration would mean every new kind touches this package.)
-- **Subscription via `subscribeSet(state, "*", onUpdate)`.** Re-renders the whole tree on every change. For test/debug use, this is fine; performance is not the priority. (TASK-D, absorbed into TASK-C; the wall-display case in TASK-D's original plan is also this pattern.)
-- **No "AI chat" or "agent" UI affordances.** This package is a workflow logger. The output is a typed DAG that prints, not a transcript.
-- **Stdout, not stderr.** State changes are the primary output, not diagnostics. (The lib's own logs go to stderr; this renderer's output goes to stdout.)
-
-## Plan files that touch this package
-
-- [`.cns/plans/TASK-C.md`](../../.cns/plans/TASK-C.md) — `subscribeSet(state, "*", onUpdate)` is the entry point.
-- [`.cns/plans/TASK-D.md`](../../.cns/plans/TASK-D.md) — the original "wall-display" plan that became this renderer.
-- [`.cns/plans/TASK-M.md`](../../.cns/plans/TASK-M.md) — re-execution coalescing rule; this renderer logs the coalesced state.
-- [`.cns/plans/TASK-Q.md`](../../.cns/plans/TASK-Q.md) — stale UX reference; this renderer prints `[re-deriving]` next to stale nodes.
-
 ## For the v1.0 implementation phase
 
 When v1.0 implementation begins, the agent reads this file, opens `.cns/design/index.md` § "The renderer protocol's posture" for the contract, and implements two small files (`registry.ts` and `runner.ts`).
+
+The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the default-for-unknown-kinds registry, the subscribeSet subscription model, the stdout-not-stderr output choice, and the v1.0-ships-without-delta-stream decision. Prose in the body is for the file plan; the *why* lives in the decisions array.
 
 The implementation is the smallest possible proof that the renderer protocol works. Total code: ~100 lines. The test suite for the lib uses this renderer as the visible signal in unit tests — no React, no DOM, just a terminal.
 

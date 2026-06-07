@@ -4,6 +4,31 @@ type: package
 parent: ../../.cns/index.md
 status: dirty
 shipped_in: v1.0
+decisions:
+  - id: DEC-RR-001
+    date: 2026-06-06
+    author: agent
+    summary: useSyncExternalStore for in-process subscription. React 18+ concurrent-safe. setState batching is sufficient — no batched option needed (TASK-P cancelled).
+  - id: DEC-RR-002
+    date: 2026-06-06
+    author: agent
+    summary: Two render modes. (a) auto-render the whole graph (SSR full-page); (b) subscribe to a node and get its subtree (chat-embedded, wall-display). The hook surface covers both.
+  - id: DEC-RR-003
+    date: 2026-06-06
+    author: agent
+    summary: 'The renderer registry is a plain function map: kind → (node, children) => ReactElement. No JSX-as-workflow, no DSL. Consumers register kinds and the lib renders.'
+  - id: DEC-RR-004
+    date: 2026-06-06
+    author: agent
+    summary: 'No "AI chat" or "agent" UI affordances. This package is a workflow renderer. Chat surfaces, agent loops, tool calls are out of scope. (Anti-reference: AI SDK''s chat primitives.)'
+  - id: DEC-RR-005
+    date: 2026-06-06
+    author: agent
+    summary: 'Stale UX reference (TASK-Q): show previous output with a "re-deriving" indicator. The exact rendering is up to the consumer; the lib''s contract is the state machine, not the UI.'
+  - id: DEC-RR-006
+    date: 2026-06-06
+    author: agent
+    summary: useEffect-based subscriptions for cross-process transports (SSE / WebSocket). useSyncExternalStore for in-process. Both supported via @underwai/transport.
 human_notes: |
 
 last_reconciled: 2026-06-06
@@ -28,24 +53,11 @@ The reference React adapter. Maps the renderer protocol to React's `useSyncExter
 - **Will export to:** consumer code (the React components and hooks).
 - **What will NOT live here:** the data structure, the runner, the transport. This package is a thin React binding.
 
-## Design decisions that govern this package
-
-- **`useSyncExternalStore` for in-process subscription.** React 18+ concurrent-safe. Batches updates naturally — no `batched` option needed (TASK-P).
-- **The renderer registry is a plain function map.** No JSX-as-workflow, no DSL. Consumers register `kind` → `(node, children) => ReactElement` and the lib renders. (TASK-C's `subscribe` semantics apply; this package reads the same `Node` shape.)
-- **Two render modes.** (a) auto-render the whole graph (for SSR full-page), (b) subscribe to a node and get its subtree (for embedding workflow pieces in chat, wall displays, etc.). The hook surface covers both.
-- **No "AI chat" or "agent" UI affordances.** This package is a workflow renderer. Chat surfaces, agent loops, tool calls — those are out of scope. (Anti-reference: AI SDK's chat primitives.)
-
-## Plan files that touch this package
-
-- [`.cns/plans/TASK-C.md`](../../.cns/plans/TASK-C.md) — `subscribe` and `subscribeSet` are the primitives this package builds on.
-- [`.cns/plans/TASK-D.md`](../../.cns/plans/TASK-D.md) — absorbed into TASK-C; the wall-display case (`subscribeSet(state, "*", onUpdate)`) applies here too.
-- [`.cns/plans/TASK-P.md`](../../.cns/plans/TASK-P.md) — cancelled; `setState` batching is sufficient.
-- [`.cns/plans/TASK-Q.md`](../../.cns/plans/TASK-Q.md) — stale UX reference: show previous output with "re-deriving" indicator.
-- [`.cns/plans/TASK-V.md`](../../.cns/plans/TASK-V.md) — cancelled; renderers shallow-compare inside their callback.
-
 ## For the v1.0 implementation phase
 
 When v1.0 implementation begins, the agent reads this file, opens `.cns/design/index.md` § "The renderer protocol's posture" for the contract, and implements the React hooks and provider.
+
+The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the hook surface, the registry shape, and the render-mode split. Prose in the body is for the file plan; the *why* lives in the decisions array.
 
 The implementation is mostly React plumbing: a context provider, three hooks, a registry shape. The interesting decision is *how* the subscription model maps to React's rendering model. `useSyncExternalStore` is the canonical answer for in-process subscriptions; `useEffect`-based subscriptions are the alternative for cross-process transports (SSE / WebSocket).
 

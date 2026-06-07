@@ -86,3 +86,19 @@ The library is a pnpm workspace. Each package has its own `index.md` (peripheral
 - **packages/renderer-log** ([`index.md`](packages/renderer-log/index.md)) — `@underwai/renderer-log`. The stdout log renderer for tests. Depends on `@underwai/core` and `@underwai/transport`.
 
 The pre-shard `src/stub.ts` was moved to `packages/core/src/stub.ts` on 2026-06-06. Phase 2 distributes the stub's contents across the four `packages/core/src/*` files (keys, types, composition, operations).
+
+## Decisions in scope
+
+The package `index.md` files encode their design decisions in the `decisions[]` frontmatter array. Read that array, not the body prose, to understand *why* each package is shaped the way it is. The body carries the file plan and the boundary; the frontmatter carries the load-bearing decisions.
+
+Each `decisions[]` entry has `id:`, `date:`, `author:`, `summary:`. The IDs are scoped per-package (`DEC-CORE-001` through `DEC-CORE-013`, `DEC-SCHEMA-001` through `DEC-SCHEMA-005`, etc.). Where the same design point touches multiple packages, the decision appears once in the package that owns it; sibling packages cross-reference the design point by name in their `decisions[]` summary, not by ID.
+
+Counts as of 2026-06-06: 13 in core, 5 in schema, 8 in runner, 7 in transport, 6 in renderer-react, 6 in renderer-log. 45 total. Decisions are pruned on reconcile — if the code drifts from a decision, the decision is deleted, not archived.
+
+The five most load-bearing decisions across the workspace (read these first, then the per-package list):
+
+- **DEC-CORE-001** (core) — `Node["status"]` is a discriminated union. Per-status data lives on the variants that own them.
+- **DEC-CORE-002** (core) — `ResolvedInput = { value, schema, humanFields }`. Single value, not a per-field bundle.
+- **DEC-RUNNER-002** (runner) — Mid-execution `writeHumanInput` interrupts the in-flight Effect fiber via `Fiber.interrupt`. The transition is `running → stale → running`.
+- **DEC-TRANSPORT-001** (transport) — Two subscription methods, no flags. `subscribe` is exact-key; `subscribeSet` is wildcard pattern with `*`.
+- **DEC-CORE-005** (core) — Path generic on `NodeKey<Path>` is non-negotiable. Combinator signatures thread the path through end-to-end.
