@@ -127,7 +127,7 @@ function buildIndex(edges: ReadonlyArray<Edge>): {
 
 export function deserialize(json: string): WorkflowState {
   const parsed = JSON.parse(json) as Omit<WorkflowState, "edgesByTarget" | "edgesByFrom">;
-  const { edgesByTarget, edgesByFrom } = buildIndex(parsed.edges as ReadonlyArray<Edge>);
+  const { edgesByTarget, edgesByFrom } = buildIndex(parsed.edges);
   return { ...parsed, edgesByTarget, edgesByFrom };
 }
 

@@ -37,7 +37,7 @@ export type NodeDefinition<TInput = unknown, TOutput = unknown> = {
   kind: string;
   inputSchema: ZodType<TInput>;
   outputSchema: ZodType<TOutput>;
-  program: (input: TInput) => Effect.Effect<TOutput, Error, never>;
+  program: (input: TInput) => Effect.Effect<TOutput, Error>;
 };
 
 // A captured composition. The root is the final NodeRef; the defs
@@ -96,39 +96,39 @@ function recordDef(
 }
 
 // run: create the root node. The path is "root".
-export function run<S extends ZodType>(def: NodeDefinition<z.infer<S>, unknown>): NodeRef<"root"> {
+export function run<S extends ZodType>(def: NodeDefinition<z.infer<S>>): NodeRef<"root"> {
   recordDef("root", def, null, undefined);
-  return { key: nodeKeyCtor("root") as NodeKey<"root"> };
+  return { key: nodeKeyCtor("root") };
 }
 
 // chain: connect a child to a parent. The child path is `${P}.${K}`.
 // Two overloads: direct match and bridge function.
 export function chain<P extends string, K extends string, S extends ZodType>(
   parent: NodeRef<P>,
-  def: NodeDefinition<z.infer<S>, unknown> & { kind: K },
+  def: NodeDefinition<z.infer<S>> & { kind: K },
 ): NodeRef<`${P}.${K}`>;
 export function chain<P extends string, TOut, TIn, K extends string>(
   parent: NodeRef<P>,
   bridge: (parentOut: TOut) => TIn,
-  def: NodeDefinition<TIn, unknown> & { kind: K },
+  def: NodeDefinition<TIn> & { kind: K },
 ): NodeRef<`${P}.${K}`>;
 export function chain(
-  parent: NodeRef<string>,
-  arg2: (NodeDefinition<unknown, unknown> & { kind: string }) | ((parentOut: unknown) => unknown),
-  arg3?: NodeDefinition<unknown, unknown> & { kind: string },
-): NodeRef<string> {
-  let def: NodeDefinition<unknown, unknown> & { kind: string };
+  parent: NodeRef,
+  arg2: (NodeDefinition<unknown> & { kind: string }) | ((parentOut: unknown) => unknown),
+  arg3?: NodeDefinition<unknown> & { kind: string },
+): NodeRef {
+  let def: NodeDefinition<unknown> & { kind: string };
   let bridge: ((parentOut: unknown) => unknown) | undefined;
   if (typeof arg2 === "function") {
     bridge = arg2 as (parentOut: unknown) => unknown;
-    def = arg3 as NodeDefinition<unknown, unknown> & { kind: string };
+    def = arg3 as NodeDefinition<unknown> & { kind: string };
   } else {
-    def = arg2 as NodeDefinition<unknown, unknown> & { kind: string };
+    def = arg2 as NodeDefinition<unknown> & { kind: string };
   }
   const childKey = `${parent.key as string}.${def.kind}`;
   recordDef(childKey, def, parent.key as string, bridge);
   return {
-    key: nodeKeyCtor(childKey) as NodeKey<string>,
+    key: nodeKeyCtor(childKey),
   };
 }
 
@@ -141,14 +141,14 @@ export function all<P extends string>(
   parent: NodeRef<P>,
   _refs: Record<string, NodeRef>,
 ): NodeRef<`${P}.all.${string}`>;
-export function all(parent: NodeRef<string>, ..._args: unknown[]): NodeRef<string> {
+export function all(parent: NodeRef, ..._args: unknown[]): NodeRef {
   // For the tree, "all" is treated as a virtual node. We do not
   // record an "all" def because the consumer specifies the
   // children explicitly via _refs / _refs-record. The init() walk
   // treats "all" as a passthrough; the edges are recorded by the
   // chain calls that produced the children.
   return {
-    key: nodeKeyCtor(`${parent.key as string}.all`) as NodeKey<`${string}.all`>,
+    key: nodeKeyCtor(`${parent.key as string}.all`),
   };
 }
 

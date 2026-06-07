@@ -11,7 +11,7 @@ import { NodeKey, WorkflowId } from "@underwai/core";
 import type { NodeDefinition } from "@underwai/core";
 import { z } from "zod";
 
-function def(kind: string): NodeDefinition<unknown, unknown> {
+function def(kind: string): NodeDefinition<unknown> {
   return {
     kind,
     inputSchema: z.unknown(),

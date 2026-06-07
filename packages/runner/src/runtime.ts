@@ -6,8 +6,8 @@
 // owner uses write / writeHumanInput to inject values from
 // outside the program.
 import { Context, Effect, Layer, Ref } from "effect";
-import type { Node, NodeKey, WorkflowState } from "@underwai/core";
-import { LiveSubscriptionRegistry, resolveInput } from "@underwai/core";
+import type { Node, NodeKey, WorkflowState , LiveSubscriptionRegistry} from "@underwai/core";
+import { resolveInput } from "@underwai/core";
 import {
   markFailed,
   markPaused,
@@ -20,18 +20,18 @@ import {
 
 // WorkflowRuntime service interface.
 export interface WorkflowRuntimeShape {
-  readonly run: (opts: RunOptions) => Effect.Effect<WorkflowState, never, never>;
+  readonly run: (opts: RunOptions) => Effect.Effect<WorkflowState, never>;
   readonly publish: (
     output: unknown,
     partial: boolean,
-  ) => Effect.Effect<WorkflowState, never, never>;
-  readonly write: (key: NodeKey, value: unknown) => Effect.Effect<WorkflowState, never, never>;
+  ) => Effect.Effect<WorkflowState, never>;
+  readonly write: (key: NodeKey, value: unknown) => Effect.Effect<WorkflowState, never>;
   readonly writeHumanInput: (
     key: NodeKey,
     value: unknown,
-  ) => Effect.Effect<WorkflowState, never, never>;
-  readonly getState: () => Effect.Effect<WorkflowState, never, never>;
-  readonly subscribe: (cb: (state: WorkflowState) => void) => Effect.Effect<void, never, never>;
+  ) => Effect.Effect<WorkflowState, never>;
+  readonly getState: () => Effect.Effect<WorkflowState, never>;
+  readonly subscribe: (cb: (state: WorkflowState) => void) => Effect.Effect<void, never>;
 }
 
 // WorkflowRuntime Context.Tag. Identified by the underwai/ prefix
@@ -45,7 +45,7 @@ export class WorkflowRuntime extends Context.Tag("@underwai/WorkflowRuntime")<
 export type RunOptions = {
   readonly state: WorkflowState;
   readonly programs: Readonly<
-    Record<string, (input: unknown) => Effect.Effect<unknown, Error, never>>
+    Record<string, (input: unknown) => Effect.Effect<unknown, Error>>
   >;
   readonly maxIterations?: number;
   readonly liveRegistry?: LiveSubscriptionRegistry;
@@ -62,7 +62,7 @@ export type RunOptions = {
 //   }).pipe(Effect.provide(WorkflowRuntimeLive({ state, programs })))
 export const WorkflowRuntimeLive = (
   initialOpts: RunOptions,
-): Layer.Layer<WorkflowRuntime, never, never> =>
+): Layer.Layer<WorkflowRuntime, never> =>
   Layer.effect(
     WorkflowRuntime,
     Effect.gen(function* () {

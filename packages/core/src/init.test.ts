@@ -9,7 +9,7 @@ import type { NodeDefinition } from "./composition.js";
 import { init } from "./operations.js";
 import { WorkflowId } from "./keys.js";
 
-function def(kind: string): NodeDefinition<unknown, unknown> {
+function def(kind: string): NodeDefinition<unknown> {
   const program = ((_input: unknown) => Effect.succeed(undefined)) as never;
   return {
     kind,
@@ -38,7 +38,7 @@ describe("init()", () => {
       return b;
     });
     const state = init(tree, WorkflowId("wf-2"));
-    expect(Object.keys(state.nodes).sort()).toEqual(["root", "root.a", "root.a.b"]);
+    expect(Object.keys(state.nodes).toSorted()).toEqual(["root", "root.a", "root.a.b"]);
     expect(state.nodes["root.a.b"]?.status.kind).toBe("pending");
   });
 

@@ -8,7 +8,7 @@ import type { NodeDefinition, WorkflowState, Node, Edge } from "@underwai/core";
 import { z } from "zod";
 import { Effect } from "effect";
 
-function def(kind: string): NodeDefinition<unknown, unknown> {
+function def(kind: string): NodeDefinition<unknown> {
   return {
     kind,
     inputSchema: z.unknown(),

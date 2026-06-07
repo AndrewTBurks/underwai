@@ -91,7 +91,7 @@ describe("subscribeSet()", () => {
       captured = n;
     });
     registry.notify(state);
-    expect(Object.keys(captured).sort()).toEqual(["a", "b"]);
+    expect(Object.keys(captured).toSorted()).toEqual(["a", "b"]);
     expect(captured["a"]?.kind).toBe("root.a");
     expect(captured["a.x"]).toBeUndefined();
   });
@@ -104,7 +104,7 @@ describe("subscribeSet()", () => {
       captured = n;
     });
     registry.notify(state);
-    expect(Object.keys(captured).sort()).toEqual(["a", "b"]);
+    expect(Object.keys(captured).toSorted()).toEqual(["a", "b"]);
     expect(captured["a.x"]).toBeUndefined();
   });
 

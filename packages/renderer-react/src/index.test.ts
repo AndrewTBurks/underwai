@@ -63,7 +63,7 @@ describe("renderer-react", () => {
       return createElement("div", { "data-kind": "root.b" });
     });
     const result: ReactElement = AutoRender({ state: makeState() });
-    expect(calls.sort()).toEqual(["root", "root.a", "root.b"]);
+    expect(calls.toSorted()).toEqual(["root", "root.a", "root.b"]);
     expect((result.props as Record<string, unknown>)["data-auto-render"]).toBe("true");
   });
 
