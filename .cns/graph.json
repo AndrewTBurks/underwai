@@ -1,19 +1,28 @@
 {
-  "generated": "2026-06-06T23:33:46.699684+00:00",
+  "generated": "2026-06-07T01:05:42.849012+00:00",
   "nodes": [
     {
       "path": ".cns/architecture/index.md",
       "file": "/Users/andrew/Documents/underwai/.cns/architecture/index.md",
-      "title": "\"Architecture\"",
+      "title": "Architecture",
       "type": "module",
       "parent": "../index.md",
       "status": "dirty",
       "decision_count": 0
     },
     {
+      "path": ".cns/architecture/node.md",
+      "file": "/Users/andrew/Documents/underwai/.cns/architecture/node.md",
+      "title": "Node",
+      "type": "data-shape",
+      "parent": "./index.md",
+      "status": "clean",
+      "decision_count": 0
+    },
+    {
       "path": ".cns/design/index.md",
       "file": "/Users/andrew/Documents/underwai/.cns/design/index.md",
-      "title": "\"Design\"",
+      "title": "Design",
       "type": "module",
       "parent": "../index.md",
       "status": "dirty",
@@ -22,7 +31,7 @@
     {
       "path": ".cns/index.md",
       "file": "/Users/andrew/Documents/underwai/.cns/index.md",
-      "title": "\"underwAI\"",
+      "title": "underwAI",
       "type": "project",
       "parent": null,
       "status": "dirty",
@@ -31,7 +40,7 @@
     {
       "path": ".cns/product/index.md",
       "file": "/Users/andrew/Documents/underwai/.cns/product/index.md",
-      "title": "\"Product\"",
+      "title": "Product",
       "type": "module",
       "parent": "../index.md",
       "status": "dirty",
@@ -40,7 +49,7 @@
     {
       "path": ".cns/research/index.md",
       "file": "/Users/andrew/Documents/underwai/.cns/research/index.md",
-      "title": "\"Research\"",
+      "title": "Research",
       "type": "module",
       "parent": "../index.md",
       "status": "dirty",
@@ -51,6 +60,11 @@
     {
       "from": ".cns/architecture/index.md",
       "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": ".cns/architecture/node.md",
+      "to": ".cns/architecture/index.md",
       "label": "parent"
     },
     {
