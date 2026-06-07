@@ -1,6 +1,6 @@
 ---
 task: TASK-G
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: critical
 finding_refs: [C8]
@@ -65,4 +65,29 @@ A node's failure does *not* populate `WorkflowState.error`. The two are independ
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved (folded with TASK-J, TASK-K, TASK-S).** Andrew's pivot: "I think it should be a union on a property within the Node. i.e. `Node["state"] = {} | {} | ...` rather than a top-level discriminated union. nest it in the node" — and then on the property name: "use `status` not `state` for the nested property."
+
+The result is a *nested* discriminated union on `Node["status"]`. The shared fields (id, kind, inputSchema, input, outputSchema, actor, createdAt, updatedAt) stay on `Node` once. The per-status data (output, error, timestamps) lives on the status variants:
+
+```ts
+type NodeStatus =
+  | { kind: "pending" }
+  | { kind: "running"; startedAt: string }
+  | { kind: "streaming"; output: unknown; outputPartial: boolean }
+  | { kind: "resolved"; finalOutput: unknown; resolvedAt: string }
+  | { kind: "failed"; error: SerializedError; failedAt: string }
+  | { kind: "paused"; pausedAt: string }
+  | { kind: "stale"; previousOutput?: unknown }
+```
+
+This folds four plans into one refactor:
+- **TASK-G:** `error: SerializedError` lives on the `failed` variant only. No `error?` ambiguity on non-failed nodes.
+- **TASK-J:** `output` and `finalOutput` are no longer top-level. `output` is on `streaming` (current partial); `finalOutput` is on `resolved` (validated final). `outputPartial: boolean` is on `streaming` only.
+- **TASK-K:** `humanFields` cache is gone. The lib reads the human-fields view on demand via `getHumanFields(node)`, which walks `node.inputSchema` via `getHumanMode`. Re-walking the schema is cheap for typical <10-field schemas; the cache was redundant.
+- **TASK-S:** `getHumanInputDisplay(node, fieldKey)` returns a discriminated union on `source` kind (`literal` | `from_node` | `human` | `undefined`). The lib exposes the source; the renderer decides the UX.
+
+`getHumanFields` and `getHumanInputDisplay` are added to the operations section. Both are stub bodies; Phase 2 implements the schema walk and the field-read logic.
+
+Patches in this commit: `Node` and `NodeStatus` reshaped in `docs/design.md`, `.cns/architecture/index.md`, and `src/stub.ts`. The verbosity reductions and the load-bearing decisions in `docs/design.md` are updated to drop the `humanFields` mention. The schema `outputPartial` is no longer a top-level field.
+
+`tsc --noEmit` green. CNS health gate green.

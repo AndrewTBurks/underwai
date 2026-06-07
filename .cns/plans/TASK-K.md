@@ -1,6 +1,6 @@
 ---
 task: TASK-K
-status: pending
+status: folded
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [C2]
@@ -65,4 +65,8 @@ The lib's `init()` doesn't pre-compute; `getHumanFields` is called when needed (
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — folded into TASK-G.** The `humanFields: ReadonlyMap<FieldKey, HumanMode>` cache on `Node` is gone. The lib reads the human-fields view on demand via `getHumanFields(node)`, which walks `node.inputSchema` via `getHumanMode`. Re-walking the schema is cheap for typical <10-field schemas; the cache was redundant and could drift from the schema.
+
+The original C2 finding ("`humanFields` is redundant with the input schema") is closed by the structural move: the schema is now the only source of truth for human-editable fields, and `getHumanFields` is a derived view that reads the schema on each call. The cache pattern was a micro-optimization that introduced a sync burden; the lazy read is the right call.
+
+See TASK-G.md for the full refactor and the patch list. The `getHumanFields` accessor is added to the operations section.

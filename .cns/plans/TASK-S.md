@@ -1,6 +1,6 @@
 ---
 task: TASK-S
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [D8]
@@ -85,4 +85,20 @@ The discriminated union is one more type, but it's a typed join between `InputSo
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved (folded with TASK-G).** The `getHumanInputDisplay(node, fieldKey)` helper is added to the operations section. The return type is the discriminated union on `source` kind that the prior turn's review shaped:
+
+```ts
+type HumanInputDisplay =
+  | { source: "literal"; value: unknown; fieldSchema: ZodTypeAny }
+  | { source: "from_node"; value: unknown; fieldSchema: ZodTypeAny; upstream: NodeKey }
+  | { source: "human"; value: unknown; fieldSchema: ZodTypeAny; status: "pending" | "set" }
+  | undefined
+```
+
+The `proposed: boolean` flag the original D8 finding suggested is gone. The lib exposes the source; the renderer decides the UX. The renderer reads the `source` discriminator and renders accordingly (literal → read-only; `from_node` → "proposed by upstream" prefix or confirmation step, the renderer's call; `human, status: "pending"` → empty input; `human, status: "set"` → current value, editable).
+
+`undefined` is returned for non-human-editable fields or non-existent field keys.
+
+The function is added to `src/stub.ts` as a stub; Phase 2 implements the field-read logic.
+
+See TASK-G.md for the full refactor and the patch list.

@@ -1,6 +1,6 @@
 ---
 task: TASK-J
-status: pending
+status: folded
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [C1]
@@ -53,4 +53,8 @@ The renderer reads `output` for partial display, `finalOutput` for the resolved 
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — folded into TASK-G.** `output` and `finalOutput` are no longer top-level fields on `Node`. They live on the `streaming` and `resolved` variants of `Node["status"]` (a discriminated union). `outputPartial: boolean` is on the `streaming` variant only.
+
+The original C1 finding ("`output` vs `finalOutput` is two fields for the same conceptual value") is closed by the structural move: the two fields are now type-distinct (one is `streaming`, the other is `resolved`) and they don't coexist on a single node. A non-streaming node has only `finalOutput` (on its `resolved` status). A streaming node has only `output` (on its `streaming` status). The duality is preserved as the partial-vs-final distinction, but at the type level, not the data level.
+
+See TASK-G.md for the full refactor and the patch list.
