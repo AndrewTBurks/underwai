@@ -315,3 +315,38 @@ Plan:
 The wiring closes the runner -> transport -> renderer data
 path. Renderers can now subscribe to a live state and get
 real-time updates.
+
+## 2026-06-07 — TASK-33 start: renderer-react
+
+Scaffold the React adapter package. Plan:
+  - package.json with @underwai/core + react peer deps.
+  - vitest.config.ts.
+  - provider.tsx: <WorkflowProvider registry={...} state={...} />.
+  - hooks.ts: useWorkflowState, useNode, useSubtree (useSyncExternalStore).
+  - registry.tsx: registerKind(kind, fn), getKindRenderer(kind).
+  - auto-render.tsx: <AutoRender state={...} /> walks DAG.
+  - index.ts: re-exports.
+  - 1 test: register a renderer, instantiate state with 3 nodes,
+    assert the renderer is called for each. Skip RTL.
+
+## 2026-06-07 — TASK-33 done: renderer-react
+
+5 source files + 1 test. 92/92 green. CNS validates.
+
+  - provider.tsx: <WorkflowProvider registry state children> wires
+    LiveSubscriptionRegistry + WorkflowState into React context.
+  - hooks.ts: useWorkflowState, useNode, useSubtree. All use
+    useSyncExternalStore. (DEC-RR-001.)
+  - registry.tsx: registerKind, getKindRenderer, clearRegistry,
+    defaultRenderer. (DEC-RR-002.)
+  - auto-render.tsx: <AutoRender state={...} /> walks the DAG
+    and calls each registered kind renderer. Unknown kinds use
+    defaultRenderer. (DEC-RR-003.)
+  - index.ts: re-exports.
+  - index.test.ts: 3 tests. Asserts on the *call* to render
+    (kind match) and on the element's props (data-auto-render),
+    not the rendered DOM. Per the audit: skip RTL. (DEC-RR-004.)
+
+The renderer is a thin adapter over the LiveSubscriptionRegistry.
+Consumers compose their own UI from useNode, useSubtree,
+useWorkflowState.

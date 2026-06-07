@@ -1,11 +1,15 @@
 // @underwai/renderer-react public entry point.
-//
-// Phase 1 ships an empty package. Phase 2 implements:
-//   - src/provider.tsx  — <WorkflowProvider> context
-//   - src/hooks.ts      — useWorkflowState, useNode, useSubtree
-//   - src/registry.tsx  — the renderer registry (kind → ReactElement)
-//   - src/auto-render.tsx — auto-render entry point
-//
-// See ../index.md for the design rationale.
-
-export {}
+import { createElement } from "react"
+export { AutoRender } from "./auto-render.js"
+export {
+  clearRegistry,
+  defaultRenderer,
+  getKindRenderer,
+  registerKind,
+  RegistryContext,
+  useRegistry,
+} from "./registry.js"
+export type { KindRenderer } from "./registry.js"
+export { WorkflowProvider, useProvider } from "./provider.js"
+export type { ProviderProps } from "./provider.js"
+export { useNode, useSubtree, useWorkflowState } from "./hooks.js"

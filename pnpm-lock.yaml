@@ -61,19 +61,13 @@ importers:
       '@underwai/core':
         specifier: workspace:*
         version: link:../core
-      '@underwai/transport':
-        specifier: workspace:*
-        version: link:../transport
-      react:
-        specifier: ^18.0.0 || ^19.0.0
-        version: 19.2.7
     devDependencies:
       '@types/react':
-        specifier: ^18.0.0 || ^19.0.0
+        specifier: ^19.0.0
         version: 19.2.17
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
+      react:
+        specifier: ^19.0.0
+        version: 19.2.7
 
   packages/runner:
     dependencies:
@@ -106,9 +100,6 @@ importers:
       '@underwai/core':
         specifier: workspace:*
         version: link:../core
-      effect:
-        specifier: ^3.0.0
-        version: 3.21.3
     devDependencies:
       typescript:
         specifier: ^5.4.0

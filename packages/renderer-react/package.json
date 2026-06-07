@@ -1,26 +1,27 @@
 {
   "name": "@underwai/renderer-react",
   "version": "0.0.0",
-  "description": "Reference React adapter for underwAI: useWorkflowState, useNode, useSubtree, <WorkflowProvider>, auto-render.",
+  "description": "React adapter for the underwAI workflow runtime. Hooks + provider + auto-render.",
   "type": "module",
   "license": "Apache-2.0",
   "main": "./src/index.ts",
-  "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@underwai/core": "workspace:*",
-    "@underwai/transport": "workspace:*"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b"
   },
   "peerDependencies": {
+    "@types/react": "^18.0.0 || ^19.0.0",
     "react": "^18.0.0 || ^19.0.0"
   },
+  "dependencies": {
+    "@underwai/core": "workspace:*"
+  },
   "devDependencies": {
-    "@types/react": "^18.0.0 || ^19.0.0",
-    "typescript": "^5.4.0"
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0"
   }
 }

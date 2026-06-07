@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-07T13:21:44.322607+00:00",
+  "generated": "2026-06-07T18:07:05.769345+00:00",
   "nodes": [
     {
       "path": ".cns/architecture/index.md",
@@ -62,7 +62,7 @@
       "type": "package",
       "parent": "../../.cns/index.md",
       "status": "dirty",
-      "decision_count": 14
+      "decision_count": 18
     },
     {
       "path": "packages/renderer-log/index.md",
@@ -79,8 +79,8 @@
       "title": "@underwai/renderer-react",
       "type": "package",
       "parent": "../../.cns/index.md",
-      "status": "dirty",
-      "decision_count": 6
+      "status": "clean",
+      "decision_count": 5
     },
     {
       "path": "packages/runner/index.md",
@@ -107,7 +107,7 @@
       "type": "package",
       "parent": "../../.cns/index.md",
       "status": "dirty",
-      "decision_count": 7
+      "decision_count": 9
     }
   ],
   "edges": [

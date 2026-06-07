@@ -162,6 +162,7 @@ Sub-bullets:
 
 Verification: a test that registers a renderer, instantiates a state with 3 nodes, asserts the renderer is called for each. **Skip React Testing Library** — the lib's vitest is plain Node; the renderer exports React elements; assertions are on the *call* to render, not on the rendered DOM. `tsc -b` clean, CNS health gate green.
 
+**Status (2026-06-07): DONE.** 5 files: provider, hooks, registry, auto-render, index. 3 tests. 92/92 green. The renderer is a thin adapter over the LiveSubscriptionRegistry; consumers compose their own UI from useNode, useSubtree, useWorkflowState. The wiring tested is `<WorkflowProvider>` + `<AutoRender>` walking a 3-node state.
 ### 34. `@underwai/renderer-log` — stdout log renderer. (TASK-34)
 
 The smallest possible renderer. Subscribes to the workflow via `subscribeSet(state, "*", onUpdate)`, prints to stdout. Every kind is renderable (default for unknown kinds).
