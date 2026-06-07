@@ -11,6 +11,18 @@ links:
     path: .cns/product/index.md
   - id: research
     path: .cns/research/index.md
+  - id: core
+    path: packages/core/index.md
+  - id: schema
+    path: packages/schema/index.md
+  - id: runner
+    path: packages/runner/index.md
+  - id: transport
+    path: packages/transport/index.md
+  - id: renderer-react
+    path: packages/renderer-react/index.md
+  - id: renderer-log
+    path: packages/renderer-log/index.md
 human_notes: |
 
 status: dirty
@@ -59,3 +71,16 @@ The principles are restated and applied in each layer's `index.md`:
 - **design** carries the encoding conventions: frontmatter field names, prose style, when to add a principle to a node's list. `principles: [laziness-protocol, exhaust-the-design-space, encode-lessons-in-structure]`.
 - **product** carries the gap statement, the v1 must-haves, and the modules list. `principles: [minimal-api-surface, experience-first]`.
 - **research** carries the related-work table and the open questions that drive `intent.md`. `principles: [encode-lessons-in-structure, exhaust-the-design-space]`.
+
+## Package references (the pre-shard library folder structure)
+
+The library is a pnpm workspace. Each package has its own `index.md` (peripheral nervous system node) with local context for the implementation phase. Pre-shard on 2026-06-06.
+
+- **packages/core** ([`index.md`](packages/core/index.md)) — `@underwai/core`. v1. The data structure: types, keys, composition, operations. No imports from the other v1 packages.
+- **packages/schema** ([`index.md`](packages/schema/index.md)) — `@underwai/schema`. v1. The Zod extension: `z.human()` + `.verified()`. Standalone; depends on Zod only.
+- **packages/runner** ([`index.md`](packages/runner/index.md)) — `@underwai/runner`. v1. The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives. Depends on `@underwai/core` and `@underwai/schema`.
+- **packages/transport** ([`index.md`](packages/transport/index.md)) — `@underwai/transport`. v1.1+. Subscription API and wire format. Folder-only; promoted to a real package when v1.1 work begins.
+- **packages/renderer-react** ([`index.md`](packages/renderer-react/index.md)) — `@underwai/renderer-react`. v1.1+. The reference React adapter. Folder-only; promoted when v1.1 work begins.
+- **packages/renderer-log** ([`index.md`](packages/renderer-log/index.md)) — `@underwai/renderer-log`. v1.1+. The stdout log renderer for tests. Folder-only; promoted when v1.1 work begins.
+
+The pre-shard `src/stub.ts` was moved to `packages/core/src/stub.ts` on 2026-06-06. Phase 2 distributes the stub's contents across the four `packages/core/src/*` files (keys, types, composition, operations).

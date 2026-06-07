@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-07T01:05:42.849012+00:00",
+  "generated": "2026-06-07T05:09:03.600993+00:00",
   "nodes": [
     {
       "path": ".cns/architecture/index.md",
@@ -54,6 +54,60 @@
       "parent": "../index.md",
       "status": "dirty",
       "decision_count": 0
+    },
+    {
+      "path": "packages/core/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/core/index.md",
+      "title": "@underwai/core",
+      "type": "package",
+      "parent": "../../.cns/index.md",
+      "status": "dirty",
+      "decision_count": 0
+    },
+    {
+      "path": "packages/renderer-log/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/renderer-log/index.md",
+      "title": "@underwai/renderer-log",
+      "type": "package",
+      "parent": "../../.cns/index.md",
+      "status": "deferred",
+      "decision_count": 0
+    },
+    {
+      "path": "packages/renderer-react/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/renderer-react/index.md",
+      "title": "@underwai/renderer-react",
+      "type": "package",
+      "parent": "../../.cns/index.md",
+      "status": "deferred",
+      "decision_count": 0
+    },
+    {
+      "path": "packages/runner/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/runner/index.md",
+      "title": "@underwai/runner",
+      "type": "package",
+      "parent": "../../.cns/index.md",
+      "status": "dirty",
+      "decision_count": 0
+    },
+    {
+      "path": "packages/schema/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/schema/index.md",
+      "title": "@underwai/schema",
+      "type": "package",
+      "parent": "../../.cns/index.md",
+      "status": "dirty",
+      "decision_count": 0
+    },
+    {
+      "path": "packages/transport/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/transport/index.md",
+      "title": "@underwai/transport",
+      "type": "package",
+      "parent": "../../.cns/index.md",
+      "status": "deferred",
+      "decision_count": 0
     }
   ],
   "edges": [
@@ -81,9 +135,43 @@
       "from": ".cns/research/index.md",
       "to": ".cns/index.md",
       "label": "parent"
+    },
+    {
+      "from": "packages/core/index.md",
+      "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/renderer-log/index.md",
+      "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/renderer-react/index.md",
+      "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/runner/index.md",
+      "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/schema/index.md",
+      "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/transport/index.md",
+      "to": ".cns/index.md",
+      "label": "parent"
     }
   ],
-  "orphans": [],
+  "orphans": [
+    "packages/renderer-log/index.md",
+    "packages/renderer-react/index.md",
+    "packages/transport/index.md"
+  ],
   "cycles": [],
   "dangling_links": []
 }

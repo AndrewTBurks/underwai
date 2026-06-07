@@ -15,5 +15,10 @@
     "verbatimModuleSyntax": true,
     "types": ["node"]
   },
-  "include": ["src/**/*"]
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/schema" },
+    { "path": "./packages/runner" }
+  ]
 }

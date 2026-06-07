@@ -42,19 +42,39 @@ Real but lower-priority refinements. Each is a design session + small patch. The
 
 ## Phase 2: prototype
 
-Begins after Phase 1 completes. Implementation order:
+Begins after Phase 1 completes. **Pre-shard landed 2026-06-06**: the library is a pnpm workspace with 3 v1 packages (`@underwai/core`, `@underwai/schema`, `@underwai/runner`) and 3 v1.1+ packages (`@underwai/transport`, `@underwai/renderer-react`, `@underwai/renderer-log`). See `.cns/index.md` § "Package references" for the structure. The current `src/stub.ts` was moved to `packages/core/src/stub.ts`.
 
-1. **`src/keys.ts`** — the `NodeKey` type and constructor.
-2. **`src/types.ts`** — the data structure (`WorkflowState`, `Node`, `Edge`, `ResolvedInput`, `InputSource`).
-3. **`src/schemas.ts`** — the `z.human()` + `.verified()` extension.
-4. **`src/composition.ts`** — `run`, `then`, `all`, `thenLoop`.
-5. **`src/operations.ts`** — `init`, `get`, `serialize`, `deserialize`, `findReadyNodes`, `findSubtree`.
-6. **`src/runner.ts`** — `step`, `publish`, `write`, `writeHumanInput`.
-7. **`src/subscribe.ts`** — Node-granularity subscription.
-8. **Test suite** — `composition.test.ts`, `runner.test.ts`, `human-input.test.ts`, `streaming.test.ts`, `subscribe.test.ts`, `serialization.test.ts`.
+Implementation order, organized by package:
+
+**`@underwai/schema` (v1, implement first — small, no internal deps):**
+1. **`packages/schema/src/human.ts`** — `z.human()` runtime. (TASK-E)
+2. **`packages/schema/src/verified.ts`** — `.verified()` decorator. (TASK-E)
+3. **`packages/schema/src/get-mode.ts`** — `getHumanMode(schema)` helper. (TASK-E)
+4. **`packages/schema/src/index.ts`** — re-exports. (TASK-E)
+
+**`@underwai/core` (v1, the data structure):**
+5. **`packages/core/src/keys.ts`** — `NodeKey<Path>`, brand, path template. (TASK-I)
+6. **`packages/core/src/types.ts`** — `WorkflowState`, `Node` (discriminated union on `Node["status"]`), `Edge`, `ResolvedInput`, `SerializedError`, `Actor`, `HumanMode`. (TASK-G, TASK-H, TASK-L, TASK-S)
+7. **`packages/core/src/composition.ts`** — `run`, `then` (two overloads: direct + bridge), `all` (array + object), `thenLoop`. (TASK-C, TASK-H, TASK-I, TASK-U)
+8. **`packages/core/src/operations.ts`** — `init`, `getNode`, `serialize`, `deserialize`, `findReadyNodes`, `findSubtree`, `publish`, `write`, `writeHumanInput`, `getHumanFields`, `getHumanInputDisplay`. (TASK-F, TASK-K, TASK-O, TASK-R, TASK-S)
+9. **`packages/core/src/index.ts`** — re-exports.
+
+**`@underwai/runner` (v1, the runtime):**
+10. **`packages/runner/src/find-ready.ts`** — Kahn's algorithm using `edgesByFrom`. (TASK-O, TASK-R)
+11. **`packages/runner/src/mutations.ts`** — `publish`, `write`, `writeHumanInput`. (TASK-A, TASK-H, TASK-S)
+12. **`packages/runner/src/step-internal.ts`** — internal step primitive. (TASK-B)
+13. **`packages/runner/src/runtime.ts`** — `WorkflowRuntime` Effect service. (TASK-B, TASK-T)
+14. **`packages/runner/src/run-workflow.ts`** — main Effect program. (TASK-B)
+15. **`packages/runner/src/index.ts`** — re-exports.
+
+**Tests** (after the implementation lands):
+16. **Per-package test suites** — `composition.test.ts`, `runner.test.ts`, `human-input.test.ts`, `streaming.test.ts`, `subscribe.test.ts` (deferred to `@underwai/transport` if v1.1+), `serialization.test.ts`.
 
 ## Phase 3: integration
 
+- **`@underwai/transport` (v1.1+)** — subscription API, change-stream protocol. Folder-only; promote when v1.1 work begins.
+- **`@underwai/renderer-react` (v1.1+)** — reference React adapter. Folder-only; promote when v1.1 work begins.
+- **`@underwai/renderer-log` (v1.1+)** — stdout log renderer for tests. Folder-only; promote when v1.1 work begins.
 - **`defineNode` helper for dual type guard.** v1.1.
 - **Long-running workflow durability.** v1.1. Adopt or reject "use workflow" opinions on idempotency.
 - **SSE / WebSocket transports.** v1.1 adapters on top of the `WorkflowEvent` stream.

@@ -1,0 +1,22 @@
+{
+  "name": "@underwai/core",
+  "version": "0.0.0",
+  "description": "Data structure: types, keys, composition, operations. The foundation of underwAI.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "effect": "^3.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

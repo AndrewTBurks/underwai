@@ -88,10 +88,17 @@ This means: v1 of underwAI is whatever ThreadWeaver would *want* from a lib, gen
 - Not a hosted service. UnderwAI is a library. Hosting, observability, and dashboards are separate concerns.
 - Not a DSL. Effect is the language. The lib is the runtime.
 
-## Modules (planned)
+## Packages (planned)
 
-- **core** — the data structure, operations on it, the flat DAG representation
-- **schema** — Zod extensions for human-updatable fields, node type registration
-- **runner** — the `init()` / `resume()` / `write()` runtime, DAG traversal, Effect integration
-- **transport** — subscription API, change-stream protocol, SSR streaming
-- **renderers** — reference renderer registry, React adapter (and a "no-op" renderer for testing)
+The library is a pnpm workspace. The 6-package split was pre-shard on 2026-06-06 (see [`.cns/index.md`](../../.cns/index.md) § "Package references" for the full structure). Each package has its own `index.md` (peripheral nervous system node) with local context for the implementation phase.
+
+| Package | Status | Depends on | Purpose |
+|---|---|---|---|
+| `@underwai/core` | v1 | zod, effect (peer) | Data structure: types, keys, composition, operations. The foundation. |
+| `@underwai/schema` | v1 | zod (peer) | Zod extension: `z.human()` + `.verified()`. Standalone. |
+| `@underwai/runner` | v1 | `@underwai/core`, `@underwai/schema`, zod, effect | The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives. |
+| `@underwai/transport` | v1.1+ | `@underwai/core` (planned) | Subscription API and wire format (`WorkflowEvent` stream). |
+| `@underwai/renderer-react` | v1.1+ | `@underwai/core`, `@underwai/transport` (planned), react (peer) | Reference React adapter. |
+| `@underwai/renderer-log` | v1.1+ | `@underwai/core`, `@underwai/transport` (planned) | stdout log renderer for tests. |
+
+The original 5-module list (core, schema, runner, transport, renderers) is split into 6 packages because the two reference renderers ship as separate npm packages under the `@underwai/renderer-*` scope, with their own version lines and own peer-dependency contracts. The v1.1+ packages have only `index.md` on disk; no `package.json` or `src/` until v1.1 work begins.
