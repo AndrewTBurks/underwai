@@ -115,3 +115,48 @@ The revision is substantial. The new design is key-addressable, has a stricter c
 **Edge shape pivot.** Andrew: "and honestly I think the Edge shape is wrong too with `toField` - what does this even mean?" The `toField` was the per-field wiring assignment (which field on the downstream's input the upstream's output feeds into). The concept was confused: the lib was trying to do per-field wiring in a data structure that doesn't naturally support it. The fix: `Edge = { from, to }` (positional connection), with composition-time wiring enforced by the API. The composition API has two `.then()` overloads: direct match (parent.output shape === child.input shape) and bridge (a function `(parentOut) => childIn`). Bridges live on the Edge as `Edge.bridge` — composition metadata, not a node. The runner applies the bridge at edge resolution.
 
 **TASK-H then extended into TASK-A (running + writeHumanInput race) on a different axis.** When a human writes to a running node's input, the runner interrupts the in-flight Effect fiber via `Fiber.interrupt` (already decided in TASK-A), the node re-runs with the new input. The `ResolvedInput.value` is updated; the `humanFields` map says whether the new value marks the node stale (writeable) or pauses for confirmation (verified). The two-stage validation runs again: per-source `value` against `schema`, then aggregate. If the human's write is invalid, the node fails with a clear error. If valid, the node re-runs.
+
+**TASK-I (resolved, against the plan's recommendation).** Andrew: "we MUST have path/node type safety and specificity as a first-class constraint. the consumer side is interfacing with a useless library if not." The plan's "drop the Path generic for v1" was wrong. The Path generic is non-negotiable. Combinator signatures carry the path through: `run(def)` → `NodeRef<"root">`, `then(parent, def)` → `NodeRef<`${P}.${K}`>`, `all` and `thenLoop` likewise. The brand on `NodeKey` rejects raw strings; the path generic rejects "wrong node ref" at the call site. `subscribeSet` is the consumer's path to addressing dynamic families (the array-form `all`'s N, the `thenLoop`'s iteration index). `tsc` green.
+
+**TASK-L, M, N, O, Q, R, U (all resolved).** The remaining consider-list items closed out. TASK-L: drop the brand on `Actor`, ship `type Actor = string`. TASK-M, N, O, Q, U: doc-only patches. TASK-R: no `topologicalOrder` field; `findReadyNodes` returns `ReadonlyArray<NodeKey>` in dependency order directly. The footgun I labeled (return Set, runner sorts) was genuinely broken — caught and re-asked with two real options.
+
+---
+
+## Phase 1 closure
+
+**Status:** 22 of 22 plans have a terminal status. 14 resolved (A, B, C, E, F, G, H, I, L, M, N, O, Q, R, S, U), 2 folded (J, K into G), 1 absorbed (D into C), 1 merged (T into B), 2 cancelled (P, V).
+
+**The data structure converged.** The shapes that emerged from Phase 1:
+
+- `Node["status"]` is a discriminated union. Per-status data lives on the variants that own them.
+- `ResolvedInput = { value, schema, humanFields }`. Single value, not a per-field bundle.
+- `Edge = { from, to, bridge? }`. No `toField`; bridges are an optional function on the edge.
+- `WorkflowState` has `edgesByTarget` and `edgesByFrom` as derived fields. No `topologicalOrder` field; `findReadyNodes` returns the order.
+- Composition API: `run`, `then` (two overloads: direct match and bridge), `all` (two forms: array and object), `thenLoop`. All return `NodeRef<P>` with the path type-checked.
+- Subscription: `subscribe` (single key), `subscribeSet` (wildcard pattern). No flag options.
+- Runner: `runWorkflow` Effect program owns the fiber; `WorkflowRuntime` service provides `publish` / `write` / `writeHumanInput` to consumer programs.
+- `NodeKey` is branded and carries a `Path` template-literal generic. Combinator signatures thread the path through.
+
+**Pivots from the original plan:**
+- TASK-C: dropped `{ prefix: true }` knob; added `subscribeSet` with a pattern grammar.
+- TASK-D: absorbed into TASK-C.
+- TASK-G + J + K + S: `Node["status"]` is a discriminated union; per-status data lives on the variants.
+- TASK-H: `InputSource` and per-field wiring gone; direct-match composition with optional bridge function.
+- TASK-I: Path generic is non-negotiable; combinators carry the path.
+- TASK-R: no `topologicalOrder` field; `findReadyNodes` returns in dependency order.
+
+**The 7-status state machine is intact.** `pending` → `running` → `streaming` → `resolved`; `pending`/`running` → `paused` → `pending` (verified gate); `running`/`streaming` → `stale` (input change); `running`/`streaming` → `failed` (effect failure); `paused` is *not* in `findReadyNodes`.
+
+**CNS health gate green.** `tsc --noEmit` green. 14 design commits + 6 docs commits = 20 commits since the start of Phase 1. The repo is at a clean checkpoint ready for Phase 2 (implementation).
+
+**What Phase 2 needs:**
+- The lib's `init` (build state from composition expression). Stub throws; needs to walk the composition tree, populate nodes and edges, build edgesByTarget/edgesByFrom.
+- The lib's `findReadyNodes` (Kahn's algorithm in dependency order).
+- The lib's mutation primitives (`publish`, `write`, `writeHumanInput`) — the consumer-facing half of the `WorkflowRuntime` service.
+- The lib's `stepInternal` (run a single ready node's Effect program, handle pause/stale/resolved/failed transitions).
+- The lib's `runWorkflow` (the main Effect program: own the fiber, call `stepInternal` in a loop until no ready nodes).
+- The lib's `subscribe` / `subscribeSet` (state diff subscription).
+- The lib's `serialize` / `deserialize` (round-trip the source fields, recompute derived fields).
+- `getHumanFields(node)` and `getHumanInputDisplay(node, fieldKey)` (the operations helpers).
+
+That's a lot. Phase 2 is bigger than Phase 1 was.
