@@ -259,7 +259,7 @@ function stepInternal(state: WorkflowState): WorkflowState
 
 **Mid-execution `writeHumanInput` (when the node is `running` or `streaming`):** the runner marks the node `stale` and interrupts the in-flight Effect fiber via Effect's standard `Fiber.interrupt` primitive. The interrupted effect's output is discarded. The node re-runs with the new input. The transition is `running → stale → running` (or `running → stale → paused` if the input has open `verified` fields). Implementation gated on TASK-B's `runWorkflow` owning the fiber; the policy is defined here.
 
-The runner picks up nodes whose status is `pending` or `stale` and whose inputs are complete. `findReadyNodes(state): Set<NodeKey>` returns exactly that set. The runner processes them in `topologicalOrder` and transitions them to `running`. Per-status semantics are documented in `.cns/architecture/index.md` (the source of truth).
+The runner picks up nodes whose status is `pending` or `stale` and whose inputs are complete. `findReadyNodes(state): Set<NodeKey>` returns exactly that set. `paused` is *not* returned (a paused node's input is not complete — a `verified` field is still `pending`). The runner processes them in `topologicalOrder` and transitions them to `running`. Per-status semantics are documented in `.cns/architecture/index.md` (the source of truth).
 
 **Staleness propagation:** when a node goes `stale`, the downstream subtree is marked `stale` too. Sibling subtrees (other branches of a fan-out that don't depend on the changed input) are unaffected. `findSubtree(state, staleNodeKey)` returns the descendants to invalidate.
 

@@ -1,6 +1,6 @@
 ---
 task: TASK-O
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [B7]
@@ -52,4 +52,4 @@ The runner picks up nodes whose status is `pending` or `stale` AND whose inputs 
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved (doc-only).** Both `docs/design.md` and `.cns/architecture/index.md` already agree on the rule: `findReadyNodes` returns nodes whose inputs are complete and status is `pending` or `stale`; `paused` is NOT returned (the input is not complete — a `verified` field is still `pending`). The rule is consistent. Patches: `docs/design.md` runtime section now explicitly notes "paused is *not* returned (a paused node's input is not complete — a `verified` field is still `pending`)" so the rule is on the page next to the function signature.
