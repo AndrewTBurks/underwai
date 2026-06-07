@@ -1,9 +1,10 @@
 // @underwai/renderer-log public entry point.
-//
-// Phase 1 ships an empty package. Phase 2 implements:
-//   - src/registry.ts — kind → (node, indent) => string
-//   - src/runner.ts   — runLogRenderer(state, opts?)
-//
-// See ../index.md for the design rationale.
-
-export {}
+export { runLogRenderer } from "./runner.js"
+export type { RunOptions } from "./runner.js"
+export {
+  clearRegistry,
+  defaultRenderer,
+  getKindRenderer,
+  registerKind,
+} from "./registry.js"
+export type { KindTextRenderer } from "./registry.js"

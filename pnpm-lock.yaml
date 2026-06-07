@@ -48,13 +48,6 @@ importers:
       '@underwai/transport':
         specifier: workspace:*
         version: link:../transport
-      effect:
-        specifier: ^3.0.0
-        version: 3.21.3
-    devDependencies:
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
 
   packages/renderer-react:
     dependencies:

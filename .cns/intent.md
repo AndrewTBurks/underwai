@@ -174,6 +174,8 @@ Sub-bullets:
 
 Verification: a test that constructs a 3-node state, runs the renderer against a captured-stdout, asserts the output contains all three kinds. `tsc -b` clean, CNS health gate green.
 
+**Status (2026-06-07): DONE.** 3 source files (registry, runner, index). 3 tests. 95/95 green. The runner takes a `getState` function (consumer-owned state pattern); subscribes via `subscribeSet(registry, "*", onUpdate)`; on every notify calls `getState()` and walks the DAG. Default renderer prints `"<indent><kind> (<status>)"`.
+
 ### Suggested execution order
 
 1. **TASK-30** (core gaps) — closes the foundation. Required for renderer-log/renderer-react tests to construct real workflows.

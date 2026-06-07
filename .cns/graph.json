@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-07T18:07:05.769345+00:00",
+  "generated": "2026-06-07T18:10:58.670061+00:00",
   "nodes": [
     {
       "path": ".cns/architecture/index.md",
@@ -70,8 +70,8 @@
       "title": "@underwai/renderer-log",
       "type": "package",
       "parent": "../../.cns/index.md",
-      "status": "dirty",
-      "decision_count": 6
+      "status": "clean",
+      "decision_count": 2
     },
     {
       "path": "packages/renderer-react/index.md",

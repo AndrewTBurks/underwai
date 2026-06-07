@@ -350,3 +350,29 @@ Scaffold the React adapter package. Plan:
 The renderer is a thin adapter over the LiveSubscriptionRegistry.
 Consumers compose their own UI from useNode, useSubtree,
 useWorkflowState.
+
+## 2026-06-07 — TASK-34 start: renderer-log
+
+The smallest possible renderer. Two files:
+  - registry.ts: kind -> (node, indent) => string.
+  - runner.ts: runLogRenderer(registry, state, opts?) subscribes
+    via subscribeSet(registry, "*", ...) and prints each notify.
+
+## 2026-06-07 — TASK-34 done: renderer-log
+
+3 source files (registry, runner, index). 3 tests. 95/95
+green. CNS validates.
+
+  - registry.ts: kind -> (node, indent) -> string. Default
+    renderer prints "<indent><kind> (<status>)". (DEC-RL-001.)
+  - runner.ts: runLogRenderer(registry, initialState,
+    {print, getState}) subscribes via subscribeSet(registry,
+    "*", onUpdate). On every notify, calls getState() and walks
+    the DAG. (DEC-RL-002.)
+  - index.test.ts: 3 tests. Initial render prints all 3
+    kinds with indentation by depth. Re-render on registry
+    notify works.
+
+The runner takes a getState function from the consumer (the
+consumer owns the state). This is the v1.0 wire; a v1.1 could
+push state through subscribeSet's callback.
