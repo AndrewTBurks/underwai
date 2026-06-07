@@ -43,19 +43,26 @@ export const WorkflowId = (s: string): WorkflowId => s as WorkflowId
 // types.ts
 // =========================================================================
 
+// Node lifecycle. The discriminator is `status.kind`. Each variant
+// carries only the data that variant owns — there is no `output` on
+// `pending`, no `error` on `running`, no `outputPartial` on
+// `resolved`. The type system enforces "illegal states are
+// unrepresentable" at the node level. Shared fields (id, kind,
+// inputSchema, etc.) live on `Node`; the per-status data lives
+// here. See the `Node` type for the full shape.
 export type NodeStatus =
-  | "pending"
-  | "running"
-  | "streaming"
-  | "resolved"
-  | "failed"
-  | "paused"
-  | "stale"
+  | { kind: "pending" }
+  | { kind: "running"; startedAt: string }
+  | { kind: "streaming"; output: unknown; outputPartial: boolean }
+  | { kind: "resolved"; finalOutput: unknown; resolvedAt: string }
+  | { kind: "failed"; error: SerializedError; failedAt: string }
+  | { kind: "paused"; pausedAt: string }
+  | { kind: "stale"; previousOutput?: unknown }
 
 export type WorkflowStatus =
   | "pending"
   | "running"
-  | "paused"
+  | "paused"       // at least one node is paused on verified input
   | "completed"
   | "failed"
 
@@ -77,6 +84,11 @@ export type InputSource =
       status: "pending" | "set"
     }
 
+// Node. Shared fields are on the type once. Per-status data lives
+// in `node.status` (a discriminated union). The lib derives the
+// human-fields view on read via `getHumanFields(node)` — no
+// `humanFields` cache on the node. Output/error/etc. live on the
+// status variants that own them.
 export type Node = {
   id: NodeKey
   kind: string
@@ -84,14 +96,11 @@ export type Node = {
 
   inputSchema: ZodTypeAny
   input: ResolvedInput
-  // Computed from inputSchema at init(). Tells the runner which fields are
-  // human-writable and whether they require pre-run confirmation.
-  humanFields: ReadonlyMap<FieldKey, HumanMode>
 
   outputSchema: ZodTypeAny
-  output?: unknown
-  outputPartial: boolean
-  finalOutput?: unknown
+
+  // The current node status. The kind discriminator tells you
+  // which fields are present (output, error, etc.).
   status: NodeStatus
 
   actor: Actor
@@ -162,6 +171,22 @@ export function getHumanMode(schema: ZodTypeAny): HumanMode | undefined {
   return (schema._def as { humanMode?: HumanMode } | undefined)?.humanMode
 }
 
+// Derive the human-fields map for a node by walking its
+// inputSchema. Replaces the cached `node.humanFields` that used
+// to live on the Node type. Read-only; the lib never mutates
+// the schema, so the derived map is stable for the node's
+// lifetime. Cheap to compute for the typical <10-field schema.
+export function getHumanFields(
+  node: Node,
+): ReadonlyMap<FieldKey, HumanMode> {
+  // Stub: Phase 2 implements the schema walk. The lib reads the
+  // mode via getHumanMode(schema) at every level of the schema
+  // tree and returns a map from field key to mode. The shape is
+  // read-only; consumers don't mutate.
+  void node
+  throw new Error("not implemented")
+}
+
 declare module "zod" {
   namespace z {
     function human<T extends ZodTypeAny>(schema: T): HumanSchema<T>
@@ -222,6 +247,25 @@ export function thenLoop<B, P>(
 // =========================================================================
 // operations.ts
 // =========================================================================
+
+// Helper the renderer uses to render a human-editable field. The
+// return type is a discriminated union on source kind: the lib
+// exposes the source (literal / from_node / human); the renderer
+// decides the UX (proposal prefix, confirmation step, etc.).
+// TASK-S reshaped: this is not a `proposed: boolean` flag. The
+// renderer reads the source kind and renders accordingly.
+export type HumanInputDisplay =
+  | { source: "literal"; value: unknown; fieldSchema: ZodTypeAny }
+  | { source: "from_node"; value: unknown; fieldSchema: ZodTypeAny; upstream: NodeKey }
+  | { source: "human"; value: unknown; fieldSchema: ZodTypeAny; status: "pending" | "set" }
+  | undefined
+
+export function getHumanInputDisplay(
+  _node: Node,
+  _fieldKey: FieldKey,
+): HumanInputDisplay {
+  throw new Error("not implemented")
+}
 
 export function init(_root: NodeRef): WorkflowState {
   throw new Error("not implemented")

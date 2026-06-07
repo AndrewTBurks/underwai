@@ -109,21 +109,26 @@ type Node = {
 
   inputSchema: ZodTypeAny
   input: ResolvedInput
-  // Computed from inputSchema at init(). Tells the runner which fields are
-  // human-writable and whether they require pre-run confirmation.
-  humanFields: ReadonlyMap<FieldKey, HumanMode>
 
   outputSchema: ZodTypeAny
-  output?: unknown               // ACCUMULATOR (current partial)
-  outputPartial: boolean
-  finalOutput?: unknown          // ACCUMULATOR validated against full schema
-  status: 'pending' | 'running' | 'streaming' | 'resolved' | 'failed' | 'paused' | 'stale'
+  status: NodeStatus             // discriminated union; see below
 
   actor: 'system' | 'human' | string
   createdAt: string
   updatedAt: string
 }
+
+type NodeStatus =
+  | { kind: 'pending' }
+  | { kind: 'running'; startedAt: string }
+  | { kind: 'streaming'; output: unknown; outputPartial: boolean }
+  | { kind: 'resolved'; finalOutput: unknown; resolvedAt: string }
+  | { kind: 'failed'; error: SerializedError; failedAt: string }
+  | { kind: 'paused'; pausedAt: string }
+  | { kind: 'stale'; previousOutput?: unknown }
 ```
+
+`Node["status"]` is a discriminated union: each variant carries only the data that variant owns. The `kind` field is the discriminator; `switch (node.status.kind)` narrows the type. The lib derives the human-fields view on read via `getHumanFields(node)` (post-TASK-K) — no `humanFields` cache on the node. Output/error/etc. live on the status variants that own them.
 
 ### `ResolvedInput`
 

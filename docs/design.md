@@ -55,15 +55,21 @@ type WorkflowId = string & { readonly __brand: "WorkflowId" }
 
 type FieldKey = string
 
-// Node lifecycle
+// Node lifecycle. The discriminator is `status.kind`. Each variant
+// carries only the data that variant owns — there is no `output` on
+// `pending`, no `error` on `running`, no `outputPartial` on
+// `resolved`. The type system enforces "illegal states are
+// unrepresentable" at the node level. Shared fields (id, kind,
+// inputSchema, etc.) live on `Node`; the per-status data lives
+// here. See the `Node` type for the full shape.
 type NodeStatus =
-  | "pending"      // input not yet complete, or ready to run on the next step
-  | "running"      // Effect program executing
-  | "streaming"    // partial output exists
-  | "resolved"     // final output validated
-  | "failed"
-  | "paused"       // waiting for verified-field human input
-  | "stale"        // input changed; needs to re-execute
+  | { kind: "pending" }
+  | { kind: "running"; startedAt: string }
+  | { kind: "streaming"; output: unknown; outputPartial: boolean }
+  | { kind: "resolved"; finalOutput: unknown; resolvedAt: string }
+  | { kind: "failed"; error: SerializedError; failedAt: string }
+  | { kind: "paused"; pausedAt: string }
+  | { kind: "stale"; previousOutput?: unknown }
 
 type WorkflowStatus =
   | "pending"
@@ -80,7 +86,7 @@ type ResolvedInput = {
 
 type InputSource =
   | { kind: "literal"; value: unknown }
-  | { kind: "from_node"; nodeId: NodeKey }  // multi-parent is implicit
+  | { kind: "from_node"; nodeId: NodeKey }
   | {
       kind: "human"
       fieldSchema: ZodTypeAny
@@ -88,6 +94,11 @@ type InputSource =
       status: "pending" | "set"
     }
 
+// Node. Shared fields are on the type once. Per-status data lives
+// in `node.status` (a discriminated union). The lib derives the
+// human-fields view on read via `getHumanFields(node)` — no
+// `humanFields` cache on the node. Output/error/etc. live on the
+// status variants that own them.
 type Node = {
   id: NodeKey
   kind: string
@@ -95,14 +106,11 @@ type Node = {
 
   inputSchema: ZodTypeAny
   input: ResolvedInput
-  // Computed from inputSchema at init(). Tells the runner which fields are
-  // human-writable and whether they require pre-run confirmation.
-  humanFields: ReadonlyMap<FieldKey, "writeable" | "verified">
 
   outputSchema: ZodTypeAny
-  output?: unknown                  // ACCUMULATOR (current partial)
-  outputPartial: boolean
-  finalOutput?: unknown             // ACCUMULATOR validated against full schema
+
+  // The current node status. The kind discriminator tells you
+  // which fields are present (output, error, etc.).
   status: NodeStatus
 
   actor: Actor
@@ -147,8 +155,7 @@ type WorkflowState = {
 **Verbosity reductions from the prior design:**
 - `Record<string, Node>` instead of `ReadonlyArray<Node>`. No `Readonly` wrappers; immutability is by convention (the runner always returns a new state).
 - No `inputs` / `outputs` arrays. Workflow has a conventional root key; the consumer's composition API defines inputs/outputs.
-- `ReadonlyMap<FieldKey, ...>` for `humanFields` (one readonly that's actually meaningful — the schema-derived fields are immutable per node).
-- `Map<>` instead of `Set<>` for `humanFields` because we need the mode (writeable vs verified), not just membership.
+- `Node["status"]` is a discriminated union. Each variant carries only the data that variant owns — no `output?: unknown` ambiguity, no `outputPartial: boolean` on non-streaming nodes, no `error?` on non-failed nodes. The type system enforces "illegal states are unrepresentable" at the node level.
 
 **Serialization contract.** `WorkflowState` carries two kinds of fields: **source fields** (`nodes`, `edges`, `error`, `id`, `version`, `status`, `createdAt`, `updatedAt`) and **derived fields** (`edgesByTarget`, `edgesByFrom`, future derived fields). The contract is:
 
@@ -471,7 +478,7 @@ The consumer writes a composition expression. The lib walks it, builds the data 
 
 11. **Transport-agnostic by construction.** The in-process model is a synchronous function call. The wire format is an event stream. Both are derived from the runner's state machine. SSE/WS are v1.1+ adapters.
 
-12. **No `Readonly` wrappers in the data structure.** Immutability is by convention. The runner always returns a new state. The only `Readonly` is on `humanFields` (a schema-derived map that's immutable per node).
+12. **No `Readonly` wrappers in the data structure.** Immutability is by convention. The runner always returns a new state.
 
 ## Module map
 
