@@ -3,6 +3,9 @@ title: "Architecture"
 type: module
 parent: ../index.md
 principles: [boundary-discipline, type-system-discipline]
+links:
+  - id: node
+    path: .cns/architecture/node.md
 human_notes: |
 
 status: dirty
@@ -102,33 +105,11 @@ type WorkflowState = {
 ### `Node`
 
 ```ts
-type Node = {
-  id: NodeKey                    // e.g. "root.refine[1]"
-  kind: string                   // consumer-defined node kind
-  label?: string
-
-  inputSchema: ZodTypeAny
-  input: ResolvedInput
-
-  outputSchema: ZodTypeAny
-  status: NodeStatus             // discriminated union; see below
-
-  actor: 'system' | 'human' | string
-  createdAt: string
-  updatedAt: string
-}
-
-type NodeStatus =
-  | { kind: 'pending' }
-  | { kind: 'running'; startedAt: string }
-  | { kind: 'streaming'; output: unknown; outputPartial: boolean }
-  | { kind: 'resolved'; finalOutput: unknown; resolvedAt: string }
-  | { kind: 'failed'; error: SerializedError; failedAt: string }
-  | { kind: 'paused'; pausedAt: string }
-  | { kind: 'stale'; previousOutput?: unknown }
+// The canonical Node shape is in `./node.md` — this file links
+// there rather than duplicating the type. The stub implementation
+// is in `src/stub.ts`. See node.md for the full discriminated
+// union, the variant semantics, and the rationale.
 ```
-
-`Node["status"]` is a discriminated union: each variant carries only the data that variant owns. The `kind` field is the discriminator; `switch (node.status.kind)` narrows the type. The lib derives the human-fields view on read via `getHumanFields(node)` (post-TASK-K) — no `humanFields` cache on the node. Output/error/etc. live on the status variants that own them.
 
 ### `ResolvedInput`
 

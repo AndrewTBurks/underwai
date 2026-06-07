@@ -55,21 +55,11 @@ type WorkflowId = string & { readonly __brand: "WorkflowId" }
 
 type FieldKey = string
 
-// Node lifecycle. The discriminator is `status.kind`. Each variant
-// carries only the data that variant owns — there is no `output` on
-// `pending`, no `error` on `running`, no `outputPartial` on
-// `resolved`. The type system enforces "illegal states are
-// unrepresentable" at the node level. Shared fields (id, kind,
-// inputSchema, etc.) live on `Node`; the per-status data lives
-// here. See the `Node` type for the full shape.
-type NodeStatus =
-  | { kind: "pending" }
-  | { kind: "running"; startedAt: string }
-  | { kind: "streaming"; output: unknown; outputPartial: boolean }
-  | { kind: "resolved"; finalOutput: unknown; resolvedAt: string }
-  | { kind: "failed"; error: SerializedError; failedAt: string }
-  | { kind: "paused"; pausedAt: string }
-  | { kind: "stale"; previousOutput?: unknown }
+// Node lifecycle. The canonical shape (with rationale, per-status
+// semantics, and the discriminated-union variants) is in
+// `.cns/architecture/node.md`. The stub implementation lives in
+// `src/stub.ts`. The discriminator is `status.kind`. Each variant
+// carries only the data that variant owns.
 
 type WorkflowStatus =
   | "pending"
@@ -94,29 +84,16 @@ type InputSource =
       status: "pending" | "set"
     }
 
-// Node. Shared fields are on the type once. Per-status data lives
-// in `node.status` (a discriminated union). The lib derives the
-// human-fields view on read via `getHumanFields(node)` — no
-// `humanFields` cache on the node. Output/error/etc. live on the
-// status variants that own them.
-type Node = {
-  id: NodeKey
-  kind: string
-  label?: string
-
-  inputSchema: ZodTypeAny
-  input: ResolvedInput
-
-  outputSchema: ZodTypeAny
-
-  // The current node status. The kind discriminator tells you
-  // which fields are present (output, error, etc.).
-  status: NodeStatus
-
-  actor: Actor
-  createdAt: string
-  updatedAt: string
-}
+// Node. The canonical shape (with rationale, per-status semantics,
+// and the discriminated-union variants) is in
+// `.cns/architecture/node.md`. The stub implementation lives in
+// `src/stub.ts`. Both `Node` and `NodeStatus` are defined there;
+// this file links rather than duplicating.
+//   - `Node["status"]` is a discriminated union.
+//   - Per-status data (output, error, timestamps) lives on the variants.
+//   - Shared fields (id, kind, inputSchema, input, outputSchema,
+//     actor, createdAt, updatedAt) live on `Node` once.
+//   - The discriminator on each variant is `kind`.
 
 type Edge = {
   from: NodeKey
