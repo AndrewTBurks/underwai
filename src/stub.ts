@@ -131,8 +131,29 @@ export type WorkflowState = {
 // =========================================================================
 
 export type HumanSchema<T extends ZodTypeAny> = T & {
-  __humanMode: HumanMode
+  readonly __humanMode: HumanMode
   verified(): HumanSchema<T>
+}
+
+// Runtime implementation: clone the schema, mutate the clone's
+// _def.humanMode. Target: Zod 3.x. Zod 4.x's .meta() API is the
+// principled answer for a future version.
+export function human<T extends ZodTypeAny>(schema: T): HumanSchema<T> {
+  const wrapped = ((schema as unknown as { clone?: () => T }).clone?.() ?? schema) as HumanSchema<T>
+  ;(wrapped._def as { humanMode?: HumanMode }).humanMode = "writeable"
+  ;(wrapped as { verified?: () => HumanSchema<T> }).verified = function(
+    this: HumanSchema<T>,
+  ) {
+    ;(this._def as { humanMode?: HumanMode }).humanMode = "verified"
+    return this
+  }
+  return wrapped
+}
+
+// Helper the lib uses at init() to walk an input schema and
+// populate the human-fields view (post-TASK-K: derived on read).
+export function getHumanMode(schema: ZodTypeAny): HumanMode | undefined {
+  return (schema._def as { humanMode?: HumanMode } | undefined)?.humanMode
 }
 
 declare module "zod" {

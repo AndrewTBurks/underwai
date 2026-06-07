@@ -345,7 +345,34 @@ type HumanSchema<T> = T & {
 
 2. `z.human(z.string()).verified()` — `__humanMode: "verified"`. The field is human-writable AND the node pauses for human confirmation *before* running. The seeded value is shown as a "proposed" value in the renderer; the human either accepts it (writes the proposed value back via `writeHumanInput`) or types a new value and writes that. The human *must* engage — there's no "skip verification" path.
 
+**Runtime implementation.** The `__humanMode` field is a *type-level* marker only; it does not exist on the runtime schema object. The lib reads the mode at runtime from a marker on the schema's `_def` object:
+
+```ts
+export function human<T extends ZodTypeAny>(schema: T): HumanSchema<T> {
+  const wrapped = (schema as any).clone?.() ?? schema
+  ;(wrapped._def as any).humanMode = "writeable"
+  ;(wrapped as any).verified = function(this: HumanSchema<T>) {
+    ;(this._def as any).humanMode = "verified"
+    return this
+  }
+  return wrapped as HumanSchema<T>
+}
+
+export function getHumanMode(schema: ZodTypeAny): "writeable" | "verified" | undefined {
+  return (schema._def as any)?.humanMode
+}
+```
+
+The schema is cloned before mutation to prevent shared-mutation across `z.human()` callsites. Target: Zod 3.x. The Zod 4.x `.meta()` API is the principled answer for a future version; for v1 we mutate `_def`.
+
 **The verified gate resets on parent re-execution.** When an upstream re-execution changes a node's input, the node's status flips to `stale` and (when the runner picks it up) to `paused` again. The human is asked to re-confirm. The gate is tied to the node's *input*, not the workflow's identity.
+
+**Seed vs. no-seed vocabulary.** `HumanMode` ("writeable" | "verified") says the field is human-editable. It does not say whether the field has a *seed* — an initial value the human can accept, override, or leave alone. A seed comes from one of three places:
+- A `from_node` source — upstream's `finalOutput` flows into this field.
+- A `literal` source — the workflow author hardcoded a default.
+- A `human` source with no value yet — no seed; the human must provide one.
+
+The renderer composes `InputSource.kind` (TASK-H) with `HumanMode` to answer "is this a proposal?" The lib exposes the source; the renderer decides the UX. TASK-S's `getHumanInputDisplay` is the typed join.
 
 **One API for human writes:**
 
