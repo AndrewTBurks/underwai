@@ -84,11 +84,8 @@ importers:
         specifier: workspace:*
         version: link:../schema
       effect:
-        specifier: ^3.0.0
+        specifier: ^3.21.0
         version: 3.21.3
-      zod:
-        specifier: ^3.22.0
-        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^5.4.0

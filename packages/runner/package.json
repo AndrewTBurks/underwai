@@ -1,7 +1,7 @@
 {
   "name": "@underwai/runner",
   "version": "0.0.0",
-  "description": "Runner for underwAI: runWorkflow, WorkflowRuntime service, mutation primitives.",
+  "description": "The Effect-based workflow orchestrator. Owns the in-flight fiber per workflow.",
   "type": "module",
   "license": "Apache-2.0",
   "main": "./src/index.ts",
@@ -10,15 +10,14 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@underwai/core": "workspace:*",
-    "@underwai/schema": "workspace:*"
-  },
-  "peerDependencies": {
-    "effect": "^3.0.0",
-    "zod": "^3.22.0"
+    "@underwai/schema": "workspace:*",
+    "effect": "^3.21.0"
   },
   "devDependencies": {
     "typescript": "^5.4.0"
