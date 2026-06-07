@@ -122,7 +122,7 @@ The revision is substantial. The new design is key-addressable, has a stricter c
 
 ---
 
-## Phase 1 closure
+**Phase 1 closure.**
 
 **Status:** 22 of 22 plans have a terminal status. 14 resolved (A, B, C, E, F, G, H, I, L, M, N, O, Q, R, S, U), 2 folded (J, K into G), 1 absorbed (D into C), 1 merged (T into B), 2 cancelled (P, V).
 
@@ -160,3 +160,32 @@ The revision is substantial. The new design is key-addressable, has a stricter c
 - `getHumanFields(node)` and `getHumanInputDisplay(node, fieldKey)` (the operations helpers).
 
 That's a lot. Phase 2 is bigger than Phase 1 was.
+
+---
+
+**Pre-shard landed.** Andrew's instruction (2026-06-06): "create all of the folders NOW with index.md for that project section. the implementation phase will add code. the local decisions/agent context should exist before the code does."
+
+The library is now a pnpm workspace. 3 v1 packages ship with real `package.json` + `tsconfig.json` + `src/index.ts` (re-exporting the stub or being empty placeholders). 3 v1.1+ packages exist as folders with `index.md` only — no `package.json` until v1.1 work begins.
+
+- `packages/core/` `@underwai/core` — v1. The data structure: types, keys, composition, operations.
+- `packages/schema/` `@underwai/schema` — v1. The Zod extension: `z.human()` + `.verified()`. Standalone.
+- `packages/runner/` `@underwai/runner` — v1. The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives.
+- `packages/transport/` `@underwai/transport` — v1.1+. Subscription API and wire format. Folder-only.
+- `packages/renderer-react/` `@underwai/renderer-react` — v1.1+. Reference React adapter. Folder-only.
+- `packages/renderer-log/` `@underwai/renderer-log` — v1.1+. stdout log renderer. Folder-only.
+
+Each `index.md` carries: the package's purpose, the boundary (imports/exports), the design decisions that govern it (cross-references to CNS architecture/ and the plan files that touch it), and the Phase 2 implementation notes.
+
+The pre-shard artifact at `src/stub.ts` was moved to `packages/core/src/stub.ts`. `packages/core/src/index.ts` re-exports from the stub so the package has a `main` until Phase 2 distributes the stub's contents.
+
+Root-level changes: `pnpm-workspace.yaml`, workspace-root `package.json`, project-references `tsconfig.json`, `README.md` (package table, principles, repo context).
+
+CNS updates: `.cns/index.md` `links[]` entries for all 6 packages + new "Package references" section. `.cns/product/index.md` "Modules" → "Packages" with the 6-package table. `.cns/intent.md` Phase 2 implementation order organized by package (schema → core → runner → tests).
+
+CNS health gate green: `validate.py` PASSED, `graph.py --check` OK. `tsc -b` green.
+
+**The 22 plan files are deleted.** The plan files were the work product of the design phase (per the nervous-system skill's persistent-per-task-plan pattern for multi-session design phases). Now that the design phase is over and the decisions are sharded into the CNS + the new package `index.md` files, the plan files are redundant scratch.
+
+The skill says: "a completed plan that has been distributed into CNS nodes is stale; delete it." The standard shard pipeline's "delete the source plan file" step applies here, but the distribution is already done. The deletion is the final step.
+
+The deleted content is preserved in the git history (22 individual plan files, ~94,000 chars total, all resolved). Anyone who needs to revisit a decision can grep git for the file or look at the cross-references in the package `index.md` files.
