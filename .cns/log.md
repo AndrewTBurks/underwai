@@ -416,3 +416,24 @@ Execution order: 35 -> 36 -> [37 + 38 with clarifies] -> 41
 the user's `clarify` answers before code lands.
 
 CNS health gate: validate.py PASSED, graph.json OK.
+
+## 2026-06-07 — Plan-mode interview: 3 judgment calls resolved
+
+Plan-mode interview closed all 3 in-task judgment calls on
+TASK-37, TASK-38, TASK-40.
+
+  - TASK-37: WorkflowRuntime service = { publish, write,
+    writeHumanInput }. write = consumer injection; program
+    returns final output via Effect. Workflow-level 'paused'
+    deleted from state machine (7 -> 6). Per-node 'paused'
+    unaffected.
+  - TASK-38: delete core's publish/write. Runner is the only
+    mutator. Core becomes pure data-model + composition
+    layer.
+  - TASK-40 (writeHumanInput sub-bullet): delete the public
+    export, drop the _fiber/_stateRef parameters.
+
+Intent.md patched with the resolved shapes. Execution order
+updated: no judgment-call tasks block on a `clarify` anymore.
+
+CNS health gate: validate.py PASSED, graph.json OK.

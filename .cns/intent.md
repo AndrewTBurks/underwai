@@ -200,39 +200,36 @@ Verification: existing 5 runtime tests still pass; a new test that asserts the r
 
 ### 37. Reconcile `WorkflowRuntime` service shape with the design. (TASK-37)
 
-The design (`docs/design.md:235-239`) says the `WorkflowRuntime` service has `publish`, `write`, `writeHumanInput`. The code (`runner/src/runtime.ts:39-45`) has `publish` and `pause` (a no-op). `pause` is not in the design; `write` and `writeHumanInput` are in the design but not in the service.
+**Resolved (2026-06-07 plan-mode interview).** Andrew picked:
 
-**JUDGMENT CALL — surface to user.** Two paths:
+  - `publish` keeps its current semantics: a running program surfaces a partial output (the `running → streaming` transition). The renderer's registry notifies with `status.output = value`. Already implemented.
+  - `write` = **consumer injection**. An external actor (human, agent, or external system) writes a value into a node. The value becomes `finalOutput`. The program is bypassed. The state transition is `pending → resolved` (or `running → resolved`).
+  - `writeHumanInput` = **typed flavor for human-marked fields**. Refines `write`; same semantics, typed to a human-marked field. State transition: the node's input field gets the value; the node transitions to `stale` (or `resolved` if `pending`); the program is bypassed.
+  - The program's final output is delivered via the Effect's **return value**, not a method call. The runner's loop reads the program's `Effect.succeed(value)` and calls `markResolved` directly.
+  - **Delete the workflow-level `paused` status from the state machine.** The 7-status state machine becomes 6: `pending`, `running`, `completed`, `failed`, `stale`, `cancelled`. Per-node `paused` (the `markPaused` in `mutations.ts:97-118`) is unaffected; the runner uses it when a node hits a human-marked field.
 
-(a) Add `write` and `writeHumanInput` methods to the `WorkflowRuntime` service, drop the `pause` no-op. The service then matches the design exactly. Cost: changes the public API of `@underwai/runner` for any consumer who was using `pause` (zero, per the audit — no test or code calls it).
+Sub-bullets (post-resolution):
+- Add `write` and `writeHumanInput` to the `WorkflowRuntime` service. Implementation: `write` is a thin wrapper over `markResolved` (or the new `markResolved` from TASK-38). `writeHumanInput` is a thin wrapper over `mutations.writeHumanInput`.
+- Drop the `pause` no-op from the service. The service becomes `{ publish, write, writeHumanInput }`.
+- Update DEC-RUNNER-004's summary to reflect the new shape.
+- Update the state machine: `WorkflowStatus` removes the `"paused"` literal. Tests that exercise the `paused` workflow status get updated. The 6-status state machine gets a new DEC-CORE-019 (or whatever the next available number is) recording the deletion.
+- Update the runner's runtime loop to read the program's return value via the Effect's success path; no `write` call from the program.
 
-(b) Update the design to match the code: drop `write`/`writeHumanInput` from the service; the program returns its output, so `write` is implicit on return. Document `pause` as a deliberate "I want to halt and ask for human input" affordance.
+Verification: 1+ new test that drives the service's `write` and `writeHumanInput` (consumer-injection case), all 95 existing tests still pass after the state-machine reduction, `tsc -b` clean, CNS health gate green.
 
-I recommend (a). The design's shape is the one consumers will read first; the code's divergence is an implementation drift, not a deliberate choice.
+### 38. Delete core's `publish`/`write`; the runner is the only mutator. (TASK-38)
 
-Sub-bullets:
-- Per Andrew's preference, surface the call as a `clarify` before the first code commit. If Andrew says (b), the change is one-line (`docs/design.md` edit). If (a), the change is the service type + implementation + a test that exercises `service.write` and `service.writeHumanInput`.
-- Whichever path: update DEC-RUNNER-004's summary to match. The current summary is the design's signature; the code's signature is the deliberate divergence. After the fix, the summary must match the chosen path.
+**Resolved (2026-06-07 plan-mode interview).** Andrew picked path (d): delete core's `publish`/`write`, fold the 3 tests into the runner's mutation suite, rewrite DEC-CORE-018 to reflect the layering.
 
-Verification: 1+ new test (whichever shape), all 95 existing tests still pass, `tsc -b` clean, CNS health gate green.
+The audit was technically right (the runner's `markStreaming` is signature-identical to core's `publish`) but the framing was wrong (the duplication isn't a smell, it's a layer boundary). The right resolution is to **remove the unused external API in core**, not to make the runner call into it. The runner is the only mutator. Core is a pure data-model + composition layer.
 
-### 38. Reconcile DEC-CORE-018 with the actual architecture. (TASK-38)
+Sub-bullets (post-resolution):
+- Delete `publish` and `write` from `core/src/operations.ts`. Update `core/src/index.ts` to drop the re-exports.
+- Delete `packages/core/src/publish-write.test.ts` (3 tests). Move equivalent coverage into `packages/runner/src/mutations.test.ts`: a test asserting `markStreaming(state, key, value)` produces the same shape the old `publish` test asserted; a test asserting `markResolved` produces the same shape the old `write` test asserted.
+- Add a new DEC-CORE-019 (or next available number): "Core exposes no mutation primitives. The runner is the only mutator. The data-model layer is a pure value type; transitions belong to the runtime."
+- Rewrite DEC-CORE-018's summary: the old summary said "the runner now uses core's `publish`/`write`" — that was wrong. New summary: "Core originally added `publish`/`write` as a public mutation API in TASK-30. They had no real consumer; the audit caught that they were tested-only surface area. In TASK-38 the functions were deleted and the runtime became the only mutator. DEC-CORE-019 records the new layering."
 
-DEC-CORE-018's summary says "the runner runtime now uses these from `@underwai/core` instead of duplicating the logic in `mutations.ts`." The audit confirmed the runner does not import core's `publish` or `write`. The runner's `markStreaming` is signature-identical to core's `publish` and could be replaced by it. The runner's `markResolved` sets `status: { kind: "resolved", finalOutput, resolvedAt }` and has no core equivalent.
-
-**JUDGMENT CALL — surface to user.** Two paths:
-
-(a) Migrate the runner to use core's `publish`; add a `markResolved` to core and migrate the runner to use it. Pure-deletion refactor: drop the runner's `markStreaming` (1 function) and the runner's `markResolved` becomes a one-line call into core. The 5 other `mark*` functions in the runner stay (they cover transitions core doesn't yet support).
-
-(b) Rewrite the decision summary to reflect the actual architecture: "The runner's mutations are a complete set covering all 6 status transitions; core's `publish` is a primitive that one of the runner's mutations happens to share a signature with. They live in different packages because they serve different consumers." The summary is the lazier fix.
-
-I recommend (a). The `principle-migrate-callers-then-delete-legacy-apis` skill applies here: introducing a new internal API while old callers exist is the right time to migrate; the runner is the only caller of its own `markStreaming`, so migration is a one-commit change.
-
-Sub-bullets:
-- Per Andrew's preference, surface the call as a `clarify` before the first code commit.
-- If (a): add `markResolved(state, key, finalOutput, now): WorkflowState` to `core/src/operations.ts` (returns a new state with `status: { kind: "resolved", finalOutput, resolvedAt: now }`). Update `runner/src/mutations.ts` to import and re-export from core. Drop the runner's `markResolved` body. Add 1 test for the new core function. Update the runner's `markStreaming` to be a one-line call into core's `publish`.
-
-Verification: 1+ new test, all 95 existing tests still pass, no new files (pure migration), `tsc -b` clean, CNS health gate green.
+Verification: 0 net new tests in core, 2 net new tests in the runner, all 95 existing tests still pass, `tsc -b` clean, CNS health gate green. Net change to `core/src/operations.ts`: −30 lines. Net change to `core/src/index.ts`: 2 lines removed.
 
 ### 39. Reconcile wording-drift partials in decision summaries. (TASK-39)
 
@@ -260,9 +257,7 @@ Sub-bullets:
 - `renderer-react/src/registry.tsx:36-41` + `index.ts:9` — drop `RegistryContext` and `useRegistry`. `AutoRender` uses the global registry, not the context. No consumer uses the context.
 - `transport/src/sse.ts:79` — replace the dynamic `import("../event-stream.js")` with the already-static import at the top of the file (line 15). The dynamic import is dead and slow.
 - `runner/index.md:43` — fix the stray `summary:` at the top level (a YAML formatting bug that strict-mode validators reject).
-- **Optional** (judgment call below): `runner.writeHumanInput` exported with `_fiber` and `_stateRef` unused parameters — the signature implies a fiber-aware API the implementation does not deliver. Either (i) delete the export and let consumers use `mutations.writeHumanInput` directly, or (ii) leave it as a documented extension hook. I recommend (i) per laziness.
-
-**JUDGMENT CALL — surface to user.** The `runner.writeHumanInput` extension hook: delete or keep? (i) Delete: the signature is misleading and no consumer uses the fiber/stateRef parameters. (ii) Keep: the hook is a documented extension point for future fiber-aware work. I recommend (i).
+- **Resolved (2026-06-07 plan-mode interview).** Andrew picked path (i): delete the runner's public `writeHumanInput` export. Drop the `_fiber` and `_stateRef` parameters from the internal signature. Consumers go through the `WorkflowRuntime` service (which exposes `writeHumanInput` after TASK-37 lands). The `mutations.ts` function stays as the internal pure transition. The runner's `index.ts` drops the re-export.
 
 Verification: `pnpm test` still passes 95/95, `tsc -b` clean, CNS health gate green (after the YAML fix in particular).
 
@@ -302,17 +297,17 @@ Verification: 2 new tests (write + writeHumanInput), all 95 existing tests still
 
 1. **TASK-35** (bridge + Fiber.interrupt) — the two v1.0 contract breaks. Closes the design's load-bearing promises.
 2. **TASK-36** (SubscriptionRegistry merge) — closes the architectural smell. The runner's internal fan-out uses core's registry; DEC-TRANSPORT-008's "one registry, three adapters" is true again.
-3. **TASK-37** (WorkflowRuntime service shape) — needs a `clarify` to Andrew before code lands.
-4. **TASK-38** (DEC-CORE-018 reconciliation) — needs a `clarify` to Andrew before code lands.
+3. **TASK-37** (WorkflowRuntime service shape) — already resolved in plan-mode. The service becomes `{ publish, write, writeHumanInput }`. Workflow-level `paused` is deleted (state machine 7→6).
+4. **TASK-38** (delete core's `publish`/`write`) — already resolved in plan-mode. Path (d): runner is the only mutator. Core shrinks by 2 functions + 1 test file.
 5. **TASK-41** (subscribeSet exact-key) — small, independent fix. Can run in parallel with TASK-35 if a parallel session is desired; the changes don't conflict.
 6. **TASK-43** (WsClient send API) — independent of TASK-35 through TASK-40.
 7. **TASK-42** (architecture doc stale) — CNS hygiene; can run any time.
 8. **TASK-40** (prune phantom exports) — small; coordinate with TASK-37 because the `WorkflowRuntime.pause` deletion overlaps.
 9. **TASK-39** (wording-drift reconcile) — last. Depends on TASK-35, 37, 38, 43 landing so the summaries patch against final state.
 
-Per Andrew's "verify per theme" rule: each task gets its own commit (code + tests + intent mark + log entry + bubble + CNS health gate). The judgment-call tasks (37, 38, 40) need a `clarify` first per the "Surface judgment calls *before* executing" rule.
+Per Andrew's "verify per theme" rule: each task gets its own commit (code + tests + intent mark + log entry + bubble + CNS health gate). The judgment-call tasks (37, 38, 40) are already resolved — no `clarify` is needed before the code commits land.
 
-Per the "Subtract Before You Add" principle: the prunes in TASK-40 are net-deletion. TASK-42 is a doc patch, not code. TASK-39 is a doc reconcile. The substantive code work is TASK-35 (two functions), TASK-36 (refactor), TASK-41 (3 lines), TASK-43 (two methods), and the post-clarify versions of TASK-37 and TASK-38.
+Per the "Subtract Before You Add" principle: TASK-38 and TASK-40 are net-deletion. TASK-42 is a doc patch, not code. TASK-39 is a doc reconcile. TASK-37 has a deletion component (workflow-level `paused`) plus an addition (the `write` and `writeHumanInput` service methods). The substantive net code work is TASK-35 (two functions), TASK-36 (refactor), TASK-37 (2 new methods + state-machine reduction), TASK-38 (deletion of 2 functions), TASK-41 (3 lines), and TASK-43 (two methods). TASK-40's net effect is small deletions plus the YAML fix.
 
 ### Suggested execution order (Phase 2 follow-up, original 30-34)
 
