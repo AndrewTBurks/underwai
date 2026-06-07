@@ -496,3 +496,21 @@ the service methods (publish, write, writeHumanInput).
 98/98 across the monorepo. tsc clean.
 
 CNS health gate: validate.py PASSED, graph.json OK.
+
+## 2026-06-07 — TASK-38 done: delete core's publish/write
+
+Per plan-mode path (d): core's `publish` and `write` are
+deleted. Core is now a pure data + composition layer with
+no mutation primitives. The runner is the only mutator.
+
+Files:
+  - packages/core/src/operations.ts (-30 lines: publish and
+    write removed)
+  - packages/core/src/index.ts (re-exports cleaned)
+  - packages/core/src/publish-write.test.ts (DELETED: 3 tests)
+
+Tests: 95/95 across the monorepo (was 98, minus the 3
+removed tests). The runner's 16 tests cover the same
+transitions via the WorkflowRuntime service. tsc clean.
+
+Net: -33 lines from core. Core is now a pure value layer.
