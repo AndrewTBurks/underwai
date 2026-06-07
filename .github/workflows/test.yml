@@ -24,14 +24,21 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      # Opt into Node 24 for the JS actions above (checkout,
+      # pnpm/action-setup, setup-node). The default Node 20
+      # runner is deprecated. Once Node 24 becomes the default
+      # (June 16, 2026), this can be removed.
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install pnpm
+      - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
+        # Reads the version from package.json's `packageManager`
+        # field. Do not also set `version` here — the action errors
+        # with ERR_PNPM_BAD_PM_VERSION if both are present.
 
       - name: Setup Node
         uses: actions/setup-node@v4
