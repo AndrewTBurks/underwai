@@ -219,7 +219,11 @@ export function run<S extends ZodTypeAny>(
   throw new Error("not implemented")
 }
 
-// Composition API — the only ways to create nodes.
+// Composition API — the only ways to create nodes. The path is
+// type-checked end-to-end: `parent.then(child)` returns
+// `NodeRef<`${P}.${K}`>` where P is the parent's path and K is
+// the child's kind. The consumer's `subscribe(state, ref.key, ...)`
+// call is then type-checked against the ref's path.
 //
 // Two overloads of `.then()`:
 //   - Direct match: `parent.then(child)` — parent.output shape === child.input shape.
@@ -227,44 +231,52 @@ export function run<S extends ZodTypeAny>(
 //                   parent's output to child's input shape. The bridge is
 //                   composition metadata (stored on the Edge as `Edge.bridge`),
 //                   not a node.
-
-export function then<S extends ZodTypeAny>(
-  _parent: NodeRef,
-  _def: NodeDefinition<z.infer<S>, unknown>,
-): NodeRef<string>
-export function then<TOut, TIn>(
-  _parent: NodeRef,
+export function then<P extends string, K extends string, S extends ZodTypeAny>(
+  _parent: NodeRef<P>,
+  _def: NodeDefinition<z.infer<S>, unknown> & { kind: K },
+): NodeRef<`${P}.${K}`>
+export function then<P extends string, TOut, TIn, K extends string>(
+  _parent: NodeRef<P>,
   _bridge: (parentOut: TOut) => TIn,
-  _def: NodeDefinition<TIn, unknown>,
-): NodeRef<string>
+  _def: NodeDefinition<TIn, unknown> & { kind: K },
+): NodeRef<`${P}.${K}`>
 export function then(
-  _parent: NodeRef,
-  _arg2: NodeDefinition<unknown, unknown> | ((parentOut: unknown) => unknown),
-  _arg3?: NodeDefinition<unknown, unknown>,
+  _parent: NodeRef<string>,
+  _arg2:
+    | (NodeDefinition<unknown, unknown> & { kind: string })
+    | ((parentOut: unknown) => unknown),
+  _arg3?: NodeDefinition<unknown, unknown> & { kind: string },
 ): NodeRef<string> {
   throw new Error("not implemented")
 }
 
-// Overloaded: array form returns a discriminated union; object form returns a record.
-// Implementation uses overload signatures, then a single implementation body.
-export type AllRef = NodeRef<string> & {
-  // Array form: discriminated union output. Object form: record output.
-  // The output type is computed by the implementation from the input shape.
-}
-
-export interface All {
-  (...args: ReadonlyArray<NodeRef>): NodeRef<string>
-  (args: Readonly<Record<string, NodeRef>>): NodeRef<string>
-}
-
-export const all: All = ((..._args: unknown[]): NodeRef<string> => {
-  throw new Error("not implemented")
-}) as All
-
-export function thenLoop<B, P>(
-  _body: (prev: NodeRef) => NodeRef,
-  _predicate: (current: NodeRef) => NodeRef,
+// `all` produces a node whose path is parent's path + ".all" (array
+// form) or parent's path + ".all." + key (object form). The array
+// form's "N" is a wildcard; subscribeSet enumerates the family.
+export function all<P extends string>(
+  _parent: NodeRef<P>,
+  ..._refs: [...NodeRef[]]
+): NodeRef<`${P}.all`>
+export function all<P extends string>(
+  _parent: NodeRef<P>,
+  _refs: Record<string, NodeRef>,
+): NodeRef<`${P}.all.${string}`>
+export function all(
+  _parent: NodeRef<string>,
+  ..._args: unknown[]
 ): NodeRef<string> {
+  throw new Error("not implemented")
+}
+
+// `thenLoop` produces a family of nodes whose path is parent's
+// path + "." + the body's kind. The family enumeration (N, final)
+// is the runner's job; subscribeSet is the consumer's path to
+// addressing individual iterations.
+export function thenLoop<P extends string, K extends string>(
+  _parent: NodeRef<P>,
+  _body: (prev: NodeRef<`${P}.${K}`>) => NodeRef<`${P}.${K}`>,
+  _predicate: (current: NodeRef<`${P}.${K}`>) => NodeRef,
+): NodeRef<`${P}.${K}`> {
   throw new Error("not implemented")
 }
 

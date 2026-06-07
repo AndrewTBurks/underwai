@@ -21,21 +21,42 @@ underwAI fuses these: typed outputs at every node, Effect composition, durable d
 
 The consumer never types node keys. They use a small set of combinators that return handles, and the handles carry the keys as template-literal types:
 
-```ts
-// Combinators
+// Combinators. The path is type-checked end-to-end. `then` and
+// `all` produce `NodeRef<P>` whose path is the parent's path
+// plus a static segment (`.${def.kind}` for `then`, `.all` for
+// the array form, `.all.${key}` for the object form). The array
+// form's "N" is a wildcard — TypeScript can't enumerate a dynamic
+// family; `subscribeSet` is the consumer's path to addressing
+// individual iterations. The brand on `NodeKey` rejects raw
+// strings at the call site; the path type rejects "I passed a
+// refine ref to a summarize subscription."
 function run<S extends ZodTypeAny>(def: NodeDef<S>): NodeRef<"root">
 // Direct match: parent.output shape === child.input shape.
-function then<S extends ZodTypeAny>(parent: NodeRef, def: NodeDef<S>): NodeRef<"${parent.path}.${def.kind}">
+function then<P extends string, K extends string, S extends ZodTypeAny>(
+  parent: NodeRef<P>,
+  def: NodeDef<S> & { kind: K }
+): NodeRef<`${P}.${K}`>
 // Bridge: bridge function transforms parent.output to child.input shape.
-// Bridge is composition metadata, stored on the Edge.
-function then<TOut, TIn>(parent: NodeRef, bridge: (out: TOut) => TIn, def: NodeDef<TIn>): NodeRef<"${parent.path}.${def.kind}">
-function all(...args: [...NodeRef[]]): NodeRef<"${parent.path}.all[N]">         // array form: discriminated union output
-function all(args: Record<string, NodeRef>): NodeRef<"${parent.path}.all.${key}"> // object form: record output
-function thenLoop<B, P>(
-  body: (prev: NodeRef) => NodeRef,        // body returns the next iteration
-  predicate: (current: NodeRef) => NodeRef // predicate returns boolean
-): NodeRef<"${parent.path}.${...}">        // produces a family of nodes
-```
+function then<P extends string, TOut, TIn, K extends string>(
+  parent: NodeRef<P>,
+  bridge: (out: TOut) => TIn,
+  def: NodeDef<TIn, unknown> & { kind: K }
+): NodeRef<`${P}.${K}`>
+// `all` produces a node whose path is parent's path + ".all" (array
+// form) or parent's path + ".all." + key (object form). The array
+// form's "N" is a wildcard; subscribeSet enumerates the family.
+function all<P extends string>(parent: NodeRef<P>, ...refs: [...NodeRef[]]): NodeRef<`${P}.all`>
+function all<P extends string>(parent: NodeRef<P>, refs: Record<string, NodeRef>): NodeRef<`${P}.all.${string}`>
+// `thenLoop` produces a family of nodes whose path is parent's
+// path + "." + the body's kind. The body and predicate are real
+// nodes in the DAG. The family enumeration (N, final) is the
+// runner's job; subscribeSet is the consumer's path to addressing
+// individual iterations.
+function thenLoop<P extends string, K extends string>(
+  parent: NodeRef<P>,
+  body: (prev: NodeRef<`${P}.${K}`>) => NodeRef<`${P}.${K}`>,
+  predicate: (current: NodeRef<`${P}.${K}`>) => NodeRef
+): NodeRef<`${P}.${K}`>
 
 **Key invariants:**
 
