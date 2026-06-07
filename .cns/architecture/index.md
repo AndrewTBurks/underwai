@@ -170,7 +170,7 @@ The runner is a state machine. Subscriptions are direct readers. There's no `Wor
 - `init(definition): WorkflowState` — build the initial state from a composition expression.
 - `getNode(state, key): Node` — read a node.
 - `serialize(state) → string` / `deserialize(json) → state` — persistence.
-- `findReadyNodes(state): Set<NodeKey>` — walk the DAG, return nodes whose inputs are complete and status is `pending` or `stale` (ready to run or re-run).
+- `findReadyNodes(state): ReadonlyArray<NodeKey>` — walk the DAG, return nodes whose inputs are complete and status is `pending` or `stale`, in dependency order (Kahn's algorithm; nodes with no unmet dependencies come first). The runner iterates the array in order.
 - `findSubtree(state, root): Set<NodeKey>` — all nodes transitively downstream of `root`.
 - `publish(state, key, partial): state'` — accumulator update. Validated as a partial of `outputSchema`.
 - `write(state, key, finalOutput): state'` — final write. Validated against the full `outputSchema`.
@@ -198,7 +198,7 @@ When an upstream re-execution changes a node's input, the node's status flips to
 
 **Staleness propagation:** when a node goes `stale`, the downstream subtree is marked `stale` too. Sibling subtrees (other branches of a fan-out that don't depend on the changed input) are unaffected. `findSubtree(state, staleNodeKey)` returns the descendants to invalidate.
 
-`findReadyNodes(state): Set<NodeKey>` returns nodes whose inputs are complete and whose status is `pending` or `stale`. `paused` is *not* returned (the input is not complete). The runner processes ready nodes in `topologicalOrder` and transitions them to `running`. See `## Statuses` above for the per-status semantics.
+`findReadyNodes(state): ReadonlyArray<NodeKey>` returns nodes whose inputs are complete and whose status is `pending` or `stale`, **in dependency order** (Kahn's algorithm from `edgesByFrom`). `paused` is *not* returned (the input is not complete). The runner iterates the array in order and transitions each node to `running`. See `## Statuses` above for the per-status semantics.
 
 ## Subscription (Node-granularity, not event-granularity)
 

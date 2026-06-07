@@ -325,7 +325,7 @@ export function deserialize(_json: string): WorkflowState {
   throw new Error("not implemented")
 }
 
-export function findReadyNodes(_state: WorkflowState): Set<NodeKey> {
+export function findReadyNodes(_state: WorkflowState): ReadonlyArray<NodeKey> {
   throw new Error("not implemented")
 }
 

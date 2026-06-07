@@ -202,7 +202,7 @@ function serialize(state: WorkflowState): string
 function deserialize(json: string): WorkflowState
 
 // State derivation
-function findReadyNodes(state: WorkflowState): Set<NodeKey>
+function findReadyNodes(state: WorkflowState): ReadonlyArray<NodeKey>
 function findSubtree(state: WorkflowState, root: NodeKey): Set<NodeKey>
 
 // Mutation primitives (used by the runner)
@@ -259,7 +259,7 @@ function stepInternal(state: WorkflowState): WorkflowState
 
 **Mid-execution `writeHumanInput` (when the node is `running` or `streaming`):** the runner marks the node `stale` and interrupts the in-flight Effect fiber via Effect's standard `Fiber.interrupt` primitive. The interrupted effect's output is discarded. The node re-runs with the new input. The transition is `running → stale → running` (or `running → stale → paused` if the input has open `verified` fields). Implementation gated on TASK-B's `runWorkflow` owning the fiber; the policy is defined here.
 
-The runner picks up nodes whose status is `pending` or `stale` and whose inputs are complete. `findReadyNodes(state): Set<NodeKey>` returns exactly that set. `paused` is *not* returned (a paused node's input is not complete — a `verified` field is still `pending`). The runner processes them in `topologicalOrder` and transitions them to `running`. Per-status semantics are documented in `.cns/architecture/index.md` (the source of truth).
+The runner picks up nodes whose status is `pending` or `stale` and whose inputs are complete. `findReadyNodes(state): ReadonlyArray<NodeKey>` returns exactly that set, **in dependency order** (Kahn's algorithm from `edgesByFrom` — nodes with no unmet dependencies come first). `paused` is *not* returned (a paused node's input is not complete — a `verified` field is still `pending`). The runner iterates the array in order and transitions each node to `running`. Per-status semantics are documented in `.cns/architecture/index.md` (the source of truth).
 
 **Staleness propagation:** when a node goes `stale`, the downstream subtree is marked `stale` too. Sibling subtrees (other branches of a fan-out that don't depend on the changed input) are unaffected. `findSubtree(state, staleNodeKey)` returns the descendants to invalidate.
 
@@ -267,7 +267,7 @@ The runner picks up nodes whose status is `pending` or `stale` and whose inputs 
 
 **Re-execution coalescing.** When a node is `stale` and the runner picks it up, the runner transitions it to `running` (or `paused` if the input has open `verified` fields). Multiple writes to the same node before re-execution completes coalesce: the most recent value wins. The runner processes a node at most once per step — a second write while the node is `pending` / `running` / `paused` just updates the input; the runner picks it up on the next step.
 
-This is the natural Effect semantics. The `findReadyNodes` set is processed in `topologicalOrder`; a node's status flips to `running` when it's picked up, which prevents the runner from picking it up again until the next step. The "already in flight" check (TASK-B) is the enforcement mechanism.
+This is the natural Effect semantics. The `findReadyNodes` array is in dependency order; a node's status flips to `running` when it's picked up, which prevents the runner from picking it up again until the next step. The "already in flight" check (TASK-B) is the enforcement mechanism.
 
 ### Subscription (three methods, three jobs)
 
