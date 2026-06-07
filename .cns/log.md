@@ -437,3 +437,35 @@ Intent.md patched with the resolved shapes. Execution order
 updated: no judgment-call tasks block on a `clarify` anymore.
 
 CNS health gate: validate.py PASSED, graph.json OK.
+
+## 2026-06-07 — Plan-mode: examples before the rest (TASK-44, TASK-45)
+
+Andrew's read: the conformance audit asked "does the code
+match the design?" but never asked "does the design match how
+a real consumer would actually use the library?" Mocking up
+example workflows first validates the design before TASK-35
+through TASK-43 lock it in.
+
+Resolved (plan-mode interview):
+  - 3 examples: linear pipeline w/ bridge, human-in-the-loop,
+    live subscription wall display.
+  - Single `packages/examples/` Vite app, three sub-routes.
+    Deployable, buildable, runs in CI.
+  - Examples first, then design audit (TASK-45), then the
+    fix tasks. Sequential, not parallel.
+  - Examples are real committed code (not sketches); the
+    "build and deploy" framing resolved the question.
+
+TASK-44 added to intent.md: scaffold the examples package,
+write the three compositions + renderers, expand
+runtime.test.ts to run the linear-pipeline example.
+
+TASK-45 added to intent.md: walk each example against the
+design. Output is either "design validated, proceed" or
+"design needs adjustment" + the change set that folds back
+into TASK-35 through TASK-43.
+
+Execution order: 44 -> 45 -> 35 -> 36 -> 37 -> 38 -> 41 ->
+43 -> 42 -> 40 -> 39. Examples come first.
+
+CNS health gate: validate.py PASSED, graph.json OK.
