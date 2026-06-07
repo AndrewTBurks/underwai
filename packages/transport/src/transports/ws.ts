@@ -11,12 +11,19 @@
 //     events; parses each frame into a WorkflowEvent.
 //
 // The structure is real; tests use a mock send/recv.
-import type { LiveSubscriptionRegistry, WorkflowState } from "@underwai/core"
+import type { LiveSubscriptionRegistry, NodeKey, WorkflowState } from "@underwai/core"
 import { serializeEvent, type WorkflowEvent } from "../event-stream.js"
 import { deserializeEvent } from "../event-stream.js"
 
 export type WsSend = (frame: string) => void
 export type WsClose = () => void
+
+// Outgoing frames: write (consumer injection), writeHumanInput
+// (typed flavor for human-marked fields). Wire format matches
+// the WorkflowEvent JSON shape: each frame is a serialized event.
+export type WsOutgoing =
+  | { kind: "write"; key: string; value: unknown }
+  | { kind: "writeHumanInput"; key: string; value: unknown }
 
 export class WsServer {
   private unsubscribe: (() => void) | null = null
@@ -76,5 +83,29 @@ export class WsClient {
       this.events.push(deserializeEvent(data))
     })
     return this.events
+  }
+
+  // write: send a consumer-injection frame. The server applies
+  // the value to the node's `finalOutput` and marks the node
+  // resolved.
+  write(ws: WsLike, key: NodeKey, value: unknown): void {
+    ws.send(serializeEvent({
+      kind: "write",
+      key: key as unknown as string,
+      value,
+      timestamp: new Date().toISOString(),
+    }))
+  }
+
+  // writeHumanInput: send a typed-flavor injection for a
+  // human-marked field. Same wire shape as write; the server
+  // distinguishes by node's input schema's humanFields.
+  writeHumanInput(ws: WsLike, key: NodeKey, value: unknown): void {
+    ws.send(serializeEvent({
+      kind: "writeHumanInput",
+      key: key as unknown as string,
+      value,
+      timestamp: new Date().toISOString(),
+    }))
   }
 }

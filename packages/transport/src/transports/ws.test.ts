@@ -76,4 +76,40 @@ describe("WsClient", () => {
     expect(client.events.length).toBe(1)
     expect(client.events[0]?.kind).toBe("node-updated")
   })
+
+  it("write() sends a 'write' frame with the right wire shape", () => {
+    // TASK-43: WsClient now has typed write and writeHumanInput
+    // methods. Each sends a serialized WorkflowEvent frame
+    // with the kind, key, value, and timestamp.
+    const sent: string[] = []
+    const ws: WsLike = {
+      on: () => {},
+      send: (f) => sent.push(f),
+      close: () => {},
+    }
+    const client = new WsClient()
+    client.write(ws, NodeKey("root"), "injected")
+    expect(sent.length).toBe(1)
+    const frame = JSON.parse(sent[0]!)
+    expect(frame.kind).toBe("write")
+    expect(frame.key).toBe("root")
+    expect(frame.value).toBe("injected")
+    expect(typeof frame.timestamp).toBe("string")
+  })
+
+  it("writeHumanInput() sends a 'writeHumanInput' frame", () => {
+    const sent: string[] = []
+    const ws: WsLike = {
+      on: () => {},
+      send: (f) => sent.push(f),
+      close: () => {},
+    }
+    const client = new WsClient()
+    client.writeHumanInput(ws, NodeKey("ask"), { name: "Alice" })
+    expect(sent.length).toBe(1)
+    const frame = JSON.parse(sent[0]!)
+    expect(frame.kind).toBe("writeHumanInput")
+    expect(frame.key).toBe("ask")
+    expect(frame.value).toEqual({ name: "Alice" })
+  })
 })

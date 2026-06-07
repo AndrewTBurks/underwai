@@ -55,6 +55,18 @@ export type WorkflowEvent =
       status: WorkflowStatus
       timestamp: string
     }
+  | {
+      kind: "write"
+      key: string
+      value: unknown
+      timestamp: string
+    }
+  | {
+      kind: "writeHumanInput"
+      key: string
+      value: unknown
+      timestamp: string
+    }
 
 // SerializedNode: the wire form of a Node. JSON-friendly.
 export type SerializedNode = {

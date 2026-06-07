@@ -606,3 +606,26 @@ Files:
   - packages/transport/src/subscribe.test.ts (+1 test)
 
 Tests: 102/102 across the monorepo. tsc clean.
+
+## 2026-06-07 — TASK-43 done: WsClient typed send API
+
+WsClient now has `write(ws, key, value)` and
+`writeHumanInput(ws, key, value)`. Each sends a serialized
+WorkflowEvent frame with the appropriate kind. The
+`WorkflowEvent` discriminated union gained two new
+variants: `write` and `writeHumanInput` (both carry key,
+value, timestamp).
+
+The wire format is consistent: every frame is a
+serialized WorkflowEvent, regardless of direction.
+Consumers parse incoming events and call write/writeHumanInput
+to send outgoing events.
+
+Files:
+  - packages/transport/src/event-stream.ts (+2 WorkflowEvent
+    variants)
+  - packages/transport/src/transports/ws.ts (+2 methods
+    on WsClient)
+  - packages/transport/src/transports/ws.test.ts (+2 tests)
+
+Tests: 104/104 across the monorepo. tsc clean.
