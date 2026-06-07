@@ -121,6 +121,12 @@ export type WorkflowState = {
   // Edges are structural metadata; not directly addressed.
   edges: ReadonlyArray<Edge>
 
+  // Derived fields. Computed at init() and on deserialize().
+  // NOT serialized — recomputed from `edges` on every deserialize.
+  // See the "Serialization contract" section in design.md.
+  edgesByTarget: Record<NodeKey, ReadonlyArray<Edge>>
+  edgesByFrom: Record<NodeKey, ReadonlyArray<Edge>>
+
   createdAt: string
   updatedAt: string
   error?: SerializedError

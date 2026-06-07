@@ -127,10 +127,16 @@ type WorkflowState = {
   version: number
   status: WorkflowStatus
 
-  // Key-addressable. O(1) lookup by path.
+  // Key-addressable. O(1) lookup.
   nodes: Record<string, Node>
   // Edges are structural metadata; not directly addressed.
   edges: ReadonlyArray<Edge>
+
+  // Derived fields. Computed at init() and on deserialize().
+  // NOT serialized — recomputed from `edges` on every deserialize.
+  // See "Serialization contract" below.
+  edgesByTarget: Record<NodeKey, ReadonlyArray<Edge>>  // for findReadyNodes
+  edgesByFrom: Record<NodeKey, ReadonlyArray<Edge>>    // for findSubtree
 
   createdAt: string
   updatedAt: string
@@ -143,6 +149,15 @@ type WorkflowState = {
 - No `inputs` / `outputs` arrays. Workflow has a conventional root key; the consumer's composition API defines inputs/outputs.
 - `ReadonlyMap<FieldKey, ...>` for `humanFields` (one readonly that's actually meaningful — the schema-derived fields are immutable per node).
 - `Map<>` instead of `Set<>` for `humanFields` because we need the mode (writeable vs verified), not just membership.
+
+**Serialization contract.** `WorkflowState` carries two kinds of fields: **source fields** (`nodes`, `edges`, `error`, `id`, `version`, `status`, `createdAt`, `updatedAt`) and **derived fields** (`edgesByTarget`, `edgesByFrom`, future derived fields). The contract is:
+
+- `serialize(state)` is a pure projection of the source fields. Derived fields are *not* serialized.
+- `deserialize(json)` recomputes all derived fields. The recompute is total: every derived field the lib defines is rebuilt from `edges`.
+- Mutation primitives (`init`, `write`, `publish`, `writeHumanInput`, `stepInternal`) do *not* invalidate derived fields, because derived fields are derived from `edges` and the topology is set at `init()` and never changes mid-workflow.
+- Adding a new derived field to `WorkflowState` is not a breaking change. Adding a new source field is a breaking change (it changes the serialized shape).
+
+This contract is named once, in TASK-F, because TASK-R also adds a derived field and a future plan will add another. The pattern needs to be explicit, not implicit, or the lib will drift.
 
 ### Runtime (state machine, no event stream)
 
