@@ -1,6 +1,6 @@
 ---
 task: TASK-F
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: critical
 finding_refs: [A3]
@@ -69,4 +69,8 @@ This contract is named once, here, because TASK-R also adds a derived field and 
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved.** Andrew: ship both maps (`edgesByTarget` for `findReadyNodes`, `edgesByFrom` for `findSubtree`). Neither is serialized; both are recomputed from `edges` on every `deserialize()`. The "Serialization contract" section (named in the prior turn's review) is added to `docs/design.md` to lock the source-vs-derived pattern.
+
+Patches in this commit: `WorkflowState` gains `edgesByTarget` and `edgesByFrom`. The `docs/design.md` data structure section shows both fields with their roles and the "derived, not serialized" rule. The serialization contract section is added at the data structure level so TASK-R's `topologicalOrder` follows the same pattern.
+
+`findReadyNodes` uses `edgesByTarget[key]` for O(1) input lookup. `findSubtree` uses `edgesByFrom[key]` for O(1) downstream walk. Both are computed once at `init()` in a single pass over `edges`; the topology is static for the workflow's lifetime.
