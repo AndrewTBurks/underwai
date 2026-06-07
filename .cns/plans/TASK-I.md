@@ -1,6 +1,6 @@
 ---
 task: TASK-I
-status: pending
+status: resolved
 source: interrogate-2026-06-06
 severity: warning
 finding_refs: [A1]
@@ -53,4 +53,22 @@ The doc says "v1.1 will template-literal-type the path." No code change for v1.
 
 ## Session state
 
-*(to be filled in during the design session)*
+**2026-06-06 — resolved (against the plan's recommendation).** Andrew: "we MUST have path/node type safety and specificity as a first-class constraint. the consumer side is interfacing with a useless library if not."
+
+The plan's "drop the Path generic for v1" recommendation was wrong. The path generic is non-negotiable — the consumer-facing API must give compile-time safety on which key is which. The Path generic is implemented properly in the stub now.
+
+Combinator signatures carry the path through:
+- `run(def)` → `NodeRef<"root">`
+- `then(parent, def)` → `NodeRef<`${P}.${K}`>` (P = parent's path, K = child's kind)
+- `then(parent, bridge, def)` → `NodeRef<`${P}.${K}`>` (bridge overload)
+- `all(parent, ...refs)` → `NodeRef<`${P}.all`>` (array form)
+- `all(parent, refs)` → `NodeRef<`${P}.all.${string}`>` (object form)
+- `thenLoop(parent, body, predicate)` → `NodeRef<`${P}.${K}`>` (family of nodes)
+
+`all`'s array form's "N" is a wildcard — TypeScript can't enumerate a dynamic family. `subscribeSet` is the consumer's path to addressing individual iterations. The same applies to `thenLoop`'s "N" and "final" — they're runtime, not type-level.
+
+The brand on `NodeKey` rejects raw strings at the call site: `subscribe(state, ref.key, ...)` is type-checked; `subscribe(state, "root.refine" as NodeKey, ...)` is a string cast that the type system can't help with. The combination of brand + path generic gives full compile-time safety when the consumer uses combinators, and the brand alone gives "no raw strings" when they don't.
+
+Patches in this commit: combinator signatures in `docs/design.md` and `src/stub.ts` carry the path through. `run` and the combinators export their typed versions; `NodeKey` keeps the `Path` generic.
+
+`tsc --noEmit` green. CNS health gate green.
