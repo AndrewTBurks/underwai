@@ -10,12 +10,14 @@ This is a pnpm workspace. The pre-shard package structure is in [`packages/`](./
 
 | Package | Status | Purpose |
 |---|---|---|
-| [`@underwai/core`](./packages/core/) | v1 | Data structure: types, keys, composition, operations |
-| [`@underwai/schema`](./packages/schema/) | v1 | `z.human()` + `.verified()` Zod extension |
-| [`@underwai/runner`](./packages/runner/) | v1 | The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives |
-| [`@underwai/transport`](./packages/transport/) | v1.1+ | Subscription API, change-stream, wire format |
-| [`@underwai/renderer-react`](./packages/renderer-react/) | v1.1+ | React adapter for renderers |
-| [`@underwai/renderer-log`](./packages/renderer-log/) | v1.1+ | stdout log renderer for testing |
+| [`@underwai/core`](./packages/core/) | v1.0 | Data structure: types, keys, composition, operations |
+| [`@underwai/schema`](./packages/schema/) | v1.0 | `z.human()` + `.verified()` Zod extension |
+| [`@underwai/runner`](./packages/runner/) | v1.0 | The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives |
+| [`@underwai/transport`](./packages/transport/) | v1.0 | Subscription API + wire format + transports (SSE, WebSocket) |
+| [`@underwai/renderer-react`](./packages/renderer-react/) | v1.0 | Reference React adapter |
+| [`@underwai/renderer-log`](./packages/renderer-log/) | v1.0 | stdout log renderer for tests |
+
+**All six packages ship with v1.0.** A "true v1.0" is the lib *plus* the way to consume it — without a transport and renderers, it's a data structure with a runner, not a usable v1.0. There is no v1.1+ tier.
 
 ## The five load-bearing decisions
 

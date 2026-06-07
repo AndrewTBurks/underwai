@@ -76,11 +76,13 @@ The principles are restated and applied in each layer's `index.md`:
 
 The library is a pnpm workspace. Each package has its own `index.md` (peripheral nervous system node) with local context for the implementation phase. Pre-shard on 2026-06-06.
 
-- **packages/core** ([`index.md`](packages/core/index.md)) — `@underwai/core`. v1. The data structure: types, keys, composition, operations. No imports from the other v1 packages.
-- **packages/schema** ([`index.md`](packages/schema/index.md)) — `@underwai/schema`. v1. The Zod extension: `z.human()` + `.verified()`. Standalone; depends on Zod only.
-- **packages/runner** ([`index.md`](packages/runner/index.md)) — `@underwai/runner`. v1. The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives. Depends on `@underwai/core` and `@underwai/schema`.
-- **packages/transport** ([`index.md`](packages/transport/index.md)) — `@underwai/transport`. v1.1+. Subscription API and wire format. Folder-only; promoted to a real package when v1.1 work begins.
-- **packages/renderer-react** ([`index.md`](packages/renderer-react/index.md)) — `@underwai/renderer-react`. v1.1+. The reference React adapter. Folder-only; promoted when v1.1 work begins.
-- **packages/renderer-log** ([`index.md`](packages/renderer-log/index.md)) — `@underwai/renderer-log`. v1.1+. The stdout log renderer for tests. Folder-only; promoted when v1.1 work begins.
+**All six packages ship with v1.0.** There is no v1.1+ tier — the v1.0 deliverable is the lib *plus* the way to consume it. A "true v1.0" without a transport and renderers is not a usable v1.0; it's a data structure with a runner. The original product doc's "v1.x / v2 deferred" list had these as v1.1+; that was a misjudgment, corrected on 2026-06-06.
+
+- **packages/core** ([`index.md`](packages/core/index.md)) — `@underwai/core`. The data structure: types, keys, composition, operations. No imports from the other v1 packages.
+- **packages/schema** ([`index.md`](packages/schema/index.md)) — `@underwai/schema`. The Zod extension: `z.human()` + `.verified()`. Standalone; depends on Zod only.
+- **packages/runner** ([`index.md`](packages/runner/index.md)) — `@underwai/runner`. The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives. Depends on `@underwai/core` and `@underwai/schema`.
+- **packages/transport** ([`index.md`](packages/transport/index.md)) — `@underwai/transport`. Subscription API (`subscribe`, `subscribeSet`) + wire format (`WorkflowEvent` stream) + transports (SSE, WebSocket). Depends on `@underwai/core`.
+- **packages/renderer-react** ([`index.md`](packages/renderer-react/index.md)) — `@underwai/renderer-react`. The reference React adapter: hooks, provider, auto-render. Depends on `@underwai/core` and `@underwai/transport`.
+- **packages/renderer-log** ([`index.md`](packages/renderer-log/index.md)) — `@underwai/renderer-log`. The stdout log renderer for tests. Depends on `@underwai/core` and `@underwai/transport`.
 
 The pre-shard `src/stub.ts` was moved to `packages/core/src/stub.ts` on 2026-06-06. Phase 2 distributes the stub's contents across the four `packages/core/src/*` files (keys, types, composition, operations).

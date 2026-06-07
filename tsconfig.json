@@ -19,6 +19,9 @@
   "references": [
     { "path": "./packages/core" },
     { "path": "./packages/schema" },
-    { "path": "./packages/runner" }
+    { "path": "./packages/runner" },
+    { "path": "./packages/transport" },
+    { "path": "./packages/renderer-react" },
+    { "path": "./packages/renderer-log" }
   ]
 }

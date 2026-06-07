@@ -1,0 +1,24 @@
+{
+  "name": "@underwai/transport",
+  "version": "0.0.0",
+  "description": "Subscription API and wire format for underwAI: in-process subscribe/subscribeSet + SSE/WebSocket transports.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@underwai/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "effect": "^3.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

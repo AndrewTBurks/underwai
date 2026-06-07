@@ -165,14 +165,16 @@ That's a lot. Phase 2 is bigger than Phase 1 was.
 
 **Pre-shard landed.** Andrew's instruction (2026-06-06): "create all of the folders NOW with index.md for that project section. the implementation phase will add code. the local decisions/agent context should exist before the code does."
 
-The library is now a pnpm workspace. 3 v1 packages ship with real `package.json` + `tsconfig.json` + `src/index.ts` (re-exporting the stub or being empty placeholders). 3 v1.1+ packages exist as folders with `index.md` only — no `package.json` until v1.1 work begins.
+The library is now a pnpm workspace. **All 6 packages ship with v1.0.** Andrew's follow-up (2026-06-06): "to be clear, transport, renderer-react, renderer-log are all v1. there's no v1.1 without those clear packages implemented. they can be implemented in phase 3, but they ship alongside v of the library" — and the wire-format SSE/WebSocket transports are also v1.0. There is no v1.1+ tier. A v1.0 without a way to consume the lib isn't a true v1.0.
 
-- `packages/core/` `@underwai/core` — v1. The data structure: types, keys, composition, operations.
-- `packages/schema/` `@underwai/schema` — v1. The Zod extension: `z.human()` + `.verified()`. Standalone.
-- `packages/runner/` `@underwai/runner` — v1. The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives.
-- `packages/transport/` `@underwai/transport` — v1.1+. Subscription API and wire format. Folder-only.
-- `packages/renderer-react/` `@underwai/renderer-react` — v1.1+. Reference React adapter. Folder-only.
-- `packages/renderer-log/` `@underwai/renderer-log` — v1.1+. stdout log renderer. Folder-only.
+- `packages/core/` `@underwai/core` — v1.0. The data structure: types, keys, composition, operations.
+- `packages/schema/` `@underwai/schema` — v1.0. The Zod extension: `z.human()` + `.verified()`. Standalone.
+- `packages/runner/` `@underwai/runner` — v1.0. The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives.
+- `packages/transport/` `@underwai/transport` — v1.0. Subscription API + wire format + transports (SSE, WebSocket).
+- `packages/renderer-react/` `@underwai/renderer-react` — v1.0. Reference React adapter.
+- `packages/renderer-log/` `@underwai/renderer-log` — v1.0. stdout log renderer for tests.
+
+The original pre-shard had transport, renderer-react, and renderer-log as folder-only (v1.1+); the correction promoted all three to real packages with `package.json` + `tsconfig.json` + `src/index.ts`. The root `tsconfig.json` references all six projects.
 
 Each `index.md` carries: the package's purpose, the boundary (imports/exports), the design decisions that govern it (cross-references to CNS architecture/ and the plan files that touch it), and the Phase 2 implementation notes.
 
@@ -180,7 +182,7 @@ The pre-shard artifact at `src/stub.ts` was moved to `packages/core/src/stub.ts`
 
 Root-level changes: `pnpm-workspace.yaml`, workspace-root `package.json`, project-references `tsconfig.json`, `README.md` (package table, principles, repo context).
 
-CNS updates: `.cns/index.md` `links[]` entries for all 6 packages + new "Package references" section. `.cns/product/index.md` "Modules" → "Packages" with the 6-package table. `.cns/intent.md` Phase 2 implementation order organized by package (schema → core → runner → tests).
+CNS updates: `.cns/index.md` `links[]` entries for all 6 packages + new "Package references" section. `.cns/product/index.md` "Modules" → "Packages" with the 6-package table (v1.0 across). `.cns/intent.md` Phase 2 implementation order now spans all 6 packages (schema → core → runner → transport → renderer-react → renderer-log → tests).
 
 CNS health gate green: `validate.py` PASSED, `graph.py --check` OK. `tsc -b` green.
 

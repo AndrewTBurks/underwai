@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-07T05:09:03.600993+00:00",
+  "generated": "2026-06-07T05:20:05.288744+00:00",
   "nodes": [
     {
       "path": ".cns/architecture/index.md",
@@ -70,7 +70,7 @@
       "title": "@underwai/renderer-log",
       "type": "package",
       "parent": "../../.cns/index.md",
-      "status": "deferred",
+      "status": "dirty",
       "decision_count": 0
     },
     {
@@ -79,7 +79,7 @@
       "title": "@underwai/renderer-react",
       "type": "package",
       "parent": "../../.cns/index.md",
-      "status": "deferred",
+      "status": "dirty",
       "decision_count": 0
     },
     {
@@ -106,7 +106,7 @@
       "title": "@underwai/transport",
       "type": "package",
       "parent": "../../.cns/index.md",
-      "status": "deferred",
+      "status": "dirty",
       "decision_count": 0
     }
   ],
@@ -167,11 +167,7 @@
       "label": "parent"
     }
   ],
-  "orphans": [
-    "packages/renderer-log/index.md",
-    "packages/renderer-react/index.md",
-    "packages/transport/index.md"
-  ],
+  "orphans": [],
   "cycles": [],
   "dangling_links": []
 }

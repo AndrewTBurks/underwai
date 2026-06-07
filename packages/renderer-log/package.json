@@ -1,0 +1,25 @@
+{
+  "name": "@underwai/renderer-log",
+  "version": "0.0.0",
+  "description": "stdout log renderer for underwAI: the smallest possible renderer that exercises the full subscription + auto-render protocol. For tests and debugging.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@underwai/core": "workspace:*",
+    "@underwai/transport": "workspace:*"
+  },
+  "peerDependencies": {
+    "effect": "^3.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

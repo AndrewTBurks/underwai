@@ -42,24 +42,24 @@ Real but lower-priority refinements. Each is a design session + small patch. The
 
 ## Phase 2: prototype
 
-Begins after Phase 1 completes. **Pre-shard landed 2026-06-06**: the library is a pnpm workspace with 3 v1 packages (`@underwai/core`, `@underwai/schema`, `@underwai/runner`) and 3 v1.1+ packages (`@underwai/transport`, `@underwai/renderer-react`, `@underwai/renderer-log`). See `.cns/index.md` § "Package references" for the structure. The current `src/stub.ts` was moved to `packages/core/src/stub.ts`.
+Begins after Phase 1 completes. **Pre-shard landed 2026-06-06**: the library is a pnpm workspace with 6 v1.0 packages. Andrew's correction (2026-06-06): transport, renderer-react, renderer-log, AND wire-format SSE/WebSocket are all part of v1.0. There is no v1.1+ tier — a v1.0 without a way to consume the lib isn't a true v1.0. See `.cns/index.md` § "Package references" for the structure. The current `src/stub.ts` was moved to `packages/core/src/stub.ts`.
 
 Implementation order, organized by package:
 
-**`@underwai/schema` (v1, implement first — small, no internal deps):**
+**`@underwai/schema` (v1.0, implement first — small, no internal deps):**
 1. **`packages/schema/src/human.ts`** — `z.human()` runtime. (TASK-E)
 2. **`packages/schema/src/verified.ts`** — `.verified()` decorator. (TASK-E)
 3. **`packages/schema/src/get-mode.ts`** — `getHumanMode(schema)` helper. (TASK-E)
 4. **`packages/schema/src/index.ts`** — re-exports. (TASK-E)
 
-**`@underwai/core` (v1, the data structure):**
+**`@underwai/core` (v1.0, the data structure):**
 5. **`packages/core/src/keys.ts`** — `NodeKey<Path>`, brand, path template. (TASK-I)
 6. **`packages/core/src/types.ts`** — `WorkflowState`, `Node` (discriminated union on `Node["status"]`), `Edge`, `ResolvedInput`, `SerializedError`, `Actor`, `HumanMode`. (TASK-G, TASK-H, TASK-L, TASK-S)
 7. **`packages/core/src/composition.ts`** — `run`, `then` (two overloads: direct + bridge), `all` (array + object), `thenLoop`. (TASK-C, TASK-H, TASK-I, TASK-U)
 8. **`packages/core/src/operations.ts`** — `init`, `getNode`, `serialize`, `deserialize`, `findReadyNodes`, `findSubtree`, `publish`, `write`, `writeHumanInput`, `getHumanFields`, `getHumanInputDisplay`. (TASK-F, TASK-K, TASK-O, TASK-R, TASK-S)
 9. **`packages/core/src/index.ts`** — re-exports.
 
-**`@underwai/runner` (v1, the runtime):**
+**`@underwai/runner` (v1.0, the runtime):**
 10. **`packages/runner/src/find-ready.ts`** — Kahn's algorithm using `edgesByFrom`. (TASK-O, TASK-R)
 11. **`packages/runner/src/mutations.ts`** — `publish`, `write`, `writeHumanInput`. (TASK-A, TASK-H, TASK-S)
 12. **`packages/runner/src/step-internal.ts`** — internal step primitive. (TASK-B)
@@ -67,19 +67,34 @@ Implementation order, organized by package:
 14. **`packages/runner/src/run-workflow.ts`** — main Effect program. (TASK-B)
 15. **`packages/runner/src/index.ts`** — re-exports.
 
+**`@underwai/transport` (v1.0, the subscription + wire format):**
+16. **`packages/transport/src/subscribe.ts`** — `subscribe`, `subscribeSet`, the `Subscription` interface. (TASK-C, TASK-D)
+17. **`packages/transport/src/event-stream.ts`** — the `WorkflowEvent` stream: `NodeAdded`, `NodeUpdated`, `NodeRemoved`, `EdgeAdded`, etc.
+18. **`packages/transport/src/transports/sse.ts`** — Server-Sent Events transport. v1.0.
+19. **`packages/transport/src/transports/ws.ts`** — WebSocket transport. v1.0.
+20. **`packages/transport/src/index.ts`** — re-exports.
+
+**`@underwai/renderer-react` (v1.0, the React adapter):**
+21. **`packages/renderer-react/src/provider.tsx`** — `<WorkflowProvider>` context.
+22. **`packages/renderer-react/src/hooks.ts`** — `useWorkflowState`, `useNode`, `useSubtree`.
+23. **`packages/renderer-react/src/registry.tsx`** — the renderer registry.
+24. **`packages/renderer-react/src/auto-render.tsx`** — auto-render entry point.
+25. **`packages/renderer-react/src/index.ts`** — re-exports.
+
+**`@underwai/renderer-log` (v1.0, the stdout log renderer for tests):**
+26. **`packages/renderer-log/src/registry.ts`** — kind → `(node, indent) => string`.
+27. **`packages/renderer-log/src/runner.ts`** — `runLogRenderer(state, opts?)`.
+28. **`packages/renderer-log/src/index.ts`** — re-exports.
+
 **Tests** (after the implementation lands):
-16. **Per-package test suites** — `composition.test.ts`, `runner.test.ts`, `human-input.test.ts`, `streaming.test.ts`, `subscribe.test.ts` (deferred to `@underwai/transport` if v1.1+), `serialization.test.ts`.
+29. **Per-package test suites** — `composition.test.ts`, `runner.test.ts`, `human-input.test.ts`, `streaming.test.ts`, `subscribe.test.ts`, `serialization.test.ts`.
 
 ## Phase 3: integration
 
-- **`@underwai/transport` (v1.1+)** — subscription API, change-stream protocol. Folder-only; promote when v1.1 work begins.
-- **`@underwai/renderer-react` (v1.1+)** — reference React adapter. Folder-only; promote when v1.1 work begins.
-- **`@underwai/renderer-log` (v1.1+)** — stdout log renderer for tests. Folder-only; promote when v1.1 work begins.
 - **`defineNode` helper for dual type guard.** v1.1.
 - **Long-running workflow durability.** v1.1. Adopt or reject "use workflow" opinions on idempotency.
-- **SSE / WebSocket transports.** v1.1 adapters on top of the `WorkflowEvent` stream.
 - **AI SDK adapter.** v1.1. Wrap `@ai-sdk/*` calls as Effect programs.
-- **Reference React adapter.** v1.1.
+- **Visual debugger / timeline UI.** v1.1.
 - **ThreadWeaver integration.** Slot the lib underneath.
 - **Documentation site.**
 - **npm publish.** Claim `underwai` and `@underwai/core`.

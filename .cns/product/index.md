@@ -54,7 +54,6 @@ The non-negotiable surface for v1:
 
 ## v1.x / v2 deferred
 
-- Multi-host transport (SSE, WebSocket) — v1.1, requires the transport story to be settled.
 - Field-level streaming resolution — interesting for form-fill UIs, adds complexity.
 - AI SDK provider — the lib should be model-agnostic; integration via a thin adapter that wraps `@ai-sdk/*` as an Effect program.
 - Effect-mitigation (a "plain async" mode for consumers who don't want to learn Effect) — punted. The whole pitch is Effect.
@@ -92,13 +91,13 @@ This means: v1 of underwAI is whatever ThreadWeaver would *want* from a lib, gen
 
 The library is a pnpm workspace. The 6-package split was pre-shard on 2026-06-06 (see [`.cns/index.md`](../../.cns/index.md) § "Package references" for the full structure). Each package has its own `index.md` (peripheral nervous system node) with local context for the implementation phase.
 
+**All six packages ship with v1.0.** The original "v1.x / v2 deferred" list had `@underwai/transport`, `@underwai/renderer-react`, and `@underwai/renderer-log` as v1.1+; that was a misjudgment, corrected on 2026-06-06. A v1.0 without a way to consume the lib isn't a true v1.0.
+
 | Package | Status | Depends on | Purpose |
 |---|---|---|---|
-| `@underwai/core` | v1 | zod, effect (peer) | Data structure: types, keys, composition, operations. The foundation. |
-| `@underwai/schema` | v1 | zod (peer) | Zod extension: `z.human()` + `.verified()`. Standalone. |
-| `@underwai/runner` | v1 | `@underwai/core`, `@underwai/schema`, zod, effect | The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives. |
-| `@underwai/transport` | v1.1+ | `@underwai/core` (planned) | Subscription API and wire format (`WorkflowEvent` stream). |
-| `@underwai/renderer-react` | v1.1+ | `@underwai/core`, `@underwai/transport` (planned), react (peer) | Reference React adapter. |
-| `@underwai/renderer-log` | v1.1+ | `@underwai/core`, `@underwai/transport` (planned) | stdout log renderer for tests. |
-
-The original 5-module list (core, schema, runner, transport, renderers) is split into 6 packages because the two reference renderers ship as separate npm packages under the `@underwai/renderer-*` scope, with their own version lines and own peer-dependency contracts. The v1.1+ packages have only `index.md` on disk; no `package.json` or `src/` until v1.1 work begins.
+| `@underwai/core` | v1.0 | zod, effect (peer) | Data structure: types, keys, composition, operations. The foundation. |
+| `@underwai/schema` | v1.0 | zod (peer) | Zod extension: `z.human()` + `.verified()`. Standalone. |
+| `@underwai/runner` | v1.0 | `@underwai/core`, `@underwai/schema`, zod, effect | The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives. |
+| `@underwai/transport` | v1.0 | `@underwai/core`, effect (peer) | Subscription API + wire format + transports (SSE, WebSocket). |
+| `@underwai/renderer-react` | v1.0 | `@underwai/core`, `@underwai/transport`, react (peer) | Reference React adapter. |
+| `@underwai/renderer-log` | v1.0 | `@underwai/core`, `@underwai/transport` | stdout log renderer for tests. |
