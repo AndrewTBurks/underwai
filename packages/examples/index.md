@@ -7,11 +7,11 @@ decisions:
   - id: DEC-EXAMPLES-001
     date: 2026-06-07
     author: agent
-    summary: 'Single Vite app at packages/examples/ with three sub-routes: linear-pipeline, human-in-the-loop, wall-display. Each route is a React component that runs a real workflow and renders the result. The compositions are defined in src/workflows.ts and are the canonical examples for the rest of the docs (TASK-44).'
+    summary: "Single Vite app at packages/examples/ with three sub-routes: linear-pipeline, human-in-the-loop, wall-display. Each route is a React component that runs a real workflow and renders the result. The compositions are defined in src/workflows.ts and are the canonical examples for the rest of the docs (TASK-44)."
   - id: DEC-EXAMPLES-002
     date: 2026-06-07
     author: agent
-    summary: 'Example workflows use the loose NodeDefinition<unknown, unknown> pattern (with z.unknown() schemas) because the composition API does not yet support fully-typed NodeDefinition<TIn, TOut> overloads. The bridge function is `unknown => unknown` at the call site; consumer code casts at the boundary. Strong typing is a v1.1+ enhancement (TASK-44).'
+    summary: "Example workflows use the loose NodeDefinition<unknown, unknown> pattern (with z.unknown() schemas) because the composition API does not yet support fully-typed NodeDefinition<TIn, TOut> overloads. The bridge function is `unknown => unknown` at the call site; consumer code casts at the boundary. Strong typing is a v1.1+ enhancement (TASK-44)."
   - id: DEC-EXAMPLES-003
     date: 2026-06-07
     author: agent

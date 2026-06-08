@@ -7,57 +7,42 @@
 
 import { Effect } from "effect";
 import { z } from "zod";
-import {
-  chain,
-  compose,
-  init,
-  run,
-  WorkflowId,
-  type CompositionTree,
-  type NodeDefinition,
-  type WorkflowState,
-} from "@underwai/core";
-
-// A "loose" def: input is unknown, output is unknown. The
-// composition API uses the loose type for cross-type
-// compatibility. The example programs cast at the boundary.
-
-function def(kind: string): NodeDefinition<unknown, unknown> {
-  return {
-    kind,
-    inputSchema: z.unknown(),
-    outputSchema: z.unknown(),
-    program: ((_input: unknown) => Effect.succeed(undefined)) as never,
-  };
-}
+import { init, node, workflow, WorkflowId, type WorkflowState } from "@underwai/core";
 
 // Example 1: linear pipeline with a bridge transform.
 //
 // parse(raw: string) -> (bridge: trim+uppercase) -> display(s: string)
-//
-// The bridge is the load-bearing concern from TASK-35. The
-// runtime applies the bridge at edge resolution.
 
 export const linearPipeline = {
-  compose: (): CompositionTree => {
-    const { tree } = compose(() => {
-      const root = run(def("parse"));
-      return chain(root, (out: unknown) => (out as string).trim().toUpperCase(), def("display"));
-    });
-    return tree;
-  },
+  compose: () =>
+    workflow()
+      .run(
+        node({
+          kind: "parse",
+          schema: z.string(),
+          program: (input) => Effect.succeed(input),
+        }),
+      )
+      .chain(
+        (s: string) => s.trim().toUpperCase(),
+        node({
+          kind: "display",
+          schema: z.string(),
+          program: (input) => Effect.succeed(input),
+        }),
+      )
+      .build(),
   programs: {
     root: (input: unknown) => Effect.succeed(input),
     "root.display": (input: unknown) => Effect.succeed(input),
   } as Record<string, (input: unknown) => Effect.Effect<unknown, Error, never>>,
-  id: () => WorkflowId("wf-linear"),
   setup: (): {
     state: WorkflowState;
     programs: Record<string, (input: unknown) => Effect.Effect<unknown, Error, never>>;
   } => {
-    const tree = linearPipeline.compose();
+    const { tree } = linearPipeline.compose();
     return {
-      state: init(tree, linearPipeline.id()),
+      state: init(tree, WorkflowId("wf-linear")),
       programs: linearPipeline.programs,
     };
   },
@@ -66,19 +51,36 @@ export const linearPipeline = {
 // Example 2: human-in-the-loop.
 //
 // ask(name: string) -> process -> display
-// The ask node has a human-marked field. The consumer injects
-// the value via the WorkflowRuntime service's writeHumanInput
-// method (the resolved shape from TASK-37).
 
 export const humanInTheLoop = {
-  compose: (): CompositionTree => {
-    const { tree } = compose(() => {
-      const a = run(def("ask"));
-      const p = chain(a, (out: unknown) => out, def("process"));
-      return chain(p, (out: unknown) => out, def("display"));
-    });
-    return tree;
-  },
+  compose: () =>
+    workflow()
+      .run(
+        node({
+          kind: "ask",
+          schema: z.object({ name: z.string() }),
+          program: (input) => Effect.succeed(input),
+        }),
+      )
+      .chain(
+        (out: { name: string }) => out,
+        node({
+          kind: "process" as const,
+          schema: z.object({ name: z.string() }),
+          outputSchema: z.string(),
+          program: (input: { name: string }) =>
+            Effect.succeed(input.name ? `Hello, ${input.name}!` : "(no name)"),
+        }),
+      )
+      .chain(
+        (out: string) => out,
+        node({
+          kind: "display" as const,
+          schema: z.string(),
+          program: (input: string) => Effect.succeed(input),
+        }),
+      )
+      .build(),
   programs: {
     root: (input: unknown) => Effect.succeed(input),
     "root.process": (input: unknown) =>
@@ -89,11 +91,10 @@ export const humanInTheLoop = {
       ),
     "root.process.display": (input: unknown) => Effect.succeed(input),
   } as Record<string, (input: unknown) => Effect.Effect<unknown, Error, never>>,
-  id: () => WorkflowId("wf-human"),
   setup: () => {
-    const tree = humanInTheLoop.compose();
+    const { tree } = humanInTheLoop.compose();
     return {
-      state: init(tree, humanInTheLoop.id()),
+      state: init(tree, WorkflowId("wf-human")),
       programs: humanInTheLoop.programs,
     };
   },
@@ -101,30 +102,36 @@ export const humanInTheLoop = {
 
 // Example 3: wall display.
 //
-// A "slow" workflow that produces output over time. The renderer
-// subscribes via transport.subscribeSet(registry, "*", onUpdate)
-// and updates the wall display on every state change.
-//
-// This example exercises the live-subscription contract from
-// TASK-32 + TASK-36.
+// tick(n: number) -> render
 
 export const wallDisplay = {
-  compose: (): CompositionTree => {
-    const { tree } = compose(() => {
-      const tick = run(def("tick"));
-      return chain(tick, (n: unknown) => n, def("render"));
-    });
-    return tree;
-  },
+  compose: () =>
+    workflow()
+      .run(
+        node({
+          kind: "tick",
+          schema: z.number(),
+          program: (input) => Effect.succeed((input + 1) % 100),
+        }),
+      )
+      .chain(
+        (n: number) => n,
+        node({
+          kind: "render" as const,
+          schema: z.number(),
+          outputSchema: z.string(),
+          program: (input: number) => Effect.succeed(`tick=${input}`),
+        }),
+      )
+      .build(),
   programs: {
     root: (input: unknown) => Effect.succeed((((input as number) ?? 0) + 1) % 100),
     "root.render": (input: unknown) => Effect.succeed(`tick=${input as number}`),
   } as Record<string, (input: unknown) => Effect.Effect<unknown, Error, never>>,
-  id: () => WorkflowId("wf-wall"),
   setup: () => {
-    const tree = wallDisplay.compose();
+    const { tree } = wallDisplay.compose();
     return {
-      state: init(tree, wallDisplay.id()),
+      state: init(tree, WorkflowId("wf-wall")),
       programs: wallDisplay.programs,
     };
   },

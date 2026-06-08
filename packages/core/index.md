@@ -42,7 +42,7 @@ decisions:
   - id: DEC-CORE-018
     date: 2026-06-07
     author: agent
-    summary: '@underwai/core has no mutation primitives. The runner is the only mutator; core is a pure data + composition layer. The previously-public publish/write in core were deleted; the runner''s WorkflowRuntime service is the canonical state-mutation API (TASK-38).'
+    summary: "@underwai/core has no mutation primitives. The runner is the only mutator; core is a pure data + composition layer. The previously-public publish/write in core were deleted; the runner's WorkflowRuntime service is the canonical state-mutation API (TASK-38)."
   - id: DEC-CORE-005
     date: 2026-06-06
     author: agent

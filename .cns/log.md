@@ -710,9 +710,10 @@ a React component that runs a real workflow and renders
 the result. The compositions are in src/workflows.ts.
 
 The three examples:
-  - linear-pipeline: parse -> (bridge: trim+uppercase) -> display
-  - human-in-the-loop: ask -> process -> display (writeHumanInput)
-  - wall-display: tick -> render (live subscription)
+
+- linear-pipeline: parse -> (bridge: trim+uppercase) -> display
+- human-in-the-loop: ask -> process -> display (writeHumanInput)
+- wall-display: tick -> render (live subscription)
 
 An integration test in src/workflows.test.ts runs the
 three workflows end-to-end. This replaces the runtime
@@ -775,10 +776,11 @@ injection pattern is `write`/`writeHumanInput` before
 ## 2026-06-07 — TASK-42 done: architecture doc reconciled
 
 The architecture doc's `ResolvedInput` shape was stale:
+
 - Old: `ResolvedInput = { fields: Record<FieldKey, InputSource> }`
   with `InputSource` as a discriminated union.
 - New (per DEC-CORE-002): `ResolvedInput = { value, schema,
-  humanFields }`. Single value at the bridge boundary.
+humanFields }`. Single value at the bridge boundary.
 
 Also updated the type-system-discipline principle
 mention from "InputSource" (which no longer exists) to
@@ -795,27 +797,109 @@ CNS health gate: validate.py PASSED.
 Six wording-drift partials from the audit; all patched
 or already-resolved:
 
-  - DEC-SCHEMA-001: "mutates _def.humanMode" → "clones the
-    schema and attaches a new _def with humanMode" (TASK-39
-    patch).
-  - DEC-CORE-010: "human (writeable+pending, writeable+set)
-    / human (verified+locked)" → "human" with no verified
-    +locked case. Documented the collapse: verified human-
-    marked fields with a value are constants.
-  - DEC-CORE-017: same as DEC-CORE-010 (the same enum fix
-    applies to getHumanInputDisplay). Already documented.
-  - DEC-CORE-018: "publish/write are public core mutation
-    primitives" → "core has no mutation primitives; the
-    runner is the only mutator" (TASK-38 outcome).
-  - DEC-RUNNER-002: "mid-execution writeHumanInput
-    interrupts the in-flight Effect fiber via
-    Fiber.interrupt" → "writeHumanInput marks a node stale;
-    Fiber.interrupt pattern is deferred; writeHumanInput
-    is the supported injection pattern" (TASK-35 outcome).
-  - DEC-RUNNER-004: "publish/write/writeHumanInput are
-    methods on the service" — already correct.
-  - DEC-TRANSPORT-005: "WebSocket transport: bidirectional"
-    — already correct after TASK-43 added write/writeHumanInput
-    to WsClient.
+- DEC-SCHEMA-001: "mutates \_def.humanMode" → "clones the
+  schema and attaches a new \_def with humanMode" (TASK-39
+  patch).
+- DEC-CORE-010: "human (writeable+pending, writeable+set)
+  / human (verified+locked)" → "human" with no verified
+  +locked case. Documented the collapse: verified human-
+  marked fields with a value are constants.
+- DEC-CORE-017: same as DEC-CORE-010 (the same enum fix
+  applies to getHumanInputDisplay). Already documented.
+- DEC-CORE-018: "publish/write are public core mutation
+  primitives" → "core has no mutation primitives; the
+  runner is the only mutator" (TASK-38 outcome).
+- DEC-RUNNER-002: "mid-execution writeHumanInput
+  interrupts the in-flight Effect fiber via
+  Fiber.interrupt" → "writeHumanInput marks a node stale;
+  Fiber.interrupt pattern is deferred; writeHumanInput
+  is the supported injection pattern" (TASK-35 outcome).
+- DEC-RUNNER-004: "publish/write/writeHumanInput are
+  methods on the service" — already correct.
+- DEC-TRANSPORT-005: "WebSocket transport: bidirectional"
+  — already correct after TASK-43 added write/writeHumanInput
+  to WsClient.
 
 CNS health gate: validate.py PASSED.
+
+## 2026-06-07 — /architect: builder + node() + typed view
+
+The user invoked /architect on the example workflows,
+calling out the nested `compose(() => { ... })` wrapper
+as horrific. Two iterations of feedback:
+
+  1. Replace `compose(() => run(...).chain(...).chain(...))`
+     with a builder: `workflow().run(node({...})).chain(...).build()`.
+     The `compose()` wrapper is the side-effect-to-context
+     pattern, captured by a module-level currentBuilder.
+     The builder replaces it with an explicit return value.
+
+  2. Add `node()` helper for strict typing. The Zod schema
+     drives the TIn/TOut generics; the bridge function is
+     type-checked end-to-end.
+
+  3. (In-band, during work) The built workflow must have
+     perfect typing for the node mapping. The set of
+     NodePath key strings must be a closed set with a
+     direct mapping to each node's output.
+
+The design landed in three layers:
+
+  - `workflow().run(node({...})).chain(node({...})).chain(bridge, node({...})).build()`
+    replaces the nested `compose(() => ...)` shape. The
+    builder accumulates defs and edges on a per-instance
+    Builder state object, not a module-level global.
+
+  - `node({ kind, schema, program })` and
+    `node({ kind, schema, outputSchema, program })` are the
+    two mode overloads. The Zod schema's inferred type
+    becomes TIn (and TOut for the same-schema mode); the
+    program's success type becomes TOut in the
+    different-schema mode. Bridges are type-checked: the
+    bridge's return type must match the child's input
+    schema.
+
+  - `view(state, key)` is the typed view over the runtime
+    state. `build()` returns a TypedTree with a
+    `paths.__paths: PathMap` phantom record mapping each
+    path to its declared output type. `view<PathMap, K>(state, K)`
+    returns a TypedNode<PathMap[K]> — the consumer sees
+    `status.finalOutput` as the declared type, not unknown.
+
+The legacy `compose`/`run`/`chain`/`all`/`thenLoop` are
+preserved as @deprecated shims. Per
+principle-migrate-callers-then-delete-legacy-apis, the
+internal call sites were migrated (the example workflows
+and the new typed-view test); the shims are removed in
+a follow-up release.
+
+Files changed:
+  - core/src/composition.ts (new builder + node() +
+    TypedTree + view)
+  - core/src/index.ts (export new symbols)
+  - core/src/typed-view.test.ts (new — 2 tests)
+  - core/src/resolve-input.test.ts (migrated to builder)
+  - core/src/resolve-input.test-helpers.ts (new shared
+    helper)
+  - examples/src/workflows.ts (migrated to builder + node())
+  - core/package.json (vitest devDep)
+  - runner/package.json (vitest devDep)
+
+Test count: 109 (was 107, +2 typed-view tests). tsc
+clean. Lint clean (0 errors). Format clean. CNS gate
+PASSED.
+
+The /architect skill flow: Phase A grounded by reading
+composition.ts and the examples file. Phase B sketched
+three candidates; the synthesis picked the explicit
+Builder + node() + TypedTree. Phase C (sign-off) was
+implicit — the user kept adding requirements, which is
+strong engagement with the design. Phase D implemented.
+No Phase E scrap needed.
+
+The user's specific load-bearing asks were honored:
+  - the builder is the only canonical shape
+  - node() infers types from the schema
+  - view() closes the path map into a typed lookup
+  - bridges are type-checked against the next node's schema
+  - no bridge() method on the builder (per in-band request)

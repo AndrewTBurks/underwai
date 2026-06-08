@@ -3,78 +3,47 @@
 // returns the final input value.
 import { describe, expect, it } from "vitest";
 import {
-  chain,
-  compose,
   deserialize,
   init,
   NodeKey,
+  node,
   resolveInput,
-  run,
   serialize,
+  workflow,
   WorkflowId,
 } from "@underwai/core";
-import type { Edge, Node, NodeDefinition, WorkflowState } from "@underwai/core";
+import type { Edge, Node, WorkflowState } from "@underwai/core";
 import { z } from "zod";
 import { Effect } from "effect";
+import { markResolvedLocal } from "./resolve-input.test-helpers.js";
 
-function def(kind: string): NodeDefinition {
-  return {
-    kind,
-    inputSchema: z.unknown(),
-    outputSchema: z.unknown(),
-    program: ((_input: unknown) => Effect.succeed(undefined)) as never,
-  };
-}
-
-// markResolvedLocal: a copy of the runner's markResolved, used
-// in core tests. The runner's version is internal; core has
-// no mutation primitives per TASK-38.
-function markResolvedLocal(
-  state: WorkflowState,
-  nodeId: NodeKey,
-  finalOutput: unknown,
-  now: string,
-): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string];
-  if (!node) return state;
-  return {
-    ...state,
-    nodes: {
-      ...state.nodes,
-      [nodeId as unknown as string]: {
-        ...node,
-        status: { kind: "resolved", finalOutput, resolvedAt: now },
-        updatedAt: now,
-      } as Node,
-    },
-  };
-}
+const noop = <T>(_input: T) => Effect.succeed(undefined as never);
 
 describe("resolveInput", () => {
   it("returns the upstream's resolved output through a bridge", () => {
-    const { tree } = compose(() => {
-      const root = run(def("root"));
-      return chain(root, (out: number) => out * 2, def("doubled"));
-    });
+    const { tree } = workflow()
+      .run(node({ kind: "root", schema: z.number(), program: noop }))
+      .chain((out: number) => out * 2, node({ kind: "doubled", schema: z.number(), program: noop }))
+      .build();
     const state = init(tree, WorkflowId("wf-bridge"));
     const withRoot = markResolvedLocal(state, NodeKey("root"), 21, new Date().toISOString());
     expect(resolveInput(withRoot, NodeKey("root.doubled"))).toBe(42);
   });
 
   it("returns undefined when the upstream is not resolved yet", () => {
-    const { tree } = compose(() => {
-      const root = run(def("root"));
-      return chain(root, (out: number) => out, def("child"));
-    });
+    const { tree } = workflow()
+      .run(node({ kind: "root", schema: z.number(), program: noop }))
+      .chain((out: number) => out, node({ kind: "child", schema: z.number(), program: noop }))
+      .build();
     const state = init(tree, WorkflowId("wf-pending"));
     expect(resolveInput(state, NodeKey("root.child"))).toBeUndefined();
   });
 
   it("returns the upstream's output directly when no bridge is set", () => {
-    const { tree } = compose(() => {
-      const root = run(def("root"));
-      return chain(root, def("child"));
-    });
+    const { tree } = workflow()
+      .run(node({ kind: "root", schema: z.string(), program: noop }))
+      .chain(node({ kind: "child", schema: z.string(), program: noop }))
+      .build();
     const state = init(tree, WorkflowId("wf-direct"));
     const withRoot = markResolvedLocal(state, NodeKey("root"), "hello", new Date().toISOString());
     expect(resolveInput(withRoot, NodeKey("root.child"))).toBe("hello");
@@ -82,24 +51,28 @@ describe("resolveInput", () => {
 
   it("joins multiple upstreams into an object input", () => {
     // Hand-build a state with two upstreams and a join node.
-    const { tree } = compose(() => {
-      const a = run(def("a"));
-      const b = run(def("b"));
-      return chain(a, def("join"));
-    });
+    const { tree } = workflow()
+      .run(node({ kind: "a", schema: z.number(), program: noop }))
+      .chain(node({ kind: "join", schema: z.unknown(), program: noop }))
+      .build();
     const state = init(tree, WorkflowId("wf-join"));
-    // Manually inject a second edge to root.join.
+    // Manually inject a second edge to root.a.join.
     const joinKey = "root.a.join";
     const extraEdge: Edge = {
       from: "root.b" as never,
       to: joinKey as never,
     };
-    const stateWithB = {
+    // edgesByTarget is a Record<NodeKey, ...>; cast through
+    // Record<string, ...> for the join-key indexing, then
+    // cast back. The test is documenting a multi-edge shape
+    // that the composition API doesn't yet support.
+    const ebtLoose = state.edgesByTarget as unknown as Record<string, ReadonlyArray<Edge>>;
+    const stateWithB: WorkflowState = {
       ...state,
       nodes: {
         ...state.nodes,
         "root.b": {
-          ...state.nodes["root.b"]!,
+          ...(state.nodes["root.b"] as Node),
           status: {
             kind: "resolved" as const,
             finalOutput: 20,
@@ -111,8 +84,8 @@ describe("resolveInput", () => {
       edges: [...state.edges, extraEdge],
       edgesByTarget: {
         ...state.edgesByTarget,
-        [joinKey]: [...(state.edgesByTarget[joinKey as never] ?? []), extraEdge],
-      },
+        [joinKey]: [...(ebtLoose[joinKey] ?? []), extraEdge],
+      } as unknown as WorkflowState["edgesByTarget"],
     };
     void stateWithB;
     // The composition API doesn't have a join primitive, so

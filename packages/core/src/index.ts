@@ -28,8 +28,18 @@ export type {
 } from "./types.js";
 
 // Composition API
-export { all, chain, compose, run, thenLoop } from "./composition.js";
-export type { CompositionTree, NodeDefinition, NodeRef } from "./composition.js";
+export { all, chain, compose, node, run, thenLoop, view, workflow } from "./composition.js";
+export type {
+  ChainBuilder,
+  CompositionTree,
+  NodeDefinition,
+  NodeRef,
+  PathsOf,
+  RootBuilder,
+  TypedNode,
+  TypedPaths,
+  TypedTree,
+} from "./composition.js";
 
 // Operations
 export {
