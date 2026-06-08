@@ -828,43 +828,43 @@ The user invoked /architect on the example workflows,
 calling out the nested `compose(() => { ... })` wrapper
 as horrific. Two iterations of feedback:
 
-  1. Replace `compose(() => run(...).chain(...).chain(...))`
-     with a builder: `workflow().run(node({...})).chain(...).build()`.
-     The `compose()` wrapper is the side-effect-to-context
-     pattern, captured by a module-level currentBuilder.
-     The builder replaces it with an explicit return value.
+1. Replace `compose(() => run(...).chain(...).chain(...))`
+   with a builder: `workflow().run(node({...})).chain(...).build()`.
+   The `compose()` wrapper is the side-effect-to-context
+   pattern, captured by a module-level currentBuilder.
+   The builder replaces it with an explicit return value.
 
-  2. Add `node()` helper for strict typing. The Zod schema
-     drives the TIn/TOut generics; the bridge function is
-     type-checked end-to-end.
+2. Add `node()` helper for strict typing. The Zod schema
+   drives the TIn/TOut generics; the bridge function is
+   type-checked end-to-end.
 
-  3. (In-band, during work) The built workflow must have
-     perfect typing for the node mapping. The set of
-     NodePath key strings must be a closed set with a
-     direct mapping to each node's output.
+3. (In-band, during work) The built workflow must have
+   perfect typing for the node mapping. The set of
+   NodePath key strings must be a closed set with a
+   direct mapping to each node's output.
 
 The design landed in three layers:
 
-  - `workflow().run(node({...})).chain(node({...})).chain(bridge, node({...})).build()`
-    replaces the nested `compose(() => ...)` shape. The
-    builder accumulates defs and edges on a per-instance
-    Builder state object, not a module-level global.
+- `workflow().run(node({...})).chain(node({...})).chain(bridge, node({...})).build()`
+  replaces the nested `compose(() => ...)` shape. The
+  builder accumulates defs and edges on a per-instance
+  Builder state object, not a module-level global.
 
-  - `node({ kind, schema, program })` and
-    `node({ kind, schema, outputSchema, program })` are the
-    two mode overloads. The Zod schema's inferred type
-    becomes TIn (and TOut for the same-schema mode); the
-    program's success type becomes TOut in the
-    different-schema mode. Bridges are type-checked: the
-    bridge's return type must match the child's input
-    schema.
+- `node({ kind, schema, program })` and
+  `node({ kind, schema, outputSchema, program })` are the
+  two mode overloads. The Zod schema's inferred type
+  becomes TIn (and TOut for the same-schema mode); the
+  program's success type becomes TOut in the
+  different-schema mode. Bridges are type-checked: the
+  bridge's return type must match the child's input
+  schema.
 
-  - `view(state, key)` is the typed view over the runtime
-    state. `build()` returns a TypedTree with a
-    `paths.__paths: PathMap` phantom record mapping each
-    path to its declared output type. `view<PathMap, K>(state, K)`
-    returns a TypedNode<PathMap[K]> — the consumer sees
-    `status.finalOutput` as the declared type, not unknown.
+- `view(state, key)` is the typed view over the runtime
+  state. `build()` returns a TypedTree with a
+  `paths.__paths: PathMap` phantom record mapping each
+  path to its declared output type. `view<PathMap, K>(state, K)`
+  returns a TypedNode<PathMap[K]> — the consumer sees
+  `status.finalOutput` as the declared type, not unknown.
 
 The legacy `compose`/`run`/`chain`/`all`/`thenLoop` are
 preserved as @deprecated shims. Per
@@ -874,16 +874,17 @@ and the new typed-view test); the shims are removed in
 a follow-up release.
 
 Files changed:
-  - core/src/composition.ts (new builder + node() +
-    TypedTree + view)
-  - core/src/index.ts (export new symbols)
-  - core/src/typed-view.test.ts (new — 2 tests)
-  - core/src/resolve-input.test.ts (migrated to builder)
-  - core/src/resolve-input.test-helpers.ts (new shared
-    helper)
-  - examples/src/workflows.ts (migrated to builder + node())
-  - core/package.json (vitest devDep)
-  - runner/package.json (vitest devDep)
+
+- core/src/composition.ts (new builder + node() +
+  TypedTree + view)
+- core/src/index.ts (export new symbols)
+- core/src/typed-view.test.ts (new — 2 tests)
+- core/src/resolve-input.test.ts (migrated to builder)
+- core/src/resolve-input.test-helpers.ts (new shared
+  helper)
+- examples/src/workflows.ts (migrated to builder + node())
+- core/package.json (vitest devDep)
+- runner/package.json (vitest devDep)
 
 Test count: 109 (was 107, +2 typed-view tests). tsc
 clean. Lint clean (0 errors). Format clean. CNS gate
@@ -898,8 +899,33 @@ strong engagement with the design. Phase D implemented.
 No Phase E scrap needed.
 
 The user's specific load-bearing asks were honored:
-  - the builder is the only canonical shape
-  - node() infers types from the schema
-  - view() closes the path map into a typed lookup
-  - bridges are type-checked against the next node's schema
-  - no bridge() method on the builder (per in-band request)
+
+- the builder is the only canonical shape
+- node() infers types from the schema
+- view() closes the path map into a typed lookup
+- bridges are type-checked against the next node's schema
+- no bridge() method on the builder (per in-band request)
+
+## 2026-06-07 — /architect: linear-pipeline.tsx uses typed view
+
+The linear pipeline React component now uses the
+typed view() function. state.nodes["root.display"] is
+TypedNode<string> via the view call. The untyped cast
+chain that was there before (parseNode?.status as
+{ kind: string; finalOutput?: unknown })?.finalOutput
+as string) is replaced with view(state, "root.display")
+plus a single status.kind === "resolved" check.
+
+The `paths` is now exposed on the workflow setup so
+consumers can use PathsOf<typeof paths> for closed-
+set path typing. (The React component doesn't actually
+need the explicit type annotation because the view
+function does the narrowing internally.)
+
+Also added `vitest` to devDependencies for @underwai/core
+and @underwai/runner so the lint typechecker can resolve
+the vitest import in test files (was previously hoisted
+from root, which the lint didn't see).
+
+Test count unchanged: 109/109. tsc clean. Lint clean
+(0 errors). Format clean. CNS gate PASSED.

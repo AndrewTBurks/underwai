@@ -7,7 +7,7 @@
 
 import { Effect } from "effect";
 import { z } from "zod";
-import { init, node, workflow, WorkflowId, type WorkflowState } from "@underwai/core";
+import { init, node, workflow, WorkflowId } from "@underwai/core";
 
 // Example 1: linear pipeline with a bridge transform.
 //
@@ -36,14 +36,12 @@ export const linearPipeline = {
     root: (input: unknown) => Effect.succeed(input),
     "root.display": (input: unknown) => Effect.succeed(input),
   } as Record<string, (input: unknown) => Effect.Effect<unknown, Error, never>>,
-  setup: (): {
-    state: WorkflowState;
-    programs: Record<string, (input: unknown) => Effect.Effect<unknown, Error, never>>;
-  } => {
-    const { tree } = linearPipeline.compose();
+  setup: () => {
+    const built = linearPipeline.compose();
     return {
-      state: init(tree, WorkflowId("wf-linear")),
+      state: init(built.tree, WorkflowId("wf-linear")),
       programs: linearPipeline.programs,
+      paths: built.paths,
     };
   },
 };
@@ -92,10 +90,11 @@ export const humanInTheLoop = {
     "root.process.display": (input: unknown) => Effect.succeed(input),
   } as Record<string, (input: unknown) => Effect.Effect<unknown, Error, never>>,
   setup: () => {
-    const { tree } = humanInTheLoop.compose();
+    const built = humanInTheLoop.compose();
     return {
-      state: init(tree, WorkflowId("wf-human")),
+      state: init(built.tree, WorkflowId("wf-human")),
       programs: humanInTheLoop.programs,
+      paths: built.paths,
     };
   },
 };
@@ -129,10 +128,11 @@ export const wallDisplay = {
     "root.render": (input: unknown) => Effect.succeed(`tick=${input as number}`),
   } as Record<string, (input: unknown) => Effect.Effect<unknown, Error, never>>,
   setup: () => {
-    const { tree } = wallDisplay.compose();
+    const built = wallDisplay.compose();
     return {
-      state: init(tree, WorkflowId("wf-wall")),
+      state: init(built.tree, WorkflowId("wf-wall")),
       programs: wallDisplay.programs,
+      paths: built.paths,
     };
   },
 };
