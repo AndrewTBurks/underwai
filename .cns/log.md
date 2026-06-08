@@ -771,3 +771,21 @@ are validated by the examples. The Fiber.interrupt
 deferral is the only outstanding concern; the supported
 injection pattern is `write`/`writeHumanInput` before
 `run`, which the human-in-the-loop example uses.
+
+## 2026-06-07 — TASK-42 done: architecture doc reconciled
+
+The architecture doc's `ResolvedInput` shape was stale:
+- Old: `ResolvedInput = { fields: Record<FieldKey, InputSource> }`
+  with `InputSource` as a discriminated union.
+- New (per DEC-CORE-002): `ResolvedInput = { value, schema,
+  humanFields }`. Single value at the bridge boundary.
+
+Also updated the type-system-discipline principle
+mention from "InputSource" (which no longer exists) to
+"ResolvedInput" (the actual shape).
+
+The "Seven statuses" note is updated to reflect TASK-37's
+collapse of the workflow-level set to 4; per-node still
+has 7.
+
+CNS health gate: validate.py PASSED.

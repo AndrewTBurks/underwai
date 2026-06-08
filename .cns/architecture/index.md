@@ -18,11 +18,11 @@ last_reconciled: 2026-06-06
 
 **Boundary discipline.** The data model is the boundary. Every value crossing the boundary is validated against a Zod schema. The lib's internal types are trusted; the lib's external data (workflow state, effect programs, human inputs) is parsed at the edge. Validation is concentrated, not scattered.
 
-**Type system discipline.** Make illegal states unrepresentable. `NodeStatus` is a sum type (seven named values), not a bag of optional fields. `NodeKey<Path>` is a branded string, so the type system rejects passing a raw string where a key is required. `InputSource` is a discriminated union; the runner's input resolver is the only place that handles all three variants.
+**Type system discipline.** Make illegal states unrepresentable. `NodeStatus` is a sum type (six named values after TASK-37 collapsed the workflow-level "paused" phantom), not a bag of optional fields. `NodeKey<Path>` is a branded string, so the type system rejects passing a raw string where a key is required. The `ResolvedInput` value is `unknown` typed at the bridge; the program receives a `value` and validates against its `inputSchema` at runtime.
 
 ## Statuses (source of truth)
 
-Seven statuses. Each has a distinct purpose, a distinct renderer implication, and a distinct runner implication. The bar for adding an eighth is high — every status here is load-bearing, and one was cut (`ready`) for being vestigial.
+Seven statuses (workflow-level). Each has a distinct purpose, a distinct renderer implication, and a distinct runner implication. The bar for adding an eighth is high — every status here is load-bearing, and one was cut (`ready`) for being vestigial. After TASK-37 (2026-06-07), the workflow-level set is 4 (`pending`, `running`, `completed`, `failed`); the per-node set still has 7 including `paused` and `stale`.
 
 ### `pending`
 
@@ -114,21 +114,27 @@ type WorkflowState = {
 
 ### `ResolvedInput`
 
+The shape of a node's input as the runtime sees it. Per DEC-CORE-002 (2026-06-06), the input is a single value (after any bridge transform), not a per-field bundle. The composition API enforces shape match at the edge, so the runtime doesn't need to merge multiple field sources.
+
 ```ts
 type ResolvedInput = {
-  fields: Record<FieldKey, InputSource>;
+  // The current input value. Sourced from upstream.finalOutput
+  // (after any bridge transform), from a literal at the
+  // composition root, or from a human write via writeHumanInput.
+  value: unknown;
+  // The schema. Validates the value (two-stage: per-source
+  // validation against fieldSchemas, then aggregate against
+  // inputSchema). For non-bundle inputs, fieldSchemas is a
+  // single-entry record keyed by the input field name.
+  schema: ZodTypeAny;
+  // Editable metadata. Derived from the schema at init via
+  // getHumanMode. Maps a field key to its source/mode.
+  // (Updated when writeHumanInput is called.)
+  humanFields: Map<FieldKey, HumanInputDisplay>;
 };
-
-type InputSource =
-  | { kind: "literal"; value: unknown }
-  | { kind: "from_node"; nodeId: NodeKey } // multi-parent is implicit
-  | {
-      kind: "human";
-      fieldSchema: ZodTypeAny;
-      value?: unknown;
-      status: "pending" | "set";
-    };
 ```
+
+The runtime's `resolveInput(state, key)` function (TASK-35) walks the incoming edges for a node, applies each edge's bridge to the upstream's resolved output, and returns the value to pass to the program. The single-value shape is the consumer's contract: `program(input: ResolvedInput["value"])`.
 
 ### `Edge`
 
