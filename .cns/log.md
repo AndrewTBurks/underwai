@@ -732,3 +732,42 @@ DEC-EXAMPLES-002.
 Files: 9 new (package.json, tsconfig, vite.config, vitest.config,
 index.html, main.tsx, workflows.ts, 3 route components,
 workflows.test.ts, index.md).
+
+## 2026-06-07 — TASK-45 done: design audit against the examples
+
+Walked through the three example workflows (linear-pipeline,
+human-in-the-loop, wall-display) as a real consumer would.
+The design holds. Specific findings:
+
+**Linear pipeline:** The bridge `(out) => out.trim().toUpperCase()`
+is the cleanest expression of cross-shape transform. The
+cast inside (`out as string`) is at the boundary, not
+throughout. The consumer's program is a one-line `Effect.succeed`.
+
+**Human-in-the-loop:** `rt.writeHumanInput(NodeKey("root"), { name })`
+reads naturally. The "human" semantic lives in the consumer's
+code; the schema marker from @underwai/schema is not yet
+used here. The `human` schema is a v1.1+ enhancement.
+
+**Wall display:** `subscribeSet(live, "*", onUpdate)` is the
+intended fan-out API. The exact-key pattern from TASK-41
+would be cleaner for one node, but the wildcard is the
+canonical pattern. The `LiveSubscriptionRegistry` is
+imported from @underwai/core, used directly. The
+notification path goes through both the in-service subs
+and the cross-package registry, as designed (TASK-36).
+
+**One ergonomic gap:** the consumer has to write
+`NodeKey("root")` even though their def is just `def("parse")`.
+The composition adds a `root.` prefix. This is a
+documentation issue, not a design issue. The `compose`
+function wraps the user's def in a `root.<kind>` namespace.
+The prefix is consistent across the design; the example
+should call this out.
+
+Verdict: design holds. No changes needed before TASK-35..43
+land. The audit's bridge and live-subscription concerns
+are validated by the examples. The Fiber.interrupt
+deferral is the only outstanding concern; the supported
+injection pattern is `write`/`writeHumanInput` before
+`run`, which the human-in-the-loop example uses.
