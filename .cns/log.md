@@ -646,25 +646,27 @@ Tests: 104/104 across the monorepo. tsc clean.
 ## 2026-06-07 — TASK-40 done: prune phantom exports + lint+format gating
 
 Phantom exports removed:
-  - `LiveCallback` from @underwai/core: was unused public type.
-    Now internal to live.ts.
-  - `RegistryContext` / `useRegistry` from @underwai/renderer-react:
-    was unused public API. Deleted.
-  - `createElement` from @underwai/renderer-react/src/index.ts:
-    was unused import. Removed.
-  - The runner's public `writeHumanInput` (with `_fiber` /
-    `_stateRef` params): deleted per plan-mode path (i). Consumers
-    go through `WorkflowRuntime.writeHumanInput`.
-  - The runner's `mark*` exports from the public index:
-    internal-only. The service is the public API.
+
+- `LiveCallback` from @underwai/core: was unused public type.
+  Now internal to live.ts.
+- `RegistryContext` / `useRegistry` from @underwai/renderer-react:
+  was unused public API. Deleted.
+- `createElement` from @underwai/renderer-react/src/index.ts:
+  was unused import. Removed.
+- The runner's public `writeHumanInput` (with `_fiber` /
+  `_stateRef` params): deleted per plan-mode path (i). Consumers
+  go through `WorkflowRuntime.writeHumanInput`.
+- The runner's `mark*` exports from the public index:
+  internal-only. The service is the public API.
 
 Audit smells fixed:
-  - `WsClient.events` is now a private field with a `readonly`
-    getter. Consumers can't mutate the queue.
-  - Dynamic `import()` in `sse.ts:79` replaced with a static
-    import. Same module, no async overhead.
-  - YAML bug at `runner/index.md:43`: a duplicate `summary:`
-    field on DEC-RUNNER-009. Removed the duplicate.
+
+- `WsClient.events` is now a private field with a `readonly`
+  getter. Consumers can't mutate the queue.
+- Dynamic `import()` in `sse.ts:79` replaced with a static
+  import. Same module, no async overhead.
+- YAML bug at `runner/index.md:43`: a duplicate `summary:`
+  field on DEC-RUNNER-009. Removed the duplicate.
 
 New lint+format gating: `pnpm lint` and `pnpm format:check`
 are part of the stage gate. Errors are blocking; warnings
@@ -672,25 +674,26 @@ are not. The codebase went from 22 lint errors / 1 format
 issue to 0/0.
 
 Lint errors fixed:
-  - 5 `import/no-duplicates` (merge import statements)
-  - 5 `typescript/consistent-type-imports` (replace `import()`
-    type annotations with named imports)
-  - 5 `eslint/no-unused-vars` (remove unused imports)
-  - 4 `typescript/TS2550` (lib bumped from ES2022 to ES2023
-    so `toSorted` is available)
-  - 1 `unbound-method` (bind the verified method in the test)
-  - 1 `no-redundant-type-constituents` (correct assertion
-    to `unknown` not `unknown | undefined` under
-    `exactOptionalPropertyTypes`)
-  - 1 `verbatimModuleSyntax` violation: `WorkflowId` is a
-    type-only declaration; re-export uses `export type`.
+
+- 5 `import/no-duplicates` (merge import statements)
+- 5 `typescript/consistent-type-imports` (replace `import()`
+  type annotations with named imports)
+- 5 `eslint/no-unused-vars` (remove unused imports)
+- 4 `typescript/TS2550` (lib bumped from ES2022 to ES2023
+  so `toSorted` is available)
+- 1 `unbound-method` (bind the verified method in the test)
+- 1 `no-redundant-type-constituents` (correct assertion
+  to `unknown` not `unknown | undefined` under
+  `exactOptionalPropertyTypes`)
+- 1 `verbatimModuleSyntax` violation: `WorkflowId` is a
+  type-only declaration; re-export uses `export type`.
 
 Files: 22 modified, 0 added, 0 deleted. Test count
 unchanged: 104/104.
 
 `.js` extensions on every import: kept (user confirmed).
 Required by `verbatimModuleSyntax: true` +
-`moduleResolution: "bundler"`. The `.js` is the *emitted*
+`moduleResolution: "bundler"`. The `.js` is the _emitted_
 form; the bundler resolves it back to the source `.ts`.
 This is the canonical pattern for TypeScript that
 publishes ESM directly.
@@ -698,3 +701,34 @@ publishes ESM directly.
 Tests: 104/104 across the monorepo. tsc clean. Lint
 clean (0 errors). Format clean. CNS gate: validate.py
 PASSED.
+
+## 2026-06-07 — TASK-44 done: example workflows + integration test
+
+A new workspace package `packages/examples/`. Single Vite
+app, three sub-routes via react-router-dom. Each route is
+a React component that runs a real workflow and renders
+the result. The compositions are in src/workflows.ts.
+
+The three examples:
+  - linear-pipeline: parse -> (bridge: trim+uppercase) -> display
+  - human-in-the-loop: ask -> process -> display (writeHumanInput)
+  - wall-display: tick -> render (live subscription)
+
+An integration test in src/workflows.test.ts runs the
+three workflows end-to-end. This replaces the runtime
+.test.ts fixture-based tests as the canonical "real
+workflow" test.
+
+Test count: 107 (was 104; +3 example integration tests).
+tsc clean. Lint clean (0 errors). Format clean. CNS gate
+PASSED.
+
+The examples use the loose NodeDefinition<unknown, unknown>
+pattern (z.unknown() schemas). Strong typing is a v1.1+
+enhancement; the composition API's `chain` overloads
+require this looseness to support cross-type bridges.
+DEC-EXAMPLES-002.
+
+Files: 9 new (package.json, tsconfig, vite.config, vitest.config,
+index.html, main.tsx, workflows.ts, 3 route components,
+workflows.test.ts, index.md).

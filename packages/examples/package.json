@@ -1,0 +1,35 @@
+{
+  "name": "@underwai/examples",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Example workflows that exercise every underwai surface end-to-end.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@underwai/core": "workspace:*",
+    "@underwai/renderer-log": "workspace:*",
+    "@underwai/renderer-react": "workspace:*",
+    "@underwai/runner": "workspace:*",
+    "@underwai/transport": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "effect": "^3.0.0",
+    "typescript": "^5.4.0",
+    "vite": "^6.0.0",
+    "vitest": "^4.1.8",
+    "zod": "^3.25.0"
+  }
+}
