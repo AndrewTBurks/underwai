@@ -789,3 +789,33 @@ collapse of the workflow-level set to 4; per-node still
 has 7.
 
 CNS health gate: validate.py PASSED.
+
+## 2026-06-07 — TASK-39 done: wording-drift reconcile
+
+Six wording-drift partials from the audit; all patched
+or already-resolved:
+
+  - DEC-SCHEMA-001: "mutates _def.humanMode" → "clones the
+    schema and attaches a new _def with humanMode" (TASK-39
+    patch).
+  - DEC-CORE-010: "human (writeable+pending, writeable+set)
+    / human (verified+locked)" → "human" with no verified
+    +locked case. Documented the collapse: verified human-
+    marked fields with a value are constants.
+  - DEC-CORE-017: same as DEC-CORE-010 (the same enum fix
+    applies to getHumanInputDisplay). Already documented.
+  - DEC-CORE-018: "publish/write are public core mutation
+    primitives" → "core has no mutation primitives; the
+    runner is the only mutator" (TASK-38 outcome).
+  - DEC-RUNNER-002: "mid-execution writeHumanInput
+    interrupts the in-flight Effect fiber via
+    Fiber.interrupt" → "writeHumanInput marks a node stale;
+    Fiber.interrupt pattern is deferred; writeHumanInput
+    is the supported injection pattern" (TASK-35 outcome).
+  - DEC-RUNNER-004: "publish/write/writeHumanInput are
+    methods on the service" — already correct.
+  - DEC-TRANSPORT-005: "WebSocket transport: bidirectional"
+    — already correct after TASK-43 added write/writeHumanInput
+    to WsClient.
+
+CNS health gate: validate.py PASSED.

@@ -11,7 +11,7 @@ decisions:
   - id: DEC-RUNNER-002
     date: 2026-06-06
     author: agent
-    summary: "Mid-execution writeHumanInput interrupts the in-flight Effect fiber via Fiber.interrupt. The interrupted effect's output is discarded. The transition is running → stale → running (or running → stale → paused if input has verified fields) (TASK-A)."
+    summary: "writeHumanInput marks a node stale and updates the input. The runtime picks up the stale node on the next outer-loop iteration and re-runs it. The Fiber.interrupt pattern (mid-execution interrupt + restart) is deferred: the current runtime runs programs sequentially, so writeHumanInput is the supported injection pattern (TASK-35)."
   - id: DEC-RUNNER-003
     date: 2026-06-06
     author: agent

@@ -42,7 +42,7 @@ decisions:
   - id: DEC-CORE-018
     date: 2026-06-07
     author: agent
-    summary: "`publish(state, key, output, partial, now)` and `write(state, key, value)` are public core mutation primitives. Pure functions; the runner inlined this logic before. The runner runtime now uses these from @underwai/core instead of duplicating the logic in mutations.ts."
+    summary: '@underwai/core has no mutation primitives. The runner is the only mutator; core is a pure data + composition layer. The previously-public publish/write in core were deleted; the runner''s WorkflowRuntime service is the canonical state-mutation API (TASK-38).'
   - id: DEC-CORE-005
     date: 2026-06-06
     author: agent
@@ -66,7 +66,7 @@ decisions:
   - id: DEC-CORE-010
     date: 2026-06-06
     author: agent
-    summary: 'getHumanInputDisplay(state, node, fieldKey) returns a discriminated union on source kind: literal / from_node / human (writeable+pending, writeable+set) / human (verified+locked). No "proposed: boolean" flag — the lib exposes the source, the renderer decides UX (TASK-S, folded into TASK-G).'
+    summary: 'getHumanInputDisplay(state, node, fieldKey) returns a discriminated union on source kind: literal / from_node / human. The human variant has status: "pending" | "set" but no verified+locked case — verified human-marked fields with a value are constants, the value is locked in, no human UI needed. The lib exposes the source; the renderer decides UX (TASK-S, folded into TASK-G).'
   - id: DEC-CORE-011
     date: 2026-06-06
     author: agent

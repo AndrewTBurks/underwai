@@ -7,7 +7,7 @@ decisions:
   - id: DEC-SCHEMA-001
     date: 2026-06-06
     author: agent
-    summary: z.human() is a runtime function that clones the input schema and mutates _def.humanMode. Not just a type. Zod 3.x target; Zod 4.x would use .meta() (TASK-E).
+    summary: z.human() is a runtime function that clones the input schema and attaches a new _def with humanMode. The clone avoids shared mutation across callsites; each call to z.human() produces a fresh schema. Zod 3.x target; Zod 4.x would use .meta() (TASK-E).
   - id: DEC-SCHEMA-002
     date: 2026-06-06
     author: agent
