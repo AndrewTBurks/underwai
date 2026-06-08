@@ -16,8 +16,7 @@
 //
 // No batching flag, no delta flag, no prefix flag. (TASK-P, TASK-V
 // cancelled; TASK-C+D folded into a pattern grammar.)
-import type { Node, NodeKey, WorkflowState } from "@underwai/core";
-import type { LiveSubscriptionRegistry } from "@underwai/core";
+import type { LiveSubscriptionRegistry, Node, NodeKey, WorkflowState } from "@underwai/core";
 
 export type Subscription = {
   unsubscribe: () => void;

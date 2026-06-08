@@ -8,7 +8,7 @@
 // All transitions on Node["status"] go through these functions.
 // The transition rules are documented in .cns/architecture/node.md.
 
-import type { Node, NodeStatus, WorkflowState } from "@underwai/core";
+import type { Node, NodeStatus, SerializedError, WorkflowState } from "@underwai/core";
 
 export function markRunning(state: WorkflowState, nodeId: Node["id"], now: string): WorkflowState {
   const node = state.nodes[nodeId as unknown as string];
@@ -72,7 +72,7 @@ export function markResolved(
 export function markFailed(
   state: WorkflowState,
   nodeId: Node["id"],
-  error: Node["id"] extends never ? never : import("@underwai/core").SerializedError,
+  error: Node["id"] extends never ? never : SerializedError,
   now: string,
 ): WorkflowState {
   const node = state.nodes[nodeId as unknown as string];

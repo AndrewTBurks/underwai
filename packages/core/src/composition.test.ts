@@ -7,7 +7,7 @@ import { all, chain, run, thenLoop } from "./composition.js";
 import type { NodeDefinition } from "./composition.js";
 
 const passthrough = (_: unknown) => undefined as never;
-const def = (kind: string): NodeDefinition<unknown> => ({
+const def = (kind: string): NodeDefinition => ({
   kind,
   inputSchema: z.unknown(),
   outputSchema: z.unknown(),

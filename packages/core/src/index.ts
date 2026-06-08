@@ -47,4 +47,3 @@ export {
 // Live subscription registry. The transport layer wraps this with
 // pattern matching; renderers wrap it with React useSyncExternalStore.
 export { LiveSubscriptionRegistry } from "./live.js";
-export type { LiveCallback } from "./live.js";

@@ -11,7 +11,7 @@ decisions:
   - id: DEC-RUNNER-002
     date: 2026-06-06
     author: agent
-    summary: 'Mid-execution writeHumanInput interrupts the in-flight Effect fiber via Fiber.interrupt. The interrupted effect''s output is discarded. The transition is running → stale → running (or running → stale → paused if input has verified fields) (TASK-A).'
+    summary: "Mid-execution writeHumanInput interrupts the in-flight Effect fiber via Fiber.interrupt. The interrupted effect's output is discarded. The transition is running → stale → running (or running → stale → paused if input has verified fields) (TASK-A)."
   - id: DEC-RUNNER-003
     date: 2026-06-06
     author: agent
@@ -19,28 +19,27 @@ decisions:
   - id: DEC-RUNNER-004
     date: 2026-06-06
     author: agent
-    summary: 'The consumer''s Effect.gen program gets a WorkflowRuntime service. publish/write/writeHumanInput are methods on the service, not free functions. The lib provides the service as a layer for the duration of the workflow''s run (TASK-B, TASK-T).'
+    summary: "The consumer's Effect.gen program gets a WorkflowRuntime service. publish/write/writeHumanInput are methods on the service, not free functions. The lib provides the service as a layer for the duration of the workflow's run (TASK-B, TASK-T)."
   - id: DEC-RUNNER-005
     date: 2026-06-06
     author: agent
-    summary: 'findReadyNodes returns ReadonlyArray<NodeKey> in dependency order. Kahn''s algorithm using edgesByFrom. Iteration order is the contract. paused is NOT in the result (TASK-O, TASK-R).'
+    summary: "findReadyNodes returns ReadonlyArray<NodeKey> in dependency order. Kahn's algorithm using edgesByFrom. Iteration order is the contract. paused is NOT in the result (TASK-O, TASK-R)."
   - id: DEC-RUNNER-006
     date: 2026-06-06
     author: agent
-    summary: 'Mutations (publish, write, writeHumanInput) update WorkflowState and return a new state. The runner''s state machine handles the rest: pending → running/paused, running → streaming/resolved/failed/stale, paused → pending (verified gate closes) (TASK-A, TASK-H).'
+    summary: "Mutations (publish, write, writeHumanInput) update WorkflowState and return a new state. The runner's state machine handles the rest: pending → running/paused, running → streaming/resolved/failed/stale, paused → pending (verified gate closes) (TASK-A, TASK-H)."
   - id: DEC-RUNNER-007
     date: 2026-06-06
     author: agent
-    summary: 'Edge.bridge is applied at edge resolution. The runner transforms upstream''s finalOutput via the bridge function before populating the downstream''s ResolvedInput.value (TASK-H).'
+    summary: "Edge.bridge is applied at edge resolution. The runner transforms upstream's finalOutput via the bridge function before populating the downstream's ResolvedInput.value (TASK-H)."
   - id: DEC-RUNNER-008
     date: 2026-06-06
     author: agent
-    summary: '@underwai/runner depends on @underwai/core and @underwai/schema. Effect is a peer; the runtime is built on Effect.gen. Renderers depend on @underwai/runner; @underwai/runner does NOT depend on any renderer.'
+    summary: "@underwai/runner depends on @underwai/core and @underwai/schema. Effect is a peer; the runtime is built on Effect.gen. Renderers depend on @underwai/runner; @underwai/runner does NOT depend on any renderer."
   - id: DEC-RUNNER-009
     date: 2026-06-07
     author: agent
     summary: '`runWorkflow` integration test was rolled back on 2026-06-07 due to Effect 3 + exactOptionalPropertyTypes typing friction. Re-attempted and landed on 2026-06-07 with the help of core/init() to construct a real WorkflowState from a composition. The runtime now accepts state.status "pending" as a valid starting state (the orchestrator flips it to "running" implicitly by starting to walk the DAG, and to "completed" when all nodes are resolved). The test uses core/compose + core/init + runWorkflow in 4 tests, all green. DEC-RUNNER-009 closed.'
-    summary: 'Depends on @underwai/core (data structure) and @underwai/schema (getHumanMode reads the marker on a node''s inputSchema). The WorkflowRuntime service is the only way for the consumer''s program to mutate state (TASK-B, TASK-T).'
 human_notes: |
 
 status: dirty

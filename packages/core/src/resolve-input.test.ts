@@ -2,13 +2,22 @@
 // applies each bridge to the upstream's resolved output, and
 // returns the final input value.
 import { describe, expect, it } from "vitest";
-import { compose, chain, run, init, resolveInput, deserialize, serialize } from "@underwai/core";
-import { NodeKey, WorkflowId } from "@underwai/core";
-import type { NodeDefinition, WorkflowState, Node, Edge } from "@underwai/core";
+import {
+  chain,
+  compose,
+  deserialize,
+  init,
+  NodeKey,
+  resolveInput,
+  run,
+  serialize,
+  WorkflowId,
+} from "@underwai/core";
+import type { Edge, Node, NodeDefinition, WorkflowState } from "@underwai/core";
 import { z } from "zod";
 import { Effect } from "effect";
 
-function def(kind: string): NodeDefinition<unknown> {
+function def(kind: string): NodeDefinition {
   return {
     kind,
     inputSchema: z.unknown(),

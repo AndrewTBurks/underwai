@@ -114,16 +114,16 @@ export function chain<P extends string, TOut, TIn, K extends string>(
 ): NodeRef<`${P}.${K}`>;
 export function chain(
   parent: NodeRef,
-  arg2: (NodeDefinition<unknown> & { kind: string }) | ((parentOut: unknown) => unknown),
-  arg3?: NodeDefinition<unknown> & { kind: string },
+  arg2: (NodeDefinition & { kind: string }) | ((parentOut: unknown) => unknown),
+  arg3?: NodeDefinition & { kind: string },
 ): NodeRef {
-  let def: NodeDefinition<unknown> & { kind: string };
+  let def: NodeDefinition & { kind: string };
   let bridge: ((parentOut: unknown) => unknown) | undefined;
   if (typeof arg2 === "function") {
     bridge = arg2 as (parentOut: unknown) => unknown;
-    def = arg3 as NodeDefinition<unknown> & { kind: string };
+    def = arg3 as NodeDefinition & { kind: string };
   } else {
-    def = arg2 as NodeDefinition<unknown> & { kind: string };
+    def = arg2 as NodeDefinition & { kind: string };
   }
   const childKey = `${parent.key as string}.${def.kind}`;
   recordDef(childKey, def, parent.key as string, bridge);

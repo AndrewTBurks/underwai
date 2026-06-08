@@ -26,8 +26,10 @@ function makeState(
   nodes: Record<string, Node>,
   edges: Array<{ from: string; to: string }> = [],
 ): WorkflowState {
-  const es: Array<{ from: import("./keys.js").NodeKey; to: import("./keys.js").NodeKey }> =
-    edges.map((e) => ({ from: NodeKey(e.from), to: NodeKey(e.to) }));
+  const es: Array<{ from: NodeKey; to: NodeKey }> = edges.map((e) => ({
+    from: NodeKey(e.from),
+    to: NodeKey(e.to),
+  }));
   const edgesByTarget: Record<string, Array<(typeof es)[number]>> = {};
   const edgesByFrom: Record<string, Array<(typeof es)[number]>> = {};
   for (const e of es) {

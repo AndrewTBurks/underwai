@@ -5,13 +5,11 @@
 import { describe, expect, it } from "vitest";
 import { Effect } from "effect";
 import { WorkflowRuntime, WorkflowRuntimeLive } from "./runtime.js";
-import { compose, run } from "@underwai/core";
-import { init } from "@underwai/core";
-import { NodeKey, WorkflowId } from "@underwai/core";
+import { compose, init, NodeKey, run, WorkflowId } from "@underwai/core";
 import type { NodeDefinition } from "@underwai/core";
 import { z } from "zod";
 
-function def(kind: string): NodeDefinition<unknown> {
+function def(kind: string): NodeDefinition {
   return {
     kind,
     inputSchema: z.unknown(),

@@ -23,15 +23,15 @@
 //   2. all upstream nodes are status.kind === "resolved"
 
 import type { ZodTypeAny } from "zod";
-import { NodeKey, WorkflowId, type FieldKey } from "./keys.js";
+import { NodeKey, type FieldKey } from "./keys.js";
 import { getHumanMode } from "@underwai/schema";
+import type { CompositionTree } from "./composition.js";
 import type {
   Edge,
   HumanInputDisplay,
   Node,
   NodeKey as NodeKeyT,
-  ResolvedInput,
-  SerializedError,
+  WorkflowId,
   WorkflowState,
 } from "./types.js";
 import { z } from "zod";
@@ -39,10 +39,7 @@ import { z } from "zod";
 // init: build a WorkflowState from a CompositionTree. Walks the
 // tree's defs, creates a Node for each, applies edges with bridges,
 // and builds the derived indices.
-export function init(
-  tree: import("./composition.js").CompositionTree,
-  id: WorkflowId,
-): WorkflowState {
+export function init(tree: CompositionTree, id: WorkflowId): WorkflowState {
   const now = new Date().toISOString();
   const nodes: Record<string, Node> = {};
   for (const [key, def] of tree.defs.entries()) {
@@ -338,4 +335,5 @@ export function resolveInput(state: WorkflowState, key: NodeKeyT): unknown {
   return edge.bridge ? edge.bridge(upstream.status.finalOutput) : upstream.status.finalOutput;
 }
 
-export { NodeKey, WorkflowId, z };
+export { NodeKey, z };
+export type { WorkflowId };

@@ -3,7 +3,7 @@
 // lives on the variants that own it. We assert the discriminant and
 // the per-variant field shapes via the type system.
 import { describe, expectTypeOf, it } from "vitest";
-import type { Node, NodeStatus } from "./types.js";
+import type { Node, NodeKey, NodeStatus } from "./types.js";
 
 describe("Node['status']", () => {
   it("is a discriminated union with kind as the discriminant", () => {
@@ -33,7 +33,7 @@ describe("Node['status']", () => {
   it("failed variant carries error and failedAt", () => {
     type S = Extract<NodeStatus, { kind: "failed" }>;
     type E = S["error"];
-    expectTypeOf<E["nodeId"]>().toEqualTypeOf<import("./keys.js").NodeKey>();
+    expectTypeOf<E["nodeId"]>().toEqualTypeOf<NodeKey>();
     expectTypeOf<S["failedAt"]>().toEqualTypeOf<string>();
   });
 
@@ -44,7 +44,7 @@ describe("Node['status']", () => {
 
   it("stale variant carries optional previousOutput", () => {
     type S = Extract<NodeStatus, { kind: "stale" }>;
-    expectTypeOf<S["previousOutput"]>().toEqualTypeOf<unknown | undefined>();
+    expectTypeOf<S["previousOutput"]>().toEqualTypeOf<unknown>();
   });
 
   it("pending variant carries no extra fields", () => {

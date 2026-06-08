@@ -9,7 +9,7 @@ import type { NodeDefinition } from "./composition.js";
 import { init } from "./operations.js";
 import { WorkflowId } from "./keys.js";
 
-function def(kind: string): NodeDefinition<unknown> {
+function def(kind: string): NodeDefinition {
   const program = ((_input: unknown) => Effect.succeed(undefined)) as never;
   return {
     kind,

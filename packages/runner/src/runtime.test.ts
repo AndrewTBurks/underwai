@@ -20,13 +20,19 @@
 import { describe, expect, it } from "vitest";
 import { Effect } from "effect";
 import { WorkflowRuntime, WorkflowRuntimeLive, runWorkflow } from "./runtime.js";
-import { compose, chain, run, LiveSubscriptionRegistry } from "@underwai/core";
-import { init } from "@underwai/core";
-import { NodeKey, WorkflowId } from "@underwai/core";
+import {
+  chain,
+  compose,
+  init,
+  LiveSubscriptionRegistry,
+  NodeKey,
+  run,
+  WorkflowId,
+} from "@underwai/core";
 import type { NodeDefinition } from "@underwai/core";
 import { z } from "zod";
 
-function def(kind: string): NodeDefinition<unknown> {
+function def(kind: string): NodeDefinition {
   return {
     kind,
     inputSchema: z.unknown(),

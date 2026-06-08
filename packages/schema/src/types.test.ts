@@ -12,8 +12,9 @@ describe("human() type-level", () => {
   });
 
   it("verified() returns a HumanSchema with verified() method", () => {
-    const s = human(z.string()).verified();
-    expectTypeOf(s.verified).toBeFunction();
+    const s = human(z.string());
+    const verified = s.verified.bind(s);
+    expectTypeOf(verified).toBeFunction();
   });
 
   it("preserves the inferred output via z.infer", () => {

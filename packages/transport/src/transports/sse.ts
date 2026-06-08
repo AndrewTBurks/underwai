@@ -12,7 +12,7 @@
 //
 // The structure is real; tests use a mock sink/stream.
 import type { LiveSubscriptionRegistry, WorkflowState } from "@underwai/core";
-import { encodeSseEvent, type WorkflowEvent } from "../event-stream.js";
+import { deserializeEvent, encodeSseEvent, type WorkflowEvent } from "../event-stream.js";
 
 export type SseSink = {
   write: (chunk: string) => void;
@@ -76,7 +76,6 @@ export class SseClient {
       for (const line of lines) {
         if (line.startsWith("data: ")) {
           const json = line.slice("data: ".length);
-          const { deserializeEvent } = await import("../event-stream.js");
           yield deserializeEvent(json);
         }
       }

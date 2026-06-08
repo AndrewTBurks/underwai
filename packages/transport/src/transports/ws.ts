@@ -12,8 +12,7 @@
 //
 // The structure is real; tests use a mock send/recv.
 import type { LiveSubscriptionRegistry, NodeKey, WorkflowState } from "@underwai/core";
-import { serializeEvent, type WorkflowEvent } from "../event-stream.js";
-import { deserializeEvent } from "../event-stream.js";
+import { deserializeEvent, serializeEvent, type WorkflowEvent } from "../event-stream.js";
 
 export type WsSend = (frame: string) => void;
 export type WsClose = () => void;
@@ -77,12 +76,19 @@ export type WsLike = {
 };
 
 export class WsClient {
-  events: WorkflowEvent[] = [];
-  parse(ws: WsLike): WorkflowEvent[] {
+  // events: the queue of incoming events. Private: consumers
+  // should not mutate the queue directly. Read via .events
+  // (the getter). Per the audit, the previous public mutable
+  // field was a smell.
+  #events: WorkflowEvent[] = [];
+  get events(): readonly WorkflowEvent[] {
+    return this.#events;
+  }
+  parse(ws: WsLike): readonly WorkflowEvent[] {
     ws.on("message", (data) => {
-      this.events.push(deserializeEvent(data));
+      this.#events.push(deserializeEvent(data));
     });
-    return this.events;
+    return this.#events;
   }
 
   // write: send a consumer-injection frame. The server applies

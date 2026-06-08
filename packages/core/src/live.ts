@@ -7,7 +7,7 @@
 // useSyncExternalStore.
 import type { Node, NodeKey, WorkflowState } from "./types.js";
 
-export type LiveCallback = (state: WorkflowState) => void;
+type LiveCallback = (state: WorkflowState) => void;
 
 export class LiveSubscriptionRegistry {
   private byKey: Map<string, Set<LiveCallback>> = new Map();

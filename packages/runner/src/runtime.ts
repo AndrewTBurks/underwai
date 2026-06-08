@@ -6,32 +6,24 @@
 // owner uses write / writeHumanInput to inject values from
 // outside the program.
 import { Context, Effect, Layer, Ref } from "effect";
-import type { Node, NodeKey, WorkflowState , LiveSubscriptionRegistry} from "@underwai/core";
+import type { NodeKey, WorkflowState, LiveSubscriptionRegistry } from "@underwai/core";
 import { resolveInput } from "@underwai/core";
 import {
   markFailed,
-  markPaused,
   markResolved,
   markRunning,
   markStreaming,
-  markStale,
   writeHumanInput as writeHumanInputMutation,
 } from "./mutations.js";
 
 // WorkflowRuntime service interface.
 export interface WorkflowRuntimeShape {
-  readonly run: (opts: RunOptions) => Effect.Effect<WorkflowState, never>;
-  readonly publish: (
-    output: unknown,
-    partial: boolean,
-  ) => Effect.Effect<WorkflowState, never>;
-  readonly write: (key: NodeKey, value: unknown) => Effect.Effect<WorkflowState, never>;
-  readonly writeHumanInput: (
-    key: NodeKey,
-    value: unknown,
-  ) => Effect.Effect<WorkflowState, never>;
-  readonly getState: () => Effect.Effect<WorkflowState, never>;
-  readonly subscribe: (cb: (state: WorkflowState) => void) => Effect.Effect<void, never>;
+  readonly run: (opts: RunOptions) => Effect.Effect<WorkflowState>;
+  readonly publish: (output: unknown, partial: boolean) => Effect.Effect<WorkflowState>;
+  readonly write: (key: NodeKey, value: unknown) => Effect.Effect<WorkflowState>;
+  readonly writeHumanInput: (key: NodeKey, value: unknown) => Effect.Effect<WorkflowState>;
+  readonly getState: () => Effect.Effect<WorkflowState>;
+  readonly subscribe: (cb: (state: WorkflowState) => void) => Effect.Effect<void>;
 }
 
 // WorkflowRuntime Context.Tag. Identified by the underwai/ prefix
@@ -44,9 +36,7 @@ export class WorkflowRuntime extends Context.Tag("@underwai/WorkflowRuntime")<
 // RunOptions: how to start a workflow.
 export type RunOptions = {
   readonly state: WorkflowState;
-  readonly programs: Readonly<
-    Record<string, (input: unknown) => Effect.Effect<unknown, Error>>
-  >;
+  readonly programs: Readonly<Record<string, (input: unknown) => Effect.Effect<unknown, Error>>>;
   readonly maxIterations?: number;
   readonly liveRegistry?: LiveSubscriptionRegistry;
 };
@@ -60,9 +50,7 @@ export type RunOptions = {
 //     const rt = yield* WorkflowRuntime
 //     const final = yield* rt.run({ state, programs })
 //   }).pipe(Effect.provide(WorkflowRuntimeLive({ state, programs })))
-export const WorkflowRuntimeLive = (
-  initialOpts: RunOptions,
-): Layer.Layer<WorkflowRuntime, never> =>
+export const WorkflowRuntimeLive = (initialOpts: RunOptions): Layer.Layer<WorkflowRuntime> =>
   Layer.effect(
     WorkflowRuntime,
     Effect.gen(function* () {
@@ -257,15 +245,3 @@ export function runWorkflow(
     return yield* rt.run(opts);
   });
 }
-
-// writeHumanInput helper: pure state transition. Internal.
-export function writeHumanInput(
-  state: WorkflowState,
-  nodeId: NodeKey,
-  value: unknown,
-): WorkflowState {
-  return writeHumanInputMutation(state, nodeId, value, new Date().toISOString());
-}
-
-// Re-export for backwards compatibility.
-export { markPaused, markStale };
