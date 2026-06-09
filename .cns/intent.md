@@ -375,4 +375,5 @@ User-reported defects on the join (parallel merge) demo + one new feature. Four 
 ### JF-4: App-level option wiring ✅ Done (2026-06-08)
 → [`.cns/plans/join-fixes/phase-4-app-option.md`](plans/join-fixes/phase-4-app-option.md). `Demo` type gains `maxConcurrent?: number`. Join demo sets `maxConcurrent: 4`. `ExampleShell` passes it through to `rt.run` (with a default-undefined branch to satisfy `exactOptionalPropertyTypes`). Other demos default to 1. New test asserts parallel-vs-sequential wall-clock improvement (`parMs < seqMs * 0.85`).
 
-Sequential per Andrew's preference. Commit + push after each phase.
+### JF-5: Event log sequence numbers (inverted) ✅ Done (2026-06-08)
+→ Replaced the `HH:MM:SS.mmm` timestamp column with sequence numbers (`#001` = latest, `#NNN` = oldest). The runtime fires many markRunning/markResolved calls in the same tick (especially after JF-3's event-driven dispatch), so timestamps collided. Sequence numbers are unique per event and match the consumer's mental model (latest first). Time column narrowed 90px → 50px. Events array still in chronological order; only the display is inverted.
