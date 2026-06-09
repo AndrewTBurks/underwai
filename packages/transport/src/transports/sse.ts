@@ -45,7 +45,7 @@ export class SseServer {
 function stateToEvents(state: WorkflowState): WorkflowEvent[] {
   const events: WorkflowEvent[] = [];
   const timestamp = state.updatedAt;
-  for (const [key, node] of Object.entries(state.nodes)) {
+  for (const [key, node] of state.nodes) {
     events.push({
       kind: "node-updated",
       key,

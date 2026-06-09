@@ -8,8 +8,10 @@
 import { Context, Effect, Layer, Ref } from "effect";
 import type { NodeKey, WorkflowState, LiveSubscriptionRegistry } from "@underwai/core";
 import { resolveInput } from "@underwai/core";
+import { getHumanMode } from "@underwai/schema";
 import {
   markFailed,
+  markPaused,
   markResolved,
   markRunning,
   markStreaming,
@@ -34,9 +36,13 @@ export class WorkflowRuntime extends Context.Tag("@underwai/WorkflowRuntime")<
 >() {}
 
 // RunOptions: how to start a workflow.
+//
+// Note: `state` carries the defs (see state.defs), so the
+// runtime reads programs from there. The `programs` field
+// is removed — consumers no longer thread a parallel
+// programs record. (TASK-39 follow-up.)
 export type RunOptions = {
   readonly state: WorkflowState;
-  readonly programs: Readonly<Record<string, (input: unknown) => Effect.Effect<unknown, Error>>>;
   readonly maxIterations?: number;
   readonly liveRegistry?: LiveSubscriptionRegistry;
 };
@@ -99,7 +105,7 @@ export const WorkflowRuntimeLive = (initialOpts: RunOptions): Layer.Layer<Workfl
             return next;
           }),
 
-        run: (opts) =>
+        run: (opts): Effect.Effect<WorkflowState, never, never> =>
           Effect.gen(function* () {
             const initial = yield* Ref.get(stateRef);
             void opts;
@@ -129,9 +135,15 @@ export const WorkflowRuntimeLive = (initialOpts: RunOptions): Layer.Layer<Workfl
                 break;
               }
               for (const key of ready) {
-                const node = state.nodes[key as unknown as string];
+                const node = state.nodes.get(key);
                 if (!node) continue;
-                const program = opts.programs[key as unknown as string];
+                // Read the program from state.defs (carried
+                // by the WorkflowState, populated at init time
+                // from the composition's node() calls). The
+                // consumer no longer threads a separate
+                // programs record.
+                const def = state.defs.get(key);
+                const program = def?.program;
                 if (!program) {
                   const now = new Date().toISOString();
                   result = markFailed(
@@ -139,12 +151,26 @@ export const WorkflowRuntimeLive = (initialOpts: RunOptions): Layer.Layer<Workfl
                     key,
                     {
                       nodeId: key,
-                      message: `no program for ${key as unknown as string}`,
+                      message: `no def for ${key as unknown as string}`,
                     },
                     now,
                   );
                   yield* Ref.set(stateRef, result);
                   notify(result);
+                  continue;
+                }
+                // If the node's schema is human-marked AND
+                // the input hasn't been set, pause and wait
+                // for the form submission. Once the human
+                // value is set, the program runs with the
+                // value as its input.
+                const humanMode = getHumanMode(node.inputSchema);
+                if (humanMode !== undefined && node.input.value === undefined) {
+                  const now = new Date().toISOString();
+                  result = markPaused(state, key, now);
+                  yield* Ref.set(stateRef, result);
+                  notify(result);
+                  currentKey = null;
                   continue;
                 }
                 const now = new Date().toISOString();
@@ -199,36 +225,35 @@ let currentKey: NodeKey | null = null;
 // context. Same algorithm; inlined for clarity.
 function findReadyNodesLocal(state: WorkflowState): ReadonlyArray<NodeKey> {
   const ready: NodeKey[] = [];
-  const inEdges: Record<string, string[]> = {};
-  const outEdges: Record<string, string[]> = {};
-  for (const id of Object.keys(state.nodes)) {
-    inEdges[id] = [];
-    outEdges[id] = [];
+  const inEdges = new Map<NodeKey, NodeKey[]>();
+  const outEdges = new Map<NodeKey, NodeKey[]>();
+  for (const id of state.nodes.keys()) {
+    inEdges.set(id, []);
+    outEdges.set(id, []);
   }
   for (const e of state.edges) {
-    const from = e.from as unknown as string;
-    const to = e.to as unknown as string;
-    inEdges[to]?.push(from);
-    outEdges[from]?.push(to);
+    inEdges.get(e.to)?.push(e.from);
+    outEdges.get(e.from)?.push(e.to);
   }
-  const queue: string[] = [];
-  const visited = new Set<string>();
-  for (const id of Object.keys(state.nodes)) {
-    if ((inEdges[id] ?? []).length === 0) queue.push(id);
+  const queue: NodeKey[] = [];
+  const visited = new Set<NodeKey>();
+  for (const [id, inList] of inEdges) {
+    if (inList.length === 0) queue.push(id);
   }
   while (queue.length > 0) {
     const id = queue.shift()!;
     if (visited.has(id)) continue;
     visited.add(id);
-    const n = state.nodes[id];
+    const n = state.nodes.get(id);
     if (!n) continue;
     if (n.status.kind === "pending" || n.status.kind === "stale") {
-      const isRoot = (inEdges[id] ?? []).length === 0;
-      if (isRoot || (inEdges[id] ?? []).every((u) => state.nodes[u]?.status.kind === "resolved")) {
-        ready.push(id as unknown as NodeKey);
+      const inList = inEdges.get(id) ?? [];
+      const isRoot = inList.length === 0;
+      if (isRoot || inList.every((u) => state.nodes.get(u)?.status.kind === "resolved")) {
+        ready.push(id);
       }
     }
-    for (const next of outEdges[id] ?? []) {
+    for (const next of outEdges.get(id) ?? []) {
       if (!visited.has(next)) queue.push(next);
     }
   }

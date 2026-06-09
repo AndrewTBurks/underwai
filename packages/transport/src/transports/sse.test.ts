@@ -9,24 +9,28 @@ import { z } from "zod";
 function makeState(): WorkflowState {
   return {
     id: WorkflowId("wf-1"),
+    defs: new Map(),
     version: 1,
     status: "running",
-    nodes: {
-      root: {
-        id: NodeKey("root"),
-        kind: "root",
-        inputSchema: z.unknown(),
-        input: { value: "hello", schema: z.unknown(), humanFields: new Map() },
-        outputSchema: z.unknown(),
-        status: { kind: "resolved", finalOutput: "done", resolvedAt: "T" },
-        actor: "system",
-        createdAt: "T",
-        updatedAt: "T",
-      },
-    },
+    nodes: new Map([
+      [
+        NodeKey("root"),
+        {
+          id: NodeKey("root"),
+          kind: "root",
+          inputSchema: z.unknown(),
+          input: { value: "hello", schema: z.unknown(), humanFields: new Map() },
+          outputSchema: z.unknown(),
+          status: { kind: "resolved", finalOutput: "done", resolvedAt: "T" },
+          actor: "system",
+          createdAt: "T",
+          updatedAt: "T",
+        },
+      ],
+    ]),
     edges: [],
-    edgesByTarget: {},
-    edgesByFrom: {},
+    edgesByTarget: new Map(),
+    edgesByFrom: new Map(),
     createdAt: "T",
     updatedAt: "T",
   };

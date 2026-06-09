@@ -1,33 +1,69 @@
 import { describe, expect, it } from "vitest";
 import { subscribe, subscribeSet } from "./subscribe.js";
-import type { Node, WorkflowState } from "@underwai/core";
-import { LiveSubscriptionRegistry, NodeKey, WorkflowId } from "@underwai/core";
+import type { Node } from "@underwai/core";
+import { LiveSubscriptionRegistry, NodeKey, WorkflowId, init, node, workflow } from "@underwai/core";
+import { z } from "zod";
+import { Effect } from "effect";
 
-function makeState(): WorkflowState {
+function makeState() {
+  // Build a real composition and run init() to get a
+  // WorkflowState with defs attached. The transport
+  // tests don't run the workflow — they just need a
+  // valid state shape with the right node set.
+  //
+  // Composition: root -> a -> x, plus a separate
+  // root -> b (joined onto the same root).
+  // State nodes: root, root.a, root.a.x, root.b.
+  const root = workflow()
+    .run(
+      node({
+        kind: "root",
+        schema: z.unknown(),
+        program: () => Effect.succeed(undefined) as never,
+      }),
+    );
+  const aChain = root
+    .chain(
+      node({
+        kind: "a",
+        schema: z.unknown(),
+        program: () => Effect.succeed(undefined) as never,
+      }),
+    )
+    .chain(
+      node({
+        kind: "x",
+        schema: z.unknown(),
+        program: () => Effect.succeed(undefined) as never,
+      }),
+    );
+  // Transport tests don't need a real composition. Hand-build
+  // a state with the right node set in Map form.
   const make = (k: string): Node => ({
     id: NodeKey(k),
     kind: k,
-    inputSchema: undefined as never,
-    input: { value: undefined, schema: undefined as never, humanFields: new Map() },
-    outputSchema: undefined as never,
+    inputSchema: z.unknown(),
+    input: { value: undefined, schema: z.unknown(), humanFields: new Map() },
+    outputSchema: z.unknown(),
     status: { kind: "pending" },
     actor: "system",
     createdAt: "T",
     updatedAt: "T",
   });
+  const nodes = new Map<NodeKey, Node>();
+  nodes.set(NodeKey("root"), make("root"));
+  nodes.set(NodeKey("root.a"), make("root.a"));
+  nodes.set(NodeKey("root.b"), make("root.b"));
+  nodes.set(NodeKey("root.a.x"), make("root.a.x"));
   return {
     id: WorkflowId("wf-1"),
     version: 1,
-    status: "running",
-    nodes: {
-      root: make("root"),
-      "root.a": make("root.a"),
-      "root.b": make("root.b"),
-      "root.a.x": make("root.a.x"),
-    },
+    status: "running" as const,
+    nodes,
     edges: [],
-    edgesByTarget: {},
-    edgesByFrom: {},
+    edgesByTarget: new Map(),
+    edgesByFrom: new Map(),
+    defs: new Map(),
     createdAt: "T",
     updatedAt: "T",
   };

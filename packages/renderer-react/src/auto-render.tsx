@@ -8,7 +8,7 @@ import { defaultRenderer, getKindRenderer } from "./registry.js";
 
 export function AutoRender({ state }: { state: WorkflowState }): ReactElement {
   const children: ReactElement[] = [];
-  for (const [, node] of Object.entries(state.nodes)) {
+  for (const [, node] of state.nodes) {
     const renderer = getKindRenderer(node.kind) ?? defaultRenderer;
     children.push(renderer(state, node));
   }

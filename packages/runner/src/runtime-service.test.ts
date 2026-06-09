@@ -2,81 +2,95 @@
 // state, exposes { run, publish, write, writeHumanInput, getState,
 // subscribe }, and programs use the service via Effect's standard
 // yield* pattern.
+//
+// Programs are wired into the composition via node()'s `program`
+// field; the runtime reads them from state.defs.
 import { describe, expect, it } from "vitest";
 import { Effect } from "effect";
 import { WorkflowRuntime, WorkflowRuntimeLive } from "./runtime.js";
-import { compose, init, NodeKey, run, WorkflowId } from "@underwai/core";
-import type { NodeDefinition } from "@underwai/core";
+import {
+  init,
+  node,
+  NodeKey,
+  workflow,
+  WorkflowId,
+  type NodeDefinition,
+} from "@underwai/core";
 import { z } from "zod";
 
-function def(kind: string): NodeDefinition {
-  return {
+function def<R = never>(
+  kind: string,
+  program: (input: unknown) => Effect.Effect<unknown, Error, R>,
+): NodeDefinition<unknown, unknown, typeof kind> {
+  return node({
     kind,
-    inputSchema: z.unknown(),
-    outputSchema: z.unknown(),
-    program: ((_input: unknown) => Effect.succeed(undefined)) as never,
-  };
+    schema: z.unknown(),
+    program: ((i: unknown) => program(i)) as never,
+  });
 }
 
 describe("WorkflowRuntime service", () => {
   it("publish transitions a running node to streaming then resolved", async () => {
-    const { tree } = compose(() => run(def("root")));
-    const state = init(tree, WorkflowId("wf-pub"));
-    const programs = {
-      root: () =>
-        Effect.gen(function* () {
-          const rt = yield* WorkflowRuntime;
-          yield* rt.publish({ progress: 0.5 }, true);
-          yield* rt.publish({ progress: 1.0 }, true);
-          return "done";
-        }) as never,
-    };
+    const built = workflow()
+      .run(
+        def("root", () =>
+          Effect.gen(function* () {
+            const rt = yield* WorkflowRuntime;
+            yield* rt.publish({ progress: 0.5 }, true);
+            yield* rt.publish({ progress: 1.0 }, true);
+            return "done";
+          }),
+        ),
+      )
+      .build();
+    const state = init(built.tree, WorkflowId("wf-pub"));
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         const rt = yield* WorkflowRuntime;
-        return yield* rt.run({ state, programs });
-      }).pipe(Effect.provide(WorkflowRuntimeLive({ state, programs }))),
+        return yield* rt.run({ state });
+      }).pipe(Effect.provide(WorkflowRuntimeLive({ state }))),
     );
     expect(result.status).toBe("completed");
-    const node = result.nodes["root"]!;
-    if (node.status.kind === "resolved") {
-      expect(node.status.finalOutput).toBe("done");
+    const n = result.nodes.get(NodeKey("root"))!;
+    if (n.status.kind === "resolved") {
+      expect(n.status.finalOutput).toBe("done");
     }
   });
 
   it("write injects a value into a pending node and resolves it", async () => {
-    const { tree } = compose(() => run(def("root")));
-    const initial = init(tree, WorkflowId("wf-write"));
-    const programs = {
-      root: () => Effect.succeed("should not run") as never,
-    };
-    // Build the service layer once so write and run share state.
-    const layer = WorkflowRuntimeLive({ state: initial, programs });
+    const built = workflow()
+      .run(def("root", () => Effect.succeed("should not run")))
+      .build();
+    const initial = init(built.tree, WorkflowId("wf-write"));
+    const layer = WorkflowRuntimeLive({ state: initial });
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         const rt = yield* WorkflowRuntime;
         yield* rt.write(NodeKey("root"), "injected");
-        return yield* rt.run({ state: initial, programs });
+        return yield* rt.run({ state: initial });
       }).pipe(Effect.provide(layer)),
     );
     expect(result.status).toBe("completed");
-    const node = result.nodes["root"]!;
-    if (node.status.kind === "resolved") {
-      expect(node.status.finalOutput).toBe("injected");
+    const n = result.nodes.get(NodeKey("root"))!;
+    if (n.status.kind === "resolved") {
+      expect(n.status.finalOutput).toBe("injected");
     }
   });
 
   it("writeHumanInput marks a node stale with the new input value", async () => {
-    const { tree } = compose(() => run(def("root")));
-    const initial = init(tree, WorkflowId("wf-whi"));
+    const built = workflow()
+      .run(def("root", () => Effect.succeed("never runs")))
+      .build();
+    const initial = init(built.tree, WorkflowId("wf-whi"));
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         const rt = yield* WorkflowRuntime;
-        return yield* rt.writeHumanInput(NodeKey("root"), "human-input");
-      }).pipe(Effect.provide(WorkflowRuntimeLive({ state: initial, programs: {} }))),
+        const next = yield* rt.writeHumanInput(NodeKey("root"), "human-input");
+        return next;
+      }).pipe(Effect.provide(WorkflowRuntimeLive({ state: initial }))),
     );
-    const node = result.nodes["root"]!;
-    expect(node.input.value).toBe("human-input");
-    expect(node.status.kind).toBe("stale");
+    const n = result.nodes.get(NodeKey("root"))!;
+    expect(n.input.value).toBe("human-input");
+    expect(n.status.kind).toBe("stale");
   });
 });

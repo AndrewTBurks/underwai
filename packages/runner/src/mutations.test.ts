@@ -28,12 +28,13 @@ function makeState(status: NodeStatus = { kind: "pending" }): WorkflowState {
   };
   return {
     id: WorkflowId("wf-1"),
+    defs: new Map(),
     version: 1,
     status: "running",
-    nodes: { root: root },
+    nodes: new Map([[NodeKey("root"), root]]),
     edges: [],
-    edgesByTarget: {},
-    edgesByFrom: {},
+    edgesByTarget: new Map(),
+    edgesByFrom: new Map(),
     createdAt: "2026-06-07T00:00:00.000Z",
     updatedAt: "2026-06-07T00:00:00.000Z",
   };
@@ -43,7 +44,7 @@ describe("markRunning()", () => {
   it("transitions pending to running with startedAt", () => {
     const state = makeState();
     const next = markRunning(state, NodeKey("root"), "T");
-    const node = next.nodes["root"]!;
+    const node = next.nodes.get(NodeKey("root"))!;
     expect(node.status.kind).toBe("running");
     if (node.status.kind === "running") {
       expect(node.status.startedAt).toBe("T");
@@ -55,7 +56,7 @@ describe("markStreaming()", () => {
   it("transitions running to streaming with output", () => {
     const state = makeState({ kind: "running", startedAt: "T" });
     const next = markStreaming(state, NodeKey("root"), { partial: 1 }, true, "T2");
-    const node = next.nodes["root"]!;
+    const node = next.nodes.get(NodeKey("root"))!;
     expect(node.status.kind).toBe("streaming");
     if (node.status.kind === "streaming") {
       expect(node.status.output).toEqual({ partial: 1 });
@@ -68,7 +69,7 @@ describe("markResolved()", () => {
   it("transitions to resolved with finalOutput and resolvedAt", () => {
     const state = makeState({ kind: "running", startedAt: "T" });
     const next = markResolved(state, NodeKey("root"), { done: true }, "T3");
-    const node = next.nodes["root"]!;
+    const node = next.nodes.get(NodeKey("root"))!;
     expect(node.status.kind).toBe("resolved");
     if (node.status.kind === "resolved") {
       expect(node.status.finalOutput).toEqual({ done: true });
@@ -82,7 +83,7 @@ describe("markFailed()", () => {
     const state = makeState({ kind: "running", startedAt: "T" });
     const err = { nodeId: NodeKey("root"), message: "boom" };
     const next = markFailed(state, NodeKey("root"), err, "T4");
-    const node = next.nodes["root"]!;
+    const node = next.nodes.get(NodeKey("root"))!;
     expect(node.status.kind).toBe("failed");
     if (node.status.kind === "failed") {
       expect(node.status.error.message).toBe("boom");
@@ -96,14 +97,11 @@ describe("markPaused()", () => {
   it("transitions a node to paused; workflow status is unchanged", () => {
     const state = makeState({ kind: "pending" });
     const next = markPaused(state, NodeKey("root"), "T5");
-    const node = next.nodes["root"]!;
+    const node = next.nodes.get(NodeKey("root"))!;
     expect(node.status.kind).toBe("paused");
     if (node.status.kind === "paused") {
       expect(node.status.pausedAt).toBe("T5");
     }
-    // Per-node paused; workflow status stays as it was. The
-    // workflow-level "paused" status was a phantom slot and
-    // was removed in TASK-37.
     expect(next.status).toBe("running");
   });
 });
@@ -116,7 +114,7 @@ describe("markStale()", () => {
       resolvedAt: "T",
     });
     const next = markStale(state, NodeKey("root"), "T6");
-    const node = next.nodes["root"]!;
+    const node = next.nodes.get(NodeKey("root"))!;
     expect(node.status.kind).toBe("stale");
     if (node.status.kind === "stale") {
       expect(node.status.previousOutput).toBe("previous");
@@ -132,7 +130,7 @@ describe("writeHumanInput()", () => {
       resolvedAt: "T",
     });
     const next = writeHumanInput(state, NodeKey("root"), "new", "T7");
-    const node = next.nodes["root"]!;
+    const node = next.nodes.get(NodeKey("root"))!;
     expect(node.input.value).toBe("new");
     expect(node.status.kind).toBe("stale");
   });

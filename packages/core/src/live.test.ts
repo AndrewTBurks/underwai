@@ -21,12 +21,13 @@ function makeState(): WorkflowState {
   };
   return {
     id: WorkflowId("wf-1"),
+    defs: new Map(),
     version: 1,
     status: "running",
-    nodes: { root: node },
+    nodes: new Map([[NodeKey("root"), node]]),
     edges: [],
-    edgesByTarget: {},
-    edgesByFrom: {},
+    edgesByTarget: new Map(),
+    edgesByFrom: new Map(),
     createdAt: "T",
     updatedAt: "T",
   };

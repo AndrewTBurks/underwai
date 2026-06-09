@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-07T20:24:10.691574+00:00",
+  "generated": "2026-06-09T11:52:25.897056+00:00",
   "nodes": [
     {
       "path": ".cns/architecture/index.md",
@@ -63,6 +63,15 @@
       "parent": "../../.cns/index.md",
       "status": "dirty",
       "decision_count": 18
+    },
+    {
+      "path": "packages/examples/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/examples/index.md",
+      "title": "@underwai/examples",
+      "type": "package",
+      "parent": "../../.cns/index.md",
+      "status": "dirty",
+      "decision_count": 3
     },
     {
       "path": "packages/renderer-log/index.md",
@@ -138,6 +147,11 @@
     },
     {
       "from": "packages/core/index.md",
+      "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/examples/index.md",
       "to": ".cns/index.md",
       "label": "parent"
     },

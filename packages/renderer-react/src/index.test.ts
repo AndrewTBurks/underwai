@@ -5,47 +5,51 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { createElement, type ReactElement } from "react";
 import { AutoRender, clearRegistry, getKindRenderer, registerKind } from "./index.js";
-import { LiveSubscriptionRegistry, NodeKey, WorkflowId } from "@underwai/core";
+import { NodeKey, WorkflowId } from "@underwai/core";
 import type { Node, WorkflowState } from "@underwai/core";
 import { z } from "zod";
 
+const make = (k: string): Node => ({
+  id: NodeKey(k),
+  kind: k,
+  inputSchema: z.unknown(),
+  input: { value: undefined, schema: z.unknown(), humanFields: new Map() },
+  outputSchema: z.unknown(),
+  status: { kind: "pending" },
+  actor: "system",
+  createdAt: "T",
+  updatedAt: "T",
+});
+
 function makeState(): WorkflowState {
-  const make = (k: string): Node => ({
-    id: NodeKey(k),
-    kind: k,
-    inputSchema: z.unknown(),
-    input: { value: undefined, schema: z.unknown(), humanFields: new Map() },
-    outputSchema: z.unknown(),
-    status: { kind: "pending" },
-    actor: "system",
-    createdAt: "T",
-    updatedAt: "T",
-  });
+  const nodes = new Map<NodeKey, Node>();
+  nodes.set(NodeKey("root"), make("root"));
+  nodes.set(NodeKey("root.a"), make("root.a"));
+  nodes.set(NodeKey("root.b"), make("root.b"));
   return {
     id: WorkflowId("wf-1"),
+    defs: new Map(),
     version: 1,
-    status: "running",
-    nodes: {
-      root: make("root"),
-      "root.a": make("root.a"),
-      "root.b": make("root.b"),
-    },
+    status: "pending",
+    nodes,
     edges: [],
-    edgesByTarget: {},
-    edgesByFrom: {},
+    edgesByTarget: new Map(),
+    edgesByFrom: new Map(),
     createdAt: "T",
     updatedAt: "T",
   };
 }
 
-describe("renderer-react", () => {
+const testFn = (_s: WorkflowState, _n: Node) =>
+  createElement("div", null, "root");
+
+describe("renderer-react — registry + AutoRender", () => {
   beforeEach(() => clearRegistry());
 
   it("registerKind adds a renderer; getKindRenderer returns it", () => {
-    const fn = (_s: WorkflowState, _n: Node) => createElement("div", null, "root");
-    registerKind("root", fn);
+    registerKind("root", testFn);
     const got = getKindRenderer("root");
-    expect(got).toBe(fn);
+    expect(got).toBe(testFn);
   });
 
   it("AutoRender walks the DAG and calls each registered kind renderer", () => {

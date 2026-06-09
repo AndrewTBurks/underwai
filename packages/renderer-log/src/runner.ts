@@ -30,9 +30,9 @@ export function runLogRenderer(
   const render = (state: WorkflowState) => {
     const lines: string[] = [];
     lines.push(`workflow ${state.id} (${state.status})`);
-    for (const [_key, node] of Object.entries(state.nodes)) {
+    for (const [key, node] of state.nodes) {
       const fn = getKindRenderer(node.kind) ?? defaultRenderer;
-      const depth = ((node.id as unknown as string) ?? "").split(".").length - 1;
+      const depth = ((key as unknown as string) ?? "").split(".").length - 1;
       lines.push(fn(node, depth));
     }
     print(lines.join("\n"));

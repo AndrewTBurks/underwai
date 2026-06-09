@@ -28,7 +28,7 @@ export function subscribe(
   onUpdate: (node: Node) => void,
 ): Subscription {
   const unsub = registry.register(key, (state) => {
-    const node = state.nodes[key as unknown as string];
+    const node = state.nodes.get(key);
     if (node) onUpdate(node);
   });
   return { unsubscribe: unsub };

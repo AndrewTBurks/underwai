@@ -16,6 +16,7 @@
     "@underwai/renderer-log": "workspace:*",
     "@underwai/renderer-react": "workspace:*",
     "@underwai/runner": "workspace:*",
+    "@underwai/schema": "workspace:*",
     "@underwai/transport": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

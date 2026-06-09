@@ -11,18 +11,15 @@
 import type { Node, NodeStatus, SerializedError, WorkflowState } from "@underwai/core";
 
 export function markRunning(state: WorkflowState, nodeId: Node["id"], now: string): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string];
+  const node = state.nodes.get(nodeId);
   if (!node) return state;
   return {
     ...state,
-    nodes: {
-      ...state.nodes,
-      [nodeId as unknown as string]: {
-        ...node,
-        status: { kind: "running", startedAt: now },
-        updatedAt: now,
-      },
-    },
+    nodes: new Map(state.nodes).set(nodeId, {
+      ...node,
+      status: { kind: "running", startedAt: now },
+      updatedAt: now,
+    }),
   };
 }
 
@@ -33,18 +30,15 @@ export function markStreaming(
   partial: boolean,
   now: string,
 ): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string];
+  const node = state.nodes.get(nodeId);
   if (!node) return state;
   return {
     ...state,
-    nodes: {
-      ...state.nodes,
-      [nodeId as unknown as string]: {
-        ...node,
-        status: { kind: "streaming", output, outputPartial: partial },
-        updatedAt: now,
-      },
-    },
+    nodes: new Map(state.nodes).set(nodeId, {
+      ...node,
+      status: { kind: "streaming", output, outputPartial: partial },
+      updatedAt: now,
+    }),
   };
 }
 
@@ -54,18 +48,15 @@ export function markResolved(
   finalOutput: unknown,
   now: string,
 ): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string];
+  const node = state.nodes.get(nodeId);
   if (!node) return state;
   return {
     ...state,
-    nodes: {
-      ...state.nodes,
-      [nodeId as unknown as string]: {
-        ...node,
-        status: { kind: "resolved", finalOutput, resolvedAt: now },
-        updatedAt: now,
-      },
-    },
+    nodes: new Map(state.nodes).set(nodeId, {
+      ...node,
+      status: { kind: "resolved", finalOutput, resolvedAt: now },
+      updatedAt: now,
+    }),
   };
 }
 
@@ -75,39 +66,30 @@ export function markFailed(
   error: Node["id"] extends never ? never : SerializedError,
   now: string,
 ): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string];
+  const node = state.nodes.get(nodeId);
   if (!node) return state;
   return {
     ...state,
     status: "failed",
-    nodes: {
-      ...state.nodes,
-      [nodeId as unknown as string]: {
-        ...node,
-        status: { kind: "failed", error, failedAt: now },
-        updatedAt: now,
-      },
-    },
+    nodes: new Map(state.nodes).set(nodeId, {
+      ...node,
+      status: { kind: "failed", error, failedAt: now },
+      updatedAt: now,
+    }),
     error,
   };
 }
 
 export function markPaused(state: WorkflowState, nodeId: Node["id"], now: string): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string];
+  const node = state.nodes.get(nodeId);
   if (!node) return state;
-  // Per-node "paused" only. The workflow-level "paused" status
-  // is a phantom slot (no transition into it) and was removed
-  // in TASK-37. The workflow's own status stays as-is.
   return {
     ...state,
-    nodes: {
-      ...state.nodes,
-      [nodeId as unknown as string]: {
-        ...node,
-        status: { kind: "paused", pausedAt: now },
-        updatedAt: now,
-      },
-    },
+    nodes: new Map(state.nodes).set(nodeId, {
+      ...node,
+      status: { kind: "paused", pausedAt: now },
+      updatedAt: now,
+    }),
   };
 }
 
@@ -116,19 +98,16 @@ export function markPaused(state: WorkflowState, nodeId: Node["id"], now: string
 // Per DEC-RUNNER-005, multiple writes coalesce: the most recent
 // value wins.
 export function markStale(state: WorkflowState, nodeId: Node["id"], now: string): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string];
+  const node = state.nodes.get(nodeId);
   if (!node) return state;
   const previousOutput = node.status.kind === "resolved" ? node.status.finalOutput : undefined;
   return {
     ...state,
-    nodes: {
-      ...state.nodes,
-      [nodeId as unknown as string]: {
-        ...node,
-        status: { kind: "stale", previousOutput },
-        updatedAt: now,
-      },
-    },
+    nodes: new Map(state.nodes).set(nodeId, {
+      ...node,
+      status: { kind: "stale", previousOutput },
+      updatedAt: now,
+    }),
   };
 }
 
@@ -142,19 +121,16 @@ export function writeHumanInput(
   value: unknown,
   now: string,
 ): WorkflowState {
-  const node = state.nodes[nodeId as unknown as string];
+  const node = state.nodes.get(nodeId);
   if (!node) return state;
   return {
     ...state,
-    nodes: {
-      ...state.nodes,
-      [nodeId as unknown as string]: {
-        ...node,
-        input: { ...node.input, value },
-        status: { kind: "stale", previousOutput: extractOutput(node.status) },
-        updatedAt: now,
-      },
-    },
+    nodes: new Map(state.nodes).set(nodeId, {
+      ...node,
+      input: { ...node.input, value },
+      status: { kind: "stale", previousOutput: extractOutput(node.status) },
+      updatedAt: now,
+    }),
   };
 }
 

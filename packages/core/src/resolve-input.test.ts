@@ -3,21 +3,41 @@
 // returns the final input value.
 import { describe, expect, it } from "vitest";
 import {
-  deserialize,
   init,
-  NodeKey,
   node,
   resolveInput,
   serialize,
+  deserialize,
   workflow,
   WorkflowId,
+  type Edge,
+  type Node,
+  type WorkflowState,
+  NodeKey,
 } from "@underwai/core";
-import type { Edge, Node, WorkflowState } from "@underwai/core";
 import { z } from "zod";
 import { Effect } from "effect";
-import { markResolvedLocal } from "./resolve-input.test-helpers.js";
 
-const noop = <T>(_input: T) => Effect.succeed(undefined as never);
+const noop = (_input: unknown) => Effect.succeed(undefined as never);
+
+function markResolvedLocal(
+  state: WorkflowState,
+  nodeId: NodeKey,
+  finalOutput: unknown,
+  now: string,
+): WorkflowState {
+  const node = state.nodes.get(nodeId);
+  if (!node) return state;
+  const updated: Node = {
+    ...node,
+    status: { kind: "resolved", finalOutput, resolvedAt: now },
+    updatedAt: now,
+  };
+  return {
+    ...state,
+    nodes: new Map(state.nodes).set(nodeId, updated),
+  };
+}
 
 describe("resolveInput", () => {
   it("returns the upstream's resolved output through a bridge", () => {
@@ -56,42 +76,51 @@ describe("resolveInput", () => {
       .chain(node({ kind: "join", schema: z.unknown(), program: noop }))
       .build();
     const state = init(tree, WorkflowId("wf-join"));
-    // Manually inject a second edge to root.a.join.
-    const joinKey = "root.a.join";
+    const joinKey = NodeKey("root.join");
     const extraEdge: Edge = {
-      from: "root.b" as never,
-      to: joinKey as never,
+      from: NodeKey("root.b"),
+      to: joinKey,
     };
-    // edgesByTarget is a Record<NodeKey, ...>; cast through
-    // Record<string, ...> for the join-key indexing, then
-    // cast back. The test is documenting a multi-edge shape
-    // that the composition API doesn't yet support.
-    const ebtLoose = state.edgesByTarget as unknown as Record<string, ReadonlyArray<Edge>>;
-    const stateWithB: WorkflowState = {
+    const withB: WorkflowState = {
       ...state,
-      nodes: {
-        ...state.nodes,
-        "root.b": {
-          ...(state.nodes["root.b"] as Node),
-          status: {
-            kind: "resolved" as const,
-            finalOutput: 20,
-            resolvedAt: new Date().toISOString(),
-          },
-          updatedAt: new Date().toISOString(),
-        } as Node,
-      },
+      nodes: new Map(state.nodes).set(NodeKey("root.b"), {
+        id: NodeKey("root.b"),
+        kind: "b",
+        inputSchema: z.unknown(),
+        input: { value: undefined, schema: z.unknown(), humanFields: new Map() },
+        outputSchema: z.unknown(),
+        status: {
+          kind: "resolved",
+          finalOutput: 20,
+          resolvedAt: new Date().toISOString(),
+        },
+        actor: "system",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
       edges: [...state.edges, extraEdge],
-      edgesByTarget: {
-        ...state.edgesByTarget,
-        [joinKey]: [...(ebtLoose[joinKey] ?? []), extraEdge],
-      } as unknown as WorkflowState["edgesByTarget"],
+      edgesByTarget: new Map(state.edgesByTarget).set(joinKey, [
+        ...(state.edgesByTarget.get(joinKey) ?? []),
+        extraEdge,
+      ]),
     };
-    void stateWithB;
-    // The composition API doesn't have a join primitive, so
-    // this test is more about documenting the multi-edge
-    // shape than about the API itself. The single-parent
-    // tests above are the load-bearing cases.
-    expect(extraEdge.from).toBe("root.b");
+    const withA = markResolvedLocal(withB, NodeKey("root"), 1, new Date().toISOString());
+    const result = resolveInput(withA, joinKey) as Record<string, unknown>;
+    expect(result[NodeKey("root.b") as unknown as string]).toBe(20);
+  });
+});
+
+describe("serialize()/deserialize()", () => {
+  it("roundtrips a workflow state through JSON", () => {
+    const { tree } = workflow()
+      .run(node({ kind: "root", schema: z.string(), program: noop }))
+      .chain(node({ kind: "child", schema: z.string(), program: noop }))
+      .build();
+    const state = init(tree, WorkflowId("wf-roundtrip"));
+    const json = serialize(state);
+    const restored = deserialize(json);
+    expect(restored.id).toBe(state.id);
+    expect(restored.nodes.get(NodeKey("root"))?.kind).toBe("root");
+    expect(restored.nodes.get(NodeKey("root.child"))?.kind).toBe("child");
   });
 });

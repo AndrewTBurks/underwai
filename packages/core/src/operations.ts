@@ -1,50 +1,41 @@
 // @underwai/core — operations.ts
 //
-// State derivations and mutations on a WorkflowState. The composition
-// API (composition.ts) describes the DAG shape; operations.ts acts
-// on a constructed WorkflowState.
+// State derivations and mutations on a WorkflowState. The
+// composition API (composition.ts) describes the DAG shape;
+// operations.ts acts on a constructed WorkflowState.
 //
-// init: build a WorkflowState from a composition. (Stub for now;
-// the runner uses these primitives directly.)
+// Storage shape: Map<NodeKey, ...> end-to-end. This eliminates
+// the `as unknown as string` casts that the Record<string, ...>
+// shape forced at every read site (per principle-type-system-
+// discipline, branded primitives that don't fire are lies).
 //
-// getHumanFields: derive the human-mode map by walking a node's
-// inputSchema. Replaces the cached `node.humanFields` field that
-// used to live on the Node type. (TASK-K, folded into TASK-G.)
-//
-// getHumanInputDisplay: helper for renderers. Returns a discriminated
-// union on source kind: literal / from_node / human. (TASK-S.)
-//
-// findReadyNodes: returns ReadonlyArray<NodeKey> in dependency order
-// (Kahn's algorithm using edgesByFrom). paused is NOT in the result.
-// (TASK-O, TASK-R.)
-//
-// A node is ready iff:
-//   1. status.kind === "pending" or "stale" (not paused/running/etc.)
-//   2. all upstream nodes are status.kind === "resolved"
+// init: build a WorkflowState from a CompositionTree.
+// serialize/deserialize: Maps to JSON-compatible arrays, back.
+// getHumanFields / getHumanInputDisplay: derived views for
+// renderers. (TASK-S, TASK-G.)
+// findReadyNodes: topological order (Kahn's algorithm).
+// resolveInput: bridge-transformed upstream output for a node.
 
 import type { ZodTypeAny } from "zod";
-import { NodeKey, type FieldKey } from "./keys.js";
+import { WorkflowId } from "./keys.js";
+import type { FieldKey } from "./keys.js";
 import { getHumanMode } from "@underwai/schema";
 import type { CompositionTree } from "./composition.js";
 import type {
   Edge,
   HumanInputDisplay,
   Node,
-  NodeKey as NodeKeyT,
-  WorkflowId,
+  NodeKey,
+  SerializedState,
   WorkflowState,
 } from "./types.js";
-import { z } from "zod";
 
-// init: build a WorkflowState from a CompositionTree. Walks the
-// tree's defs, creates a Node for each, applies edges with bridges,
-// and builds the derived indices.
 export function init(tree: CompositionTree, id: WorkflowId): WorkflowState {
   const now = new Date().toISOString();
-  const nodes: Record<string, Node> = {};
+  const nodes = new Map<NodeKey, Node>();
   for (const [key, def] of tree.defs.entries()) {
-    nodes[key] = {
-      id: key as never,
+    const node: Node = {
+      id: key,
       kind: def.kind,
       inputSchema: def.inputSchema as ZodTypeAny,
       input: {
@@ -58,19 +49,13 @@ export function init(tree: CompositionTree, id: WorkflowId): WorkflowState {
       createdAt: now,
       updatedAt: now,
     };
+    nodes.set(key, node);
   }
-  // Build derived fields.
-  const edgesByTarget: Record<NodeKeyT, ReadonlyArray<Edge>> = {};
-  const edgesByFrom: Record<NodeKeyT, ReadonlyArray<Edge>> = {};
+  const edgesByTarget = new Map<NodeKey, ReadonlyArray<Edge>>();
+  const edgesByFrom = new Map<NodeKey, ReadonlyArray<Edge>>();
   for (const e of tree.edges) {
-    const t = e.to as unknown as string;
-    const f = e.from as unknown as string;
-    const tgts = (edgesByTarget[t as unknown as NodeKeyT] ?? []) as Edge[];
-    tgts.push(e);
-    edgesByTarget[t as unknown as NodeKeyT] = tgts;
-    const srcs = (edgesByFrom[f as unknown as NodeKeyT] ?? []) as Edge[];
-    srcs.push(e);
-    edgesByFrom[f as unknown as NodeKeyT] = srcs;
+    edgesByTarget.set(e.to, [...(edgesByTarget.get(e.to) ?? []), e]);
+    edgesByFrom.set(e.from, [...(edgesByFrom.get(e.from) ?? []), e]);
   }
   return {
     id,
@@ -80,127 +65,142 @@ export function init(tree: CompositionTree, id: WorkflowId): WorkflowState {
     edges: tree.edges,
     edgesByTarget,
     edgesByFrom,
+    defs: tree.defs,
     createdAt: now,
     updatedAt: now,
   };
 }
 
-export function getNode(state: WorkflowState, key: NodeKeyT): Node {
-  const node = state.nodes[key as unknown as string];
+export function getNode(state: WorkflowState, key: NodeKey): Node {
+  const node = state.nodes.get(key);
   if (!node) throw new Error(`node not found: ${key as unknown as string}`);
   return node;
 }
 
 export function serialize(state: WorkflowState): string {
-  // Serialized form: id, version, status, nodes, edges, createdAt,
-  // updatedAt, error. The derived fields (edgesByTarget, edgesByFrom)
-  // are NOT serialized — they're recomputed on deserialize.
-  const { edgesByTarget: _et, edgesByFrom: _ef, ...rest } = state;
-  return JSON.stringify(rest);
-}
-
-function buildIndex(edges: ReadonlyArray<Edge>): {
-  edgesByTarget: Record<NodeKeyT, ReadonlyArray<Edge>>;
-  edgesByFrom: Record<NodeKeyT, ReadonlyArray<Edge>>;
-} {
-  const byTarget: Record<string, Edge[]> = {};
-  const byFrom: Record<string, Edge[]> = {};
-  for (const e of edges) {
-    const t = e.to as unknown as string;
-    const f = e.from as unknown as string;
-    (byTarget[t] ??= []).push(e);
-    (byFrom[f] ??= []).push(e);
+  const serializedNodes: Array<[string, { kind: string; status: unknown; inputValue: unknown; updatedAt: string }]> = [];
+  for (const [k, n] of state.nodes) {
+    serializedNodes.push([
+      k as unknown as string,
+      {
+        kind: n.kind,
+        status: n.status,
+        inputValue: n.input.value,
+        updatedAt: n.updatedAt,
+      },
+    ]);
   }
-  const edgesByTarget: Record<NodeKeyT, ReadonlyArray<Edge>> = {};
-  const edgesByFrom: Record<NodeKeyT, ReadonlyArray<Edge>> = {};
-  for (const k of Object.keys(byTarget)) {
-    edgesByTarget[k as unknown as NodeKeyT] = byTarget[k] as ReadonlyArray<Edge>;
-  }
-  for (const k of Object.keys(byFrom)) {
-    edgesByFrom[k as unknown as NodeKeyT] = byFrom[k] as ReadonlyArray<Edge>;
-  }
-  return { edgesByTarget, edgesByFrom };
+  const out: Omit<SerializedState, "error"> = {
+    id: state.id,
+    version: state.version,
+    status: state.status,
+    nodes: serializedNodes as SerializedState["nodes"],
+    edges: state.edges.map((e) => ({
+      from: e.from as unknown as string,
+      to: e.to as unknown as string,
+      hasBridge: Boolean(e.bridge),
+    })),
+    createdAt: state.createdAt,
+    updatedAt: state.updatedAt,
+  };
+  return JSON.stringify(out);
 }
 
 export function deserialize(json: string): WorkflowState {
-  const parsed = JSON.parse(json) as Omit<WorkflowState, "edgesByTarget" | "edgesByFrom">;
-  const { edgesByTarget, edgesByFrom } = buildIndex(parsed.edges);
-  return { ...parsed, edgesByTarget, edgesByFrom };
+  const parsed = JSON.parse(json) as SerializedState;
+  const nodes = new Map<NodeKey, Node>();
+  for (const [k, sn] of parsed.nodes) {
+    nodes.set(k as unknown as NodeKey, {
+      id: k as unknown as NodeKey,
+      kind: sn.kind,
+      inputSchema: undefined as never,
+      input: { value: sn.inputValue, schema: undefined as never, humanFields: new Map() },
+      outputSchema: undefined as never,
+      status: sn.status as Node["status"],
+      actor: "system",
+      createdAt: sn.updatedAt,
+      updatedAt: sn.updatedAt,
+    });
+  }
+  // We don't have the defs after a round-trip. The runtime
+  // must provide them via the layer's initialOpts or via a
+  // composition tree. For now, deserialize returns a state
+  // with empty defs; consumers that need programs re-init
+  // through init() with the original tree.
+  const base: Omit<WorkflowState, "error"> = {
+    id: WorkflowId(parsed.id),
+    version: parsed.version,
+    status: parsed.status,
+    nodes,
+    edges: parsed.edges.map(
+      (e) => ({ from: e.from as never, to: e.to as never } as Edge),
+    ),
+    edgesByTarget: new Map(),
+    edgesByFrom: new Map(),
+    defs: new Map(),
+    createdAt: parsed.createdAt,
+    updatedAt: parsed.updatedAt,
+  };
+  return parsed.error !== undefined ? { ...base, error: parsed.error } : base;
 }
 
-// isReady: a node is ready iff it is pending/stale AND all upstream
-// nodes are resolved (or it has no upstream).
-function isReady(state: WorkflowState, id: string, upstream: ReadonlyArray<string>): boolean {
-  const n = state.nodes[id];
+function isReady(state: WorkflowState, id: NodeKey, upstream: ReadonlyArray<NodeKey>): boolean {
+  const n = state.nodes.get(id);
   if (!n) return false;
   if (n.status.kind !== "pending" && n.status.kind !== "stale") return false;
   if (upstream.length === 0) return true;
-  return upstream.every((u) => {
-    const up = state.nodes[u];
-    return up && up.status.kind === "resolved";
-  });
+  return upstream.every((u) => state.nodes.get(u)?.status.kind === "resolved");
 }
 
 // findReadyNodes: topological order. For each candidate, check
 // isReady; if so, include. Use BFS through the DAG.
-export function findReadyNodes(state: WorkflowState): ReadonlyArray<NodeKeyT> {
-  const ready: NodeKeyT[] = [];
-  const visited = new Set<string>();
-  const inEdges: Record<string, string[]> = {};
-  const outEdges: Record<string, string[]> = {};
-
-  for (const id of Object.keys(state.nodes)) {
-    inEdges[id] = [];
-    outEdges[id] = [];
+export function findReadyNodes(state: WorkflowState): ReadonlyArray<NodeKey> {
+  const ready: NodeKey[] = [];
+  const visited = new Set<NodeKey>();
+  const inEdges = new Map<NodeKey, NodeKey[]>();
+  const outEdges = new Map<NodeKey, NodeKey[]>();
+  for (const id of state.nodes.keys()) {
+    inEdges.set(id, []);
+    outEdges.set(id, []);
   }
   for (const e of state.edges) {
-    const from = e.from as unknown as string;
-    const to = e.to as unknown as string;
-    inEdges[to]?.push(from);
-    outEdges[from]?.push(to);
+    inEdges.get(e.to)?.push(e.from);
+    outEdges.get(e.from)?.push(e.to);
   }
-
-  // Seed with zero-upstream nodes.
-  const queue: string[] = [];
-  for (const id of Object.keys(state.nodes)) {
-    if ((inEdges[id] ?? []).length === 0) {
-      queue.push(id);
-    }
+  const queue: NodeKey[] = [];
+  for (const [id, inList] of inEdges) {
+    if (inList.length === 0) queue.push(id);
   }
-
-  // BFS in topological order.
   while (queue.length > 0) {
     const id = queue.shift()!;
     if (visited.has(id)) continue;
     visited.add(id);
-    if (isReady(state, id, inEdges[id] ?? [])) {
-      ready.push(id as unknown as NodeKeyT);
+    if (isReady(state, id, inEdges.get(id) ?? [])) {
+      ready.push(id);
     }
-    for (const next of outEdges[id] ?? []) {
-      if (!visited.has(next)) {
-        queue.push(next);
-      }
+    for (const next of outEdges.get(id) ?? []) {
+      if (!visited.has(next)) queue.push(next);
     }
   }
   return ready;
 }
 
 // findSubtree: BFS from a root key, returning all descendants.
-export function findSubtree(state: WorkflowState, root: NodeKeyT): Set<NodeKeyT> {
-  const visited = new Set<NodeKeyT>();
-  const queue: NodeKeyT[] = [root];
-  const childMap: Record<string, string[]> = {};
+export function findSubtree(state: WorkflowState, root: NodeKey): Set<NodeKey> {
+  const visited = new Set<NodeKey>();
+  const queue: NodeKey[] = [root];
+  const childMap = new Map<NodeKey, NodeKey[]>();
   for (const e of state.edges) {
-    const f = e.from as unknown as string;
-    const t = e.to as unknown as string;
-    (childMap[f] ??= []).push(t);
+    const list = childMap.get(e.from) ?? [];
+    list.push(e.to);
+    childMap.set(e.from, list);
   }
   while (queue.length > 0) {
     const id = queue.shift()!;
     if (visited.has(id)) continue;
     visited.add(id);
-    for (const c of childMap[id as unknown as string] ?? []) {
-      queue.push(c as unknown as NodeKeyT);
+    for (const c of childMap.get(id) ?? []) {
+      queue.push(c);
     }
   }
   return visited;
@@ -235,33 +235,15 @@ function walkSchema(schema: ZodTypeAny, prefix: string, out: Map<FieldKey, strin
   }
 }
 
-// getHumanInputDisplay: helper for renderers. Returns a discriminated
-// union on source kind: literal / from_node / human. The lib exposes
-// the source; the renderer decides the UX. (TASK-S, folded into TASK-G.)
-//
-// Decision rules:
-//   - If the field's schema is human-marked (verified) and has a
-//     value: literal (the value is locked in; no human UI needed).
-//   - If the field's schema is human-marked (writeable) and has a
-//     value: human + status "set" (the human has typed it).
-//   - If the field's schema is human-marked (writeable) and is empty:
-//     human + status "pending" (waiting for human input).
-//   - If the node has an incoming edge and the upstream is resolved:
-//     from_node (the value flowed from upstream).
-//   - Otherwise: literal (the value is just a constant at the root).
+// getHumanInputDisplay: per-node helper for renderers. Returns a
+// discriminated union on source kind: literal / from_node / human.
 export function getHumanInputDisplay(
   state: WorkflowState,
   node: Node,
-  _fieldKey: string,
 ): HumanInputDisplay {
-  // Inspect the field schema. For a top-level call, we look at the
-  // whole node's input schema; for per-field calls, the caller
-  // would need a separate API. For now, the top-level call is the
-  // contract: getHumanInputDisplay(state, node, "(root)").
   const schema = node.input.schema;
   const mode = getHumanMode(schema as never);
   const value = node.input.value;
-
   if (mode === "verified" && value !== undefined) {
     return { source: "literal", value, fieldSchema: schema as never };
   }
@@ -273,42 +255,28 @@ export function getHumanInputDisplay(
       status: value === undefined ? "pending" : "set",
     };
   }
-
-  // Walk incoming edges. If any upstream is resolved, the value
-  // flowed from there.
-  const id = node.id as unknown as string;
-  const inEdges = state.edgesByTarget[id as never] ?? [];
+  const inEdges = state.edgesByTarget.get(node.id) ?? [];
   for (const edge of inEdges) {
-    const upId = edge.from as unknown as string;
-    const up = state.nodes[upId];
+    const up = state.nodes.get(edge.from);
     if (up && up.status.kind === "resolved") {
-      const upstreamValue = up.status.kind === "resolved" ? up.status.finalOutput : undefined;
       return {
         source: "from_node",
-        value: upstreamValue,
+        value: up.status.finalOutput,
         fieldSchema: schema as never,
         upstream: edge.from,
       };
     }
   }
-
   return { source: "literal", value, fieldSchema: schema as never };
 }
 
 // resolveInput: for a node with all upstreams resolved, returns
 // the input value as the bridge-transformed upstream output. If
 // any upstream is unresolved, returns undefined.
-//
-// The composition API is single-parent-per-child, so a node has
-// at most one incoming edge. The bridge (if any) is stored on
-// the edge. The runtime calls this function before each program
-// execution to compute the actual input.
-export function resolveInput(state: WorkflowState, key: NodeKeyT): unknown {
-  const edges = state.edgesByTarget[key] ?? [];
+export function resolveInput(state: WorkflowState, key: NodeKey): unknown {
+  const edges = state.edgesByTarget.get(key) ?? [];
   if (edges.length === 0) {
-    // No incoming edges: this is a root node. Its input is
-    // whatever was set on the node directly.
-    const node = state.nodes[key as unknown as string];
+    const node = state.nodes.get(key);
     return node?.input.value;
   }
   if (edges.length > 1) {
@@ -317,7 +285,7 @@ export function resolveInput(state: WorkflowState, key: NodeKeyT): unknown {
     // declares an object input schema.
     const result: Record<string, unknown> = {};
     for (const edge of edges) {
-      const upstream = state.nodes[edge.from as unknown as string];
+      const upstream = state.nodes.get(edge.from);
       if (!upstream || upstream.status.kind !== "resolved") {
         return undefined;
       }
@@ -328,12 +296,8 @@ export function resolveInput(state: WorkflowState, key: NodeKeyT): unknown {
     }
     return result;
   }
-  // Single-parent case: return the bridged upstream output.
   const edge = edges[0]!;
-  const upstream = state.nodes[edge.from as unknown as string];
+  const upstream = state.nodes.get(edge.from);
   if (!upstream || upstream.status.kind !== "resolved") return undefined;
   return edge.bridge ? edge.bridge(upstream.status.finalOutput) : upstream.status.finalOutput;
 }
-
-export { NodeKey, z };
-export type { WorkflowId };

@@ -43,12 +43,16 @@ export class LiveSubscriptionRegistry {
 
   notify(state: WorkflowState): void {
     for (const [k, set] of this.byKey) {
-      const node = state.nodes[k];
+      const node = state.nodes.get(k as unknown as NodeKey);
       if (!node) continue;
       for (const cb of set) cb(state);
     }
     for (const { cb } of this.byPattern) {
-      cb(state, state.nodes);
+      const matched: Record<string, Node> = {};
+      for (const [k, n] of state.nodes) {
+        matched[k as unknown as string] = n;
+      }
+      cb(state, matched);
     }
   }
 }

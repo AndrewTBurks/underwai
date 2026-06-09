@@ -66,6 +66,9 @@ importers:
       '@underwai/runner':
         specifier: workspace:*
         version: link:../runner
+      '@underwai/schema':
+        specifier: workspace:*
+        version: link:../schema
       '@underwai/transport':
         specifier: workspace:*
         version: link:../transport

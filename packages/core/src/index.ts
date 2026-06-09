@@ -27,8 +27,9 @@ export type {
   WorkflowStatus,
 } from "./types.js";
 
-// Composition API
-export { all, chain, compose, node, run, thenLoop, view, workflow } from "./composition.js";
+// Composition API. The legacy compose/run/chain/all/thenLoop
+// shims are removed (TASK-40). The v1 builder is the only API.
+export { node, workflow } from "./composition.js";
 export type {
   ChainBuilder,
   CompositionTree,

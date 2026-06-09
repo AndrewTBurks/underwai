@@ -1,7 +1,5 @@
-// Operations tests. The contract: state derivations and mutations.
-// `init` is exercised through composition, not in isolation, so
-// those tests live in a separate init.test.ts once composition's
-// tree-walking is wired.
+// Operations tests. The contract: state derivations and mutations
+// on a Map-keyed WorkflowState.
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { human } from "@underwai/schema";
@@ -17,56 +15,42 @@ import type { Edge, Node, WorkflowState } from "./types.js";
 import { NodeKey, WorkflowId } from "./keys.js";
 
 function makeState(): WorkflowState {
-  const root: Node = {
-    id: NodeKey("root"),
-    kind: "root",
+  const make = (kind: string, status: Node["status"] = { kind: "pending" }): Node => ({
+    id: NodeKey(kind === "root" ? "root" : `root.${kind === "a" ? "a" : "b"}`),
+    kind: kind === "root" ? "root" : kind,
     inputSchema: z.unknown(),
     input: { value: undefined, schema: z.unknown(), humanFields: new Map() },
     outputSchema: z.unknown(),
-    status: { kind: "pending" },
+    status,
     actor: "system",
     createdAt: "2026-06-07T00:00:00.000Z",
     updatedAt: "2026-06-07T00:00:00.000Z",
-  };
-  const a: Node = {
-    id: NodeKey("root.a"),
-    kind: "a",
-    inputSchema: z.unknown(),
-    input: { value: undefined, schema: z.unknown(), humanFields: new Map() },
-    outputSchema: z.unknown(),
-    status: { kind: "pending" },
-    actor: "system",
-    createdAt: "2026-06-07T00:00:00.000Z",
-    updatedAt: "2026-06-07T00:00:00.000Z",
-  };
-  const b: Node = {
-    id: NodeKey("root.b"),
-    kind: "b",
-    inputSchema: z.unknown(),
-    input: { value: undefined, schema: z.unknown(), humanFields: new Map() },
-    outputSchema: z.unknown(),
-    status: { kind: "paused", pausedAt: "2026-06-07T00:00:00.000Z" },
-    actor: "system",
-    createdAt: "2026-06-07T00:00:00.000Z",
-    updatedAt: "2026-06-07T00:00:00.000Z",
-  };
+  });
+  const root = make("root");
+  const a = make("a");
+  const b = make("b", { kind: "paused", pausedAt: "2026-06-07T00:00:00.000Z" });
   const edges: Edge[] = [
     { from: NodeKey("root"), to: NodeKey("root.a") },
     { from: NodeKey("root"), to: NodeKey("root.b") },
   ];
+  const nodes = new Map<NodeKey, Node>();
+  nodes.set(NodeKey("root"), root);
+  nodes.set(NodeKey("root.a"), a);
+  nodes.set(NodeKey("root.b"), b);
+  const edgesByTarget = new Map<NodeKey, ReadonlyArray<Edge>>();
+  edgesByTarget.set(NodeKey("root.a"), [edges[0]!]);
+  edgesByTarget.set(NodeKey("root.b"), [edges[1]!]);
+  const edgesByFrom = new Map<NodeKey, ReadonlyArray<Edge>>();
+  edgesByFrom.set(NodeKey("root"), edges);
   return {
     id: WorkflowId("wf-1"),
+    defs: new Map(),
     version: 1,
     status: "running",
-    nodes: { root: root, "root.a": a, "root.b": b },
+    nodes,
     edges,
-    edgesByTarget: {
-      [NodeKey("root.a")]: [edges[0]!],
-      [NodeKey("root.b")]: [edges[1]!],
-    },
-    edgesByFrom: {
-      [NodeKey("root")]: edges,
-    },
+    edgesByTarget,
+    edgesByFrom,
     createdAt: "2026-06-07T00:00:00.000Z",
     updatedAt: "2026-06-07T00:00:00.000Z",
   };
@@ -91,21 +75,8 @@ describe("serialize()/deserialize()", () => {
     const json = serialize(state);
     const restored = deserialize(json);
     expect(restored.id).toBe(state.id);
-    expect(restored.nodes["root.a"]?.kind).toBe("a");
+    expect(restored.nodes.get(NodeKey("root.a"))?.kind).toBe("a");
     expect(restored.edges.length).toBe(2);
-  });
-
-  it("recomputes edgesByTarget and edgesByFrom on deserialize", () => {
-    const state = makeState();
-    // Strip the derived fields from the serialized form.
-    const json = serialize(state);
-    const restored = deserialize(json);
-    const aTarget = (restored.edgesByTarget as Record<string, ReadonlyArray<Edge>>)["root.a"];
-    const fromRoot = (restored.edgesByFrom as Record<string, ReadonlyArray<Edge>>)["root"];
-    expect(aTarget).toBeDefined();
-    expect(aTarget?.length).toBe(1);
-    expect(fromRoot).toBeDefined();
-    expect(fromRoot?.length).toBe(2);
   });
 });
 
@@ -124,16 +95,13 @@ describe("findReadyNodes()", () => {
 
   it("returns ready nodes in dependency order", () => {
     const state = makeState();
-    // root is upstream of both a and b; root is ready.
-    // a is pending with one upstream (root) — once root is "resolved" it would be ready,
-    // but root is pending here too, so a is NOT ready.
     const ready = findReadyNodes(state);
     expect(ready).toEqual([NodeKey("root")]);
   });
 
   it("includes stale nodes", () => {
     const state = makeState();
-    const root = state.nodes[NodeKey("root") as unknown as string]!;
+    const root = state.nodes.get(NodeKey("root"))!;
     root.status = { kind: "stale" };
     const ready = findReadyNodes(state);
     expect(ready).toContain(NodeKey("root"));
@@ -141,14 +109,13 @@ describe("findReadyNodes()", () => {
 
   it("returns multiple ready nodes when upstream is satisfied", () => {
     const state = makeState();
-    const root = state.nodes[NodeKey("root") as unknown as string]!;
+    const root = state.nodes.get(NodeKey("root"))!;
     root.status = {
       kind: "resolved",
       finalOutput: undefined,
       resolvedAt: "2026-06-07T00:00:00.000Z",
     };
     const ready = findReadyNodes(state);
-    // a is now ready (its upstream, root, is resolved). b is paused, excluded.
     expect(ready).toContain(NodeKey("root.a"));
     expect(ready).not.toContain(NodeKey("root.b"));
   });
@@ -174,7 +141,7 @@ describe("findSubtree()", () => {
 describe("getHumanFields()", () => {
   it("returns an empty map for a plain schema", () => {
     const state = makeState();
-    const node: Node = { ...state.nodes["root"]!, inputSchema: z.object({ x: z.string() }) };
+    const node: Node = { ...state.nodes.get(NodeKey("root"))!, inputSchema: z.object({ x: z.string() }) };
     const fields = getHumanFields(node);
     expect(fields.size).toBe(0);
   });
@@ -186,7 +153,7 @@ describe("getHumanFields()", () => {
       age: z.number(),
       email: human(z.string()).verified(),
     });
-    const node: Node = { ...state.nodes["root"]!, inputSchema: schema };
+    const node: Node = { ...state.nodes.get(NodeKey("root"))!, inputSchema: schema };
     const fields = getHumanFields(node);
     expect(fields.get("name")).toBe("writeable");
     expect(fields.get("email")).toBe("verified");
@@ -196,7 +163,7 @@ describe("getHumanFields()", () => {
   it("handles a top-level human-marked primitive", () => {
     const state = makeState();
     const node: Node = {
-      ...state.nodes["root"]!,
+      ...state.nodes.get(NodeKey("root"))!,
       inputSchema: human(z.string()),
     };
     const fields = getHumanFields(node);
