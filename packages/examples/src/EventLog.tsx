@@ -43,7 +43,7 @@ export function EventLog({
             key={i}
             className={`event-log__row${isNew ? " event-log__row--new" : ""}`}
           >
-            <span className="event-log__time">{formatTime(e.timestamp)}</span>
+            <span className="event-log__time">{formatIndex(i, events.length)}</span>
             <span className={`event-log__kind event-log__kind--${e.kind}`}>
               {e.kind}
               {renderStatusKind(e)}
@@ -58,14 +58,23 @@ export function EventLog({
   );
 }
 
-function formatTime(iso: string): string {
-  // HH:MM:SS.mmm — compact, monospace, fits in 70px.
-  const d = new Date(iso);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  const ss = String(d.getSeconds()).padStart(2, "0");
-  const ms = String(d.getMilliseconds()).padStart(3, "0");
-  return `${hh}:${mm}:${ss}.${ms}`;
+// formatIndex: the event's 1-based sequence number. The
+// events array is stored in chronological order (oldest
+// first, index 0 is the earliest event), but it renders
+// in the order it was captured — which is the same as
+// array order. We display the index as (length - i) so
+// the LATEST event shows #001 and the earliest shows
+// the highest number. This way the user can see "the
+// first event" at a glance — it's the one with #001 at
+// the top, matching the consumer's mental model of a
+// "latest first" log.
+//
+// The "same timestamp" issue is solved by this — each
+// event has a unique sequence number, regardless of how
+// close they fire in wall-clock time.
+function formatIndex(i: number, total: number): string {
+  const n = total - i;
+  return `#${String(n).padStart(3, "0")}`;
 }
 
 function renderDetail(e: WorkflowEvent): React.ReactNode {

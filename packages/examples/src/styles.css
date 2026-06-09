@@ -493,7 +493,7 @@ html, body {
 
 .event-log__row {
   display: grid;
-  grid-template-columns: 90px 160px 1fr;
+  grid-template-columns: 50px 160px 1fr;
   gap: 8px;
   padding: 3px 0;
   border-bottom: 1px solid var(--border-subtle);
