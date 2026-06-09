@@ -930,3 +930,4 @@ from root, which the lint didn't see).
 Test count unchanged: 109/109. tsc clean. Lint clean
 (0 errors). Format clean. CNS gate PASSED.
 - 2026-06-08: JF-1 done — topologicalLevels in core/operations.ts + RenderedPanel walks it. Join panel now reads in DAG order. Linear pipeline and human-in-the-loop unchanged (chain order = topological order for a linear chain). 3 new unit tests. Pushed to main.
+- 2026-06-08: JF-2 done — graph fan-in curved. computeLayout detects multi-incoming targets and emits cubic Bézier paths landing at distinct y-coords. Join demo's 3 edges into merge now enter at distinct heights; linear pipeline unchanged (no fan-in). Pushed to main.

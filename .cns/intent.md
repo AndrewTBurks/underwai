@@ -366,7 +366,7 @@ User-reported defects on the join (parallel merge) demo + one new feature. Four 
 ### JF-1: Stable topological render order ✅ Done (2026-06-08)
 → [`.cns/plans/join-fixes/phase-1-topological-render.md`](plans/join-fixes/phase-1-topological-render.md). Replace Map-insertion-order walk in `RenderedPanel.useRows` with a longest-path-from-root level sort. Helpers land in `packages/core/src/operations.ts` as `topologicalLevels`. Three test cases (chain, diamond, disconnected).
 
-### JF-2: Curved edges for graph fan-in
+### JF-2: Curved edges for graph fan-in ✅ Done (2026-06-08)
 → [`.cns/plans/join-fixes/phase-2-graph-fanin.md`](plans/join-fixes/phase-2-graph-fanin.md). In `Graph.computeLayout`, detect fan-in groups (edges sharing a target) and route them along cubic Béziers with vertical offset based on source row. Single-source edges stay straight.
 
 ### JF-3: Runtime concurrency knob + per-wave parallel execution
