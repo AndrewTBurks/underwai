@@ -372,7 +372,7 @@ User-reported defects on the join (parallel merge) demo + one new feature. Four 
 ### JF-3: Runtime concurrency knob + event-driven ready queue ✅ Done (2026-06-08)
 → [`.cns/plans/join-fixes/phase-3-runtime-concurrency.md`](plans/join-fixes/phase-3-runtime-concurrency.md). `RunOptions` gains `maxConcurrent?: number` (default 1). The dispatch loop is event-driven: each ready node is forked as a fiber carrying its own `NodeKey`; the loop wakes on any in-flight completion and dispatches up to `(maxConcurrent - inFlight.size)` ready nodes. `currentKey` global removed; `inFlightKey` closure replaces it (per-fiber). Three new unit tests cover default sequential, parallel dispatch, and final-state equivalence.
 
-### JF-4: App-level option wiring
-→ [`.cns/plans/join-fixes/phase-4-app-option.md`](plans/join-fixes/phase-4-app-option.md). `Demo` type gains `maxConcurrent?: number`. Join demo sets `maxConcurrent: 4`. `ExampleShell` passes it through. Other demos default to 1.
+### JF-4: App-level option wiring ✅ Done (2026-06-08)
+→ [`.cns/plans/join-fixes/phase-4-app-option.md`](plans/join-fixes/phase-4-app-option.md). `Demo` type gains `maxConcurrent?: number`. Join demo sets `maxConcurrent: 4`. `ExampleShell` passes it through to `rt.run` (with a default-undefined branch to satisfy `exactOptionalPropertyTypes`). Other demos default to 1. New test asserts parallel-vs-sequential wall-clock improvement (`parMs < seqMs * 0.85`).
 
 Sequential per Andrew's preference. Commit + push after each phase.
