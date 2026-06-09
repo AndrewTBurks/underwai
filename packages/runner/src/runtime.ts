@@ -5,7 +5,7 @@
 // Programs use publish to surface partial output. The workflow
 // owner uses write / writeHumanInput to inject values from
 // outside the program.
-import { Context, Effect, Layer, Ref } from "effect";
+import { Context, Effect, Fiber, Layer, Ref } from "effect";
 import type { NodeKey, WorkflowState, LiveSubscriptionRegistry } from "@underwai/core";
 import { resolveInput } from "@underwai/core";
 import { getHumanMode } from "@underwai/schema";
@@ -41,9 +41,16 @@ export class WorkflowRuntime extends Context.Tag("@underwai/WorkflowRuntime")<
 // runtime reads programs from there. The `programs` field
 // is removed — consumers no longer thread a parallel
 // programs record. (TASK-39 follow-up.)
+//
+// maxConcurrent: cap on parallel in-flight programs. Default 1
+// preserves the original sequential behavior. A value > 1 lets
+// ready siblings run in parallel — the runtime dispatches up to
+// (maxConcurrent - inFlight.size) ready nodes whenever a slot
+// frees up.
 export type RunOptions = {
   readonly state: WorkflowState;
   readonly maxIterations?: number;
+  readonly maxConcurrent?: number;
   readonly liveRegistry?: LiveSubscriptionRegistry;
 };
 
@@ -78,10 +85,23 @@ export const WorkflowRuntimeLive = (initialOpts: RunOptions): Layer.Layer<Workfl
 
         publish: (output, partial) =>
           Effect.gen(function* () {
+            // publish is called from inside a program's
+            // effect body. With maxConcurrent > 1, multiple
+            // programs can be running in parallel fibers;
+            // each fiber sets inFlightKey to its own key
+            // before calling the program. The service-level
+            // publish() applies markStreaming to whichever
+            // fiber is currently on the JS event loop. JS
+            // single-threadedness makes this safe: only one
+            // fiber's body is running at any instant.
             const s = yield* Ref.get(stateRef);
-            const key = currentKey;
-            if (!key) return s;
-            const next = markStreaming(s, key, output, partial, new Date().toISOString());
+            const next = markStreamingForCurrent(
+              s,
+              output,
+              partial,
+              new Date().toISOString(),
+            );
+            if (next === s) return s;
             yield* Ref.set(stateRef, next);
             notify(next);
             return next;
@@ -107,107 +127,120 @@ export const WorkflowRuntimeLive = (initialOpts: RunOptions): Layer.Layer<Workfl
 
         run: (opts): Effect.Effect<WorkflowState, never, never> =>
           Effect.gen(function* () {
-            const initial = yield* Ref.get(stateRef);
             void opts;
             const maxIter = opts.maxIterations ?? 1000;
+            const maxConcurrent = Math.max(1, opts.maxConcurrent ?? 1);
 
-            currentKey = null;
+            // In-flight programs: each fiber runs a per-node
+            // effect that carries its own NodeKey in a
+            // closure. When the fiber finishes, the dispatch
+            // loop joins the fiber (via Fiber.join below),
+            // sees the updated inFlight, and recomputes the
+            // ready set.
+            const inFlight = new Map<
+              NodeKey,
+              { fiber: Fiber.RuntimeFiber<unknown, never>; key: NodeKey }
+            >();
 
-            let iter = 0;
-            let result = initial;
-            while (iter < maxIter) {
-              iter += 1;
-              const state = result;
-              if (state.status === "completed" || state.status === "failed") {
-                break;
-              }
-              const ready = findReadyNodesLocal(state);
-              if (ready.length === 0) {
-                const allDone = Object.values(state.nodes).every(
-                  (n) => n.status.kind === "resolved" || n.status.kind === "failed",
-                );
-                if (allDone) {
-                  result = { ...state, status: "completed" };
-                  yield* Ref.set(stateRef, result);
-                  notify(result);
-                  break;
-                }
-                break;
-              }
-              for (const key of ready) {
-                const node = state.nodes.get(key);
-                if (!node) continue;
-                // Read the program from state.defs (carried
-                // by the WorkflowState, populated at init time
-                // from the composition's node() calls). The
-                // consumer no longer threads a separate
-                // programs record.
+            const dispatchOne = (
+              key: NodeKey,
+              state: WorkflowState,
+            ): Effect.Effect<void, never, never> =>
+              Effect.gen(function* () {
                 const def = state.defs.get(key);
-                const program = def?.program;
-                if (!program) {
-                  const now = new Date().toISOString();
-                  result = markFailed(
-                    state,
-                    key,
-                    {
-                      nodeId: key,
-                      message: `no def for ${key as unknown as string}`,
-                    },
-                    now,
-                  );
-                  yield* Ref.set(stateRef, result);
-                  notify(result);
-                  continue;
-                }
-                // If the node's schema is human-marked AND
-                // the input hasn't been set, pause and wait
-                // for the form submission. Once the human
-                // value is set, the program runs with the
-                // value as its input.
+                const node = state.nodes.get(key);
+                if (!def || !node) return;
                 const humanMode = getHumanMode(node.inputSchema);
                 if (humanMode !== undefined && node.input.value === undefined) {
                   const now = new Date().toISOString();
-                  result = markPaused(state, key, now);
-                  yield* Ref.set(stateRef, result);
-                  notify(result);
-                  currentKey = null;
-                  continue;
+                  const next = markPaused(state, key, now);
+                  yield* Ref.set(stateRef, next);
+                  notify(next);
+                  return;
                 }
                 const now = new Date().toISOString();
-                currentKey = key;
-                result = markRunning(state, key, now);
-                yield* Ref.set(stateRef, result);
-                notify(result);
+                const running = markRunning(state, key, now);
+                yield* Ref.set(stateRef, running);
+                notify(running);
 
-                const programResult = yield* program(
-                  resolveInput(result, key) ?? node.input.value,
-                ).pipe(
-                  Effect.tap((output) =>
-                    Ref.update(stateRef, (s) =>
-                      markResolved(s, key, output, new Date().toISOString()),
-                    ),
-                  ),
-                  Effect.catchAll((err) =>
-                    Ref.update(stateRef, (s) =>
-                      markFailed(
-                        s,
-                        key,
-                        {
-                          nodeId: key,
-                          message: err instanceof Error ? err.message : String(err),
-                        },
-                        new Date().toISOString(),
+                const program = def.program;
+                const fiber = yield* Effect.fork(
+                  Effect.gen(function* () {
+                    inFlightKey = key;
+                    const input = resolveInput(running, key) ?? node.input.value;
+                    return yield* program(input).pipe(
+                      Effect.tap((output) =>
+                        Ref.update(stateRef, (s) =>
+                          markResolved(s, key, output, new Date().toISOString()),
+                        ),
                       ),
-                    ),
-                  ),
+                      Effect.catchAll((err) =>
+                        Ref.update(stateRef, (s) =>
+                          markFailed(
+                            s,
+                            key,
+                            {
+                              nodeId: key,
+                              message: err instanceof Error ? err.message : String(err),
+                            },
+                            new Date().toISOString(),
+                          ),
+                        ),
+                      ),
+                      Effect.ensuring(
+                        Effect.sync(() => {
+                          inFlight.delete(key);
+                          inFlightKey = null;
+                        }),
+                      ),
+                    );
+                  }),
                 );
-                void programResult;
-                result = yield* Ref.get(stateRef);
-                notify(result);
-                currentKey = null;
+                inFlight.set(key, { fiber, key });
+                void fiber;
+              });
+
+            let iter = 0;
+            while (iter < maxIter) {
+              iter += 1;
+              const state = yield* Ref.get(stateRef);
+              if (state.status === "completed" || state.status === "failed") {
+                return state;
+              }
+              const ready = findReadyNodesLocal(state);
+              if (ready.length === 0 && inFlight.size === 0) {
+                const allDone = Array.from(state.nodes.values()).every(
+                  (n) => n.status.kind === "resolved" || n.status.kind === "failed",
+                );
+                if (allDone) {
+                  const final = { ...state, status: "completed" as const };
+                  yield* Ref.set(stateRef, final);
+                  notify(final);
+                  return final;
+                }
+                return state;
+              }
+              const slots = maxConcurrent - inFlight.size;
+              const toDispatch = ready.slice(0, Math.max(0, slots));
+              for (const key of toDispatch) {
+                if (inFlight.has(key)) continue;
+                yield* dispatchOne(key, state);
+              }
+              if (inFlight.size === 0) {
+                return yield* Ref.get(stateRef);
+              }
+              // Wait for any in-flight fiber to complete.
+              // Joining the first one is enough — the
+              // ensuring callback has already removed it
+              // from inFlight and updated the state.
+              const firstFiber = inFlight.values().next().value?.fiber;
+              if (firstFiber) {
+                yield* Fiber.join(firstFiber).pipe(
+                  Effect.catchAll(() => Effect.void),
+                );
               }
             }
-            return result;
+            return yield* Ref.get(stateRef);
           }),
       };
 
@@ -215,10 +248,30 @@ export const WorkflowRuntimeLive = (initialOpts: RunOptions): Layer.Layer<Workfl
     }),
   );
 
-// currentKey: the node the runtime is currently executing. Set
-// before each program call, cleared after. Used by publish() to
-// know which node to mark streaming.
-let currentKey: NodeKey | null = null;
+// inFlightKey: the node the currently-publishing fiber is
+// running for. The service-level publish() reads this to know
+// which node to mark streaming. With maxConcurrent > 1, the
+// per-fiber dispatch sets inFlightKey before calling the
+// program, so publish() during the program knows its key.
+//
+// Single-threaded JS makes this safe: only one fiber's program
+// runs at a time on the event loop, even when multiple fibers
+// are alive.
+let inFlightKey: NodeKey | null = null;
+
+// markStreamingForCurrent: helper for the service-level
+// publish(). Reads inFlightKey, applies markStreaming, and
+// returns the new state. Exported so the dispatch loop can
+// also call it directly when a fiber needs to publish.
+export function markStreamingForCurrent(
+  state: WorkflowState,
+  output: unknown,
+  partial: boolean,
+  now: string,
+): WorkflowState {
+  if (!inFlightKey) return state;
+  return markStreaming(state, inFlightKey, output, partial, now);
+}
 
 // findReadyNodesLocal: a stripped-down version of core's
 // findReadyNodes that the runtime can call without an Effect
