@@ -40,6 +40,10 @@ decisions:
     date: 2026-06-07
     author: agent
     summary: '`runWorkflow` integration test was rolled back on 2026-06-07 due to Effect 3 + exactOptionalPropertyTypes typing friction. Re-attempted and landed on 2026-06-07 with the help of core/init() to construct a real WorkflowState from a composition. The runtime now accepts state.status "pending" as a valid starting state (the orchestrator flips it to "running" implicitly by starting to walk the DAG, and to "completed" when all nodes are resolved). The test uses core/compose + core/init + runWorkflow in 4 tests, all green. DEC-RUNNER-009 closed.'
+  - id: DEC-RUNNER-010
+    date: 2026-06-08
+    author: agent
+    summary: '`RunOptions` gains `maxConcurrent?: number` (default 1). The dispatch loop is event-driven: each ready node is forked as a fiber carrying its own `NodeKey`; the loop wakes on `Fiber.join` of any in-flight completion and dispatches up to `(maxConcurrent - inFlight.size)` ready nodes. The legacy sequential `for (const key of ready)` is replaced. `currentKey` global is removed; `inFlightKey` is a single closure variable set by the dispatching fiber (JS single-threadedness makes this safe across parallel fibers). The per-fiber `Effect.ensuring` removes the key from inFlight and clears `inFlightKey`. (TASK-JF-3, .cns/plans/join-fixes/phase-3-runtime-concurrency.md).'
 human_notes: |
 
 status: dirty

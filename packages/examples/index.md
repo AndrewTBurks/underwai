@@ -16,6 +16,10 @@ decisions:
     date: 2026-06-07
     author: agent
     summary: 'A vitest suite in src/workflows.test.ts runs the three example workflows end-to-end. This replaces the runtime.test.ts fixture-based tests as the canonical "real workflow" integration test. The test count went from 104 -> 107 (3 new example tests).'
+  - id: DEC-EXAMPLES-004
+    date: 2026-06-08
+    author: agent
+    summary: '`Demo` type carries an optional `maxConcurrent?: number` that propagates from `ExampleShell` to `WorkflowRuntime.run`. The join demo opts in to `maxConcurrent: 4`; the others default to 1 (sequential, original behavior). The runtime respects the value as a hard cap on parallel in-flight fibers (DEC-RUNNER-010). Graph layout detects fan-in groups (≥2 incoming edges to the same target) and renders them as cubic Béziers with distinct y-coordinates; single-source edges stay straight. (TASK-JF-2, TASK-JF-4, .cns/plans/join-fixes/.)'
 human_notes: |
 status: dirty
 last_reconciled: 2026-06-07

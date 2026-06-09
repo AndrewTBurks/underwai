@@ -43,6 +43,10 @@ decisions:
     date: 2026-06-07
     author: agent
     summary: "@underwai/core has no mutation primitives. The runner is the only mutator; core is a pure data + composition layer. The previously-public publish/write in core were deleted; the runner's WorkflowRuntime service is the canonical state-mutation API (TASK-38)."
+  - id: DEC-CORE-020
+    date: 2026-06-08
+    author: agent
+    summary: '`topologicalLevels(state): ReadonlyArray<ReadonlyArray<NodeKey>>` assigns each node a level equal to the longest path from any root. Roots (no incoming edges) are level 0. Siblings at the same level are sorted by NodeKey string compare. Returns a 2-D array: outer index = level, inner = nodes at that level in deterministic order. Used by the example panel to render in DAG order (TASK-JF-1, .cns/plans/join-fixes/phase-1-topological-render.md).'
   - id: DEC-CORE-005
     date: 2026-06-06
     author: agent
