@@ -10,6 +10,7 @@ import {
   getHumanFields,
   getNode,
   serialize,
+  topologicalLevels,
 } from "./operations.js";
 import type { Edge, Node, WorkflowState } from "./types.js";
 import { NodeKey, WorkflowId } from "./keys.js";
@@ -120,6 +121,136 @@ describe("findReadyNodes()", () => {
     expect(ready).not.toContain(NodeKey("root.b"));
   });
 });
+
+describe("topologicalLevels()", () => {
+  it("places each node of a linear chain on its own level", () => {
+    // root → a → b → c
+    const state = makeChain(["root", "root.a", "root.a.b", "root.a.b.c"]);
+    const levels = topologicalLevels(state);
+    expect(levels.length).toBe(4);
+    expect(levels[0]).toEqual([NodeKey("root")]);
+    expect(levels[1]).toEqual([NodeKey("root.a")]);
+    expect(levels[2]).toEqual([NodeKey("root.a.b")]);
+    expect(levels[3]).toEqual([NodeKey("root.a.b.c")]);
+  });
+
+  it("groups diamond siblings on the same level", () => {
+    // root → left, right → join
+    const state = makeDiamond();
+    const levels = topologicalLevels(state);
+    expect(levels.length).toBe(3);
+    expect(levels[0]).toEqual([NodeKey("root")]);
+    // siblings sorted by id (string compare): "root.left" < "root.right"
+    expect(levels[1]).toEqual([NodeKey("root.left"), NodeKey("root.right")]);
+    expect(levels[2]).toEqual([NodeKey("root.join")]);
+  });
+
+  it("treats disconnected nodes as level 0", () => {
+    // island1 → island1.child, with island2 having no edges
+    const state = makeDisconnected();
+    const levels = topologicalLevels(state);
+    // Two roots at level 0 (sorted by id), child at level 1.
+    const lvl0 = levels[0]!;
+    expect(lvl0).toContain(NodeKey("island1"));
+    expect(lvl0).toContain(NodeKey("island2"));
+    expect(lvl0.length).toBe(2);
+    expect(levels[1]).toEqual([NodeKey("island1.child")]);
+  });
+});
+
+function makeChain(keys: string[]): WorkflowState {
+  const nodes = new Map<NodeKey, Node>();
+  for (const k of keys) {
+    nodes.set(NodeKey(k), {
+      id: NodeKey(k),
+      kind: "x",
+      inputSchema: z.unknown(),
+      input: { value: undefined, schema: z.unknown(), humanFields: new Map() },
+      outputSchema: z.unknown(),
+      status: { kind: "pending" },
+      actor: "system",
+      createdAt: "T",
+      updatedAt: "T",
+    });
+  }
+  const edges: Edge[] = [];
+  for (let i = 0; i < keys.length - 1; i++) {
+    edges.push({ from: NodeKey(keys[i]!), to: NodeKey(keys[i + 1]!) });
+  }
+  return {
+    id: WorkflowId("wf-chain"),
+    defs: new Map(),
+    version: 1,
+    status: "pending",
+    nodes,
+    edges,
+    edgesByTarget: new Map(),
+    edgesByFrom: new Map(),
+    createdAt: "T",
+    updatedAt: "T",
+  };
+}
+
+function makeDiamond(): WorkflowState {
+  return makeChainLike([
+    ["root"],
+    ["root.left", "root.right"],
+    ["root.join"],
+  ], [
+    { from: "root", to: "root.left" },
+    { from: "root", to: "root.right" },
+    { from: "root.left", to: "root.join" },
+    { from: "root.right", to: "root.join" },
+  ]);
+}
+
+function makeDisconnected(): WorkflowState {
+  return makeChainLike([
+    ["island1", "island2"],
+    ["island1.child"],
+  ], [
+    { from: "island1", to: "island1.child" },
+  ], ["island2"]);
+}
+
+function makeChainLike(
+  _byLevel: string[][],
+  edges: Array<{ from: string; to: string }>,
+  extraNodes: string[] = [],
+): WorkflowState {
+  const allKeys = new Set<string>();
+  for (const e of edges) {
+    allKeys.add(e.from);
+    allKeys.add(e.to);
+  }
+  for (const k of extraNodes) allKeys.add(k);
+  const nodes = new Map<NodeKey, Node>();
+  for (const k of allKeys) {
+    nodes.set(NodeKey(k), {
+      id: NodeKey(k),
+      kind: "x",
+      inputSchema: z.unknown(),
+      input: { value: undefined, schema: z.unknown(), humanFields: new Map() },
+      outputSchema: z.unknown(),
+      status: { kind: "pending" },
+      actor: "system",
+      createdAt: "T",
+      updatedAt: "T",
+    });
+  }
+  return {
+    id: WorkflowId("wf"),
+    defs: new Map(),
+    version: 1,
+    status: "pending",
+    nodes,
+    edges: edges.map((e) => ({ from: NodeKey(e.from), to: NodeKey(e.to) })),
+    edgesByTarget: new Map(),
+    edgesByFrom: new Map(),
+    createdAt: "T",
+    updatedAt: "T",
+  };
+}
 
 describe("findSubtree()", () => {
   it("returns the root and all its descendants", () => {

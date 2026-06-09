@@ -358,3 +358,21 @@ Per Andrew's "verify per theme" rule: each task gets its own commit (code + test
 - **ThreadWeaver integration.** Slot the lib underneath.
 - **Documentation site.**
 - **npm publish.** Claim `underwai` and `@underwai/core`.
+
+## Join workflow fixes + per-app concurrency (2026-06-08, execute-mode)
+
+User-reported defects on the join (parallel merge) demo + one new feature. Four phases, all in `.cns/plans/join-fixes/`.
+
+### JF-1: Stable topological render order
+→ [`.cns/plans/join-fixes/phase-1-topological-render.md`](plans/join-fixes/phase-1-topological-render.md). Replace Map-insertion-order walk in `RenderedPanel.useRows` with a longest-path-from-root level sort. Helpers land in `packages/core/src/operations.ts` as `topologicalLevels`. Three test cases (chain, diamond, disconnected).
+
+### JF-2: Curved edges for graph fan-in
+→ [`.cns/plans/join-fixes/phase-2-graph-fanin.md`](plans/join-fixes/phase-2-graph-fanin.md). In `Graph.computeLayout`, detect fan-in groups (edges sharing a target) and route them along cubic Béziers with vertical offset based on source row. Single-source edges stay straight.
+
+### JF-3: Runtime concurrency knob + per-wave parallel execution
+→ [`.cns/plans/join-fixes/phase-3-runtime-concurrency.md`](plans/join-fixes/phase-3-runtime-concurrency.md). Add `maxConcurrent?: number` to `RunOptions`. Inner `for (const key of ready)` becomes `Effect.forEach` with `{ concurrency }`. Replace the `currentKey` global with a per-fiber `Ref<Map<FiberId, NodeKey>>`. Batch the per-wave `Ref.update` so a single `notify` fires per wave.
+
+### JF-4: App-level option wiring
+→ [`.cns/plans/join-fixes/phase-4-app-option.md`](plans/join-fixes/phase-4-app-option.md). `Demo` type gains `maxConcurrent?: number`. Join demo sets `maxConcurrent: 4`. `ExampleShell` passes it through. Other demos default to 1.
+
+Sequential per Andrew's preference. Commit + push after each phase.

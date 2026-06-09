@@ -1,9 +1,13 @@
 // RenderedPanel — the left column of the example shell.
 //
 // Renders all intermediate states of the workflow as a
-// vertical list of rows, ordered top to bottom by node
-// insertion order (which matches the builder's declaration
-// order: root first, then chain children, then join siblings).
+// vertical list of rows, ordered top to bottom by DAG level
+// (longest path from any root). Siblings at the same level
+// are sorted by node id for stable rendering. For a linear
+// chain this matches the builder's declaration order; for a
+// diamond or join it groups the parallel branches at the
+// same vertical position with their parent above and their
+// join child below.
 //
 // Each row shows:
 //   - the node's kind (e.g. "greet", "askName")
@@ -24,7 +28,7 @@
 import { useEffect } from "react";
 import type { ZodTypeAny } from "zod";
 import { getHumanMode } from "@underwai/schema";
-import { type NodeKey, type WorkflowState } from "@underwai/core";
+import { topologicalLevels, type NodeKey, type WorkflowState } from "@underwai/core";
 import type { Demo } from "./ExampleShell.js";
 import { StatusPill } from "./StatusPill.js";
 import { HumanForm } from "./HumanForm.js";
@@ -142,8 +146,12 @@ function useRows<PathMap extends Record<string, unknown>>(
 ): Row[] {
   if (!state) return [];
   const rows: Row[] = [];
-  for (const [key, node] of state.nodes) {
-    const keyStr = key as unknown as string;
+  const levels = topologicalLevels(state);
+  for (const level of levels) {
+    for (const key of level) {
+      const node = state.nodes.get(key);
+      if (!node) continue;
+      const keyStr = key as unknown as string;
     // The view method is a type-narrowing helper. At runtime
     // it reads the node from the state and narrows the output
     // type. We cast the key to the path-map key type — all
@@ -165,6 +173,7 @@ function useRows<PathMap extends Record<string, unknown>>(
       inputSchema: node.inputSchema,
       nodeKey: key,
     });
+    }
   }
   return rows;
 }

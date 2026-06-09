@@ -52,6 +52,7 @@ export {
   getNode,
   init,
   resolveInput,
+  topologicalLevels,
   serialize,
 } from "./operations.js";
 

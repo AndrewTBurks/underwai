@@ -185,6 +185,66 @@ export function findReadyNodes(state: WorkflowState): ReadonlyArray<NodeKey> {
   return ready;
 }
 
+// topologicalLevels: assign each node a "level" equal to the
+// longest path from any root. Nodes with no incoming edges
+// are level 0. Siblings at the same level are sorted by id
+// (string compare) for stable rendering.
+//
+// Used by RenderedPanel (panel order) and Graph (column
+// layout). The level map alone is what both consumers share;
+// pixel positions are the Graph's job.
+export function topologicalLevels(
+  state: WorkflowState,
+): ReadonlyArray<ReadonlyArray<NodeKey>> {
+  const ids = Array.from(state.nodes.keys());
+  const incoming = new Map<NodeKey, number>();
+  for (const id of ids) incoming.set(id, 0);
+  for (const e of state.edges) {
+    incoming.set(e.to, (incoming.get(e.to) ?? 0) + 1);
+  }
+  const outEdges = new Map<NodeKey, NodeKey[]>();
+  for (const id of ids) outEdges.set(id, []);
+  for (const e of state.edges) {
+    outEdges.get(e.from)?.push(e.to);
+  }
+  const level = new Map<NodeKey, number>();
+  const queue: NodeKey[] = [];
+  for (const id of ids) {
+    if ((incoming.get(id) ?? 0) === 0) {
+      level.set(id, 0);
+      queue.push(id);
+    }
+  }
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const lv = level.get(id) ?? 0;
+    for (const next of outEdges.get(id) ?? []) {
+      const cur = level.get(next);
+      if (cur === undefined || cur < lv + 1) {
+        level.set(next, lv + 1);
+        queue.push(next);
+      }
+    }
+  }
+  for (const id of ids) {
+    if (!level.has(id)) level.set(id, 0);
+  }
+  const byLevel = new Map<number, NodeKey[]>();
+  for (const [id, lv] of level) {
+    const arr = byLevel.get(lv) ?? [];
+    arr.push(id);
+    byLevel.set(lv, arr);
+  }
+  const maxLevel = Math.max(0, ...Array.from(byLevel.keys()));
+  const result: NodeKey[][] = [];
+  for (let lv = 0; lv <= maxLevel; lv++) {
+    const arr = byLevel.get(lv) ?? [];
+    arr.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    result.push(arr);
+  }
+  return result;
+}
+
 // findSubtree: BFS from a root key, returning all descendants.
 export function findSubtree(state: WorkflowState, root: NodeKey): Set<NodeKey> {
   const visited = new Set<NodeKey>();
