@@ -27,7 +27,20 @@ const PAD = 20;
 
 type Layout = {
   readonly nodes: ReadonlyArray<{ node: Node; x: number; y: number }>;
-  readonly edges: ReadonlyArray<{ from: Node; to: Node; x1: number; y1: number; x2: number; y2: number }>;
+  readonly edges: ReadonlyArray<{
+    from: Node;
+    to: Node;
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    // SVG path "d" attribute. Present when this edge is
+    // part of a fan-in (multiple incoming edges to the same
+    // target) and gets a curved route so the parallel
+    // branches don't overlap at the join. Undefined for
+    // single-source edges, which stay as straight <line>s.
+    path?: string;
+  }>;
   readonly width: number;
   readonly height: number;
 };
@@ -68,17 +81,27 @@ export function Graph({
             <path d="M0,0 L0,6 L6,3 z" className="graph__edge-arrow" />
           </marker>
         </defs>
-        {layout.edges.map((e, i) => (
-          <line
-            key={i}
-            className="graph__edge"
-            x1={e.x1}
-            y1={e.y1}
-            x2={e.x2}
-            y2={e.y2}
-            markerEnd="url(#arrowhead)"
-          />
-        ))}
+        {layout.edges.map((e, i) =>
+          e.path ? (
+            <path
+              key={i}
+              className="graph__edge"
+              d={e.path}
+              fill="none"
+              markerEnd="url(#arrowhead)"
+            />
+          ) : (
+            <line
+              key={i}
+              className="graph__edge"
+              x1={e.x1}
+              y1={e.y1}
+              x2={e.x2}
+              y2={e.y2}
+              markerEnd="url(#arrowhead)"
+            />
+          ),
+        )}
         {layout.nodes.map(({ node, x, y }) => {
           const status = node.status.kind;
           const cls = `graph__node graph__node--${status}`;
@@ -220,22 +243,57 @@ function computeLayout(state: WorkflowState): Layout {
     const p = positions.get(n.id as unknown as string) ?? { x: 0, y: 0 };
     return { node: n, x: p.x, y: p.y };
   });
+  // Group incoming edges per target. Targets with more
+  // than one incoming edge are fan-in joins; their edges
+  // get curved paths so the parallel branches don't overlap
+  // at the left edge of the join node.
+  const fanInCount = new Map<string, number>();
+  for (const e of state.edges) {
+    const to = e.to as unknown as string;
+    fanInCount.set(to, (fanInCount.get(to) ?? 0) + 1);
+  }
+  // For each edge, the index of this edge within its target's
+  // fan-in group (0-based). Edges without a fan-in group get
+  // undefined.
+  const edgeFanInSlot = new Map<number, number>();
+  const slotByTarget = new Map<string, number>();
+  state.edges.forEach((e, i) => {
+    const toKey = e.to as unknown as string;
+    if ((fanInCount.get(toKey) ?? 0) > 1) {
+      const slot = slotByTarget.get(toKey) ?? 0;
+      edgeFanInSlot.set(i, slot);
+      slotByTarget.set(toKey, slot + 1);
+    }
+  });
+
   const layoutEdges = state.edges
-    .map((e) => {
+    .map((e, i) => {
       const from = idToNode.get(e.from as unknown as string);
       const to = idToNode.get(e.to as unknown as string);
       if (!from || !to) return null;
       const fp = positions.get(e.from as unknown as string);
       const tp = positions.get(e.to as unknown as string);
       if (!fp || !tp) return null;
-      return {
-        from,
-        to,
-        x1: fp.x + NODE_W,
-        y1: fp.y + NODE_H / 2,
-        x2: tp.x,
-        y2: tp.y + NODE_H / 2,
-      };
+      const x1 = fp.x + NODE_W;
+      const y1 = fp.y + NODE_H / 2;
+      const x2 = tp.x;
+      const y2 = tp.y + NODE_H / 2;
+      const toKey = e.to as unknown as string;
+      const N = fanInCount.get(toKey) ?? 0;
+      const slot = edgeFanInSlot.get(i);
+      if (N > 1 && slot !== undefined) {
+        // Space the incoming edges across the left edge
+        // of the target so they don't overlap. With N
+        // incoming edges, the slot-th one lands at
+        // (slot+1)/(N+1) of the height. Cubic Bezier with
+        // control points at the midpoint x-coordinate, at
+        // the respective y — the curve smooths the turn.
+        const y2FanIn = tp.y + (NODE_H * (slot + 1)) / (N + 1);
+        const midX = x1 + (x2 - x1) * 0.5;
+        const path = `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2FanIn}, ${x2} ${y2FanIn}`;
+        return { from, to, x1, y1, x2, y2: y2FanIn, path };
+      }
+      return { from, to, x1, y1, x2, y2 };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
