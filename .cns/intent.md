@@ -363,7 +363,7 @@ Per Andrew's "verify per theme" rule: each task gets its own commit (code + test
 
 User-reported defects on the join (parallel merge) demo + one new feature. Four phases, all in `.cns/plans/join-fixes/`.
 
-### JF-1: Stable topological render order
+### JF-1: Stable topological render order ✅ Done (2026-06-08)
 → [`.cns/plans/join-fixes/phase-1-topological-render.md`](plans/join-fixes/phase-1-topological-render.md). Replace Map-insertion-order walk in `RenderedPanel.useRows` with a longest-path-from-root level sort. Helpers land in `packages/core/src/operations.ts` as `topologicalLevels`. Three test cases (chain, diamond, disconnected).
 
 ### JF-2: Curved edges for graph fan-in
