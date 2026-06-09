@@ -369,8 +369,8 @@ User-reported defects on the join (parallel merge) demo + one new feature. Four 
 ### JF-2: Curved edges for graph fan-in ✅ Done (2026-06-08)
 → [`.cns/plans/join-fixes/phase-2-graph-fanin.md`](plans/join-fixes/phase-2-graph-fanin.md). In `Graph.computeLayout`, detect fan-in groups (edges sharing a target) and route them along cubic Béziers with vertical offset based on source row. Single-source edges stay straight.
 
-### JF-3: Runtime concurrency knob + per-wave parallel execution
-→ [`.cns/plans/join-fixes/phase-3-runtime-concurrency.md`](plans/join-fixes/phase-3-runtime-concurrency.md). Add `maxConcurrent?: number` to `RunOptions`. Inner `for (const key of ready)` becomes `Effect.forEach` with `{ concurrency }`. Replace the `currentKey` global with a per-fiber `Ref<Map<FiberId, NodeKey>>`. Batch the per-wave `Ref.update` so a single `notify` fires per wave.
+### JF-3: Runtime concurrency knob + event-driven ready queue ✅ Done (2026-06-08)
+→ [`.cns/plans/join-fixes/phase-3-runtime-concurrency.md`](plans/join-fixes/phase-3-runtime-concurrency.md). `RunOptions` gains `maxConcurrent?: number` (default 1). The dispatch loop is event-driven: each ready node is forked as a fiber carrying its own `NodeKey`; the loop wakes on any in-flight completion and dispatches up to `(maxConcurrent - inFlight.size)` ready nodes. `currentKey` global removed; `inFlightKey` closure replaces it (per-fiber). Three new unit tests cover default sequential, parallel dispatch, and final-state equivalence.
 
 ### JF-4: App-level option wiring
 → [`.cns/plans/join-fixes/phase-4-app-option.md`](plans/join-fixes/phase-4-app-option.md). `Demo` type gains `maxConcurrent?: number`. Join demo sets `maxConcurrent: 4`. `ExampleShell` passes it through. Other demos default to 1.
