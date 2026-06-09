@@ -4,6 +4,15 @@ type: package
 parent: ../../.cns/index.md
 status: dirty
 shipped_in: v1.0
+links:
+  - id: transport-subscribe
+    path: packages/transport/src/subscribe/index.md
+  - id: transport-event-stream
+    path: packages/transport/src/event-stream/index.md
+  - id: transport-sse
+    path: packages/transport/src/transports/sse/index.md
+  - id: transport-ws
+    path: packages/transport/src/transports/ws/index.md
 decisions:
   - id: DEC-TRANSPORT-001
     date: 2026-06-06

@@ -5,6 +5,11 @@ status: clean
 last_reconciled: 2026-06-07
 type: package
 human_notes: |
+links:
+  - id: rl-registry
+    path: packages/renderer-log/src/registry/index.md
+  - id: rl-runner
+    path: packages/renderer-log/src/runner/index.md
 decisions:
   - id: DEC-RL-001
     date: 2026-06-07

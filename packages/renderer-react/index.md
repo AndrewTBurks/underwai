@@ -5,6 +5,15 @@ status: clean
 last_reconciled: 2026-06-07
 type: package
 human_notes: |
+links:
+  - id: rr-provider
+    path: packages/renderer-react/src/provider/index.md
+  - id: rr-hooks
+    path: packages/renderer-react/src/hooks/index.md
+  - id: rr-registry
+    path: packages/renderer-react/src/registry/index.md
+  - id: rr-auto-render
+    path: packages/renderer-react/src/auto-render/index.md
 decisions:
   - id: DEC-RR-001
     date: 2026-06-06

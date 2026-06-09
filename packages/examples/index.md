@@ -3,6 +3,19 @@ title: "@underwai/examples"
 type: package
 parent: ../../.cns/index.md
 principles: [boundary-discipline, type-system-discipline, experience-first]
+links:
+  - id: ex-workflows
+    path: packages/examples/src/workflows/index.md
+  - id: ex-ExampleShell
+    path: packages/examples/src/ExampleShell/index.md
+  - id: ex-RenderedPanel
+    path: packages/examples/src/RenderedPanel/index.md
+  - id: ex-Graph
+    path: packages/examples/src/Graph/index.md
+  - id: ex-EventLog
+    path: packages/examples/src/EventLog/index.md
+  - id: ex-HumanForm
+    path: packages/examples/src/HumanForm/index.md
 decisions:
   - id: DEC-EXAMPLES-001
     date: 2026-06-07

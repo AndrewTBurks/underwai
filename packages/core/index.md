@@ -6,6 +6,16 @@ principles: [boundary-discipline, type-system-discipline, laziness-protocol]
 links:
   - id: node
     path: .cns/architecture/node.md
+  - id: core-keys
+    path: packages/core/src/keys/index.md
+  - id: core-types
+    path: packages/core/src/types/index.md
+  - id: core-composition
+    path: packages/core/src/composition/index.md
+  - id: core-operations
+    path: packages/core/src/operations/index.md
+  - id: core-live
+    path: packages/core/src/live/index.md
 decisions:
   - id: DEC-CORE-001
     date: 2026-06-06

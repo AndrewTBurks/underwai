@@ -3,6 +3,11 @@ title: "@underwai/runner"
 type: package
 parent: ../../.cns/index.md
 principles: [boundary-discipline, type-system-discipline, experience-first]
+links:
+  - id: runner-runtime
+    path: packages/runner/src/runtime/index.md
+  - id: runner-mutations
+    path: packages/runner/src/mutations/index.md
 decisions:
   - id: DEC-RUNNER-001
     date: 2026-06-06

@@ -3,6 +3,9 @@ title: "@underwai/schema"
 type: package
 parent: ../../.cns/index.md
 principles: [boundary-discipline, type-system-discipline, encode-lessons-in-structure]
+links:
+  - id: schema-human
+    path: packages/schema/src/human/index.md
 decisions:
   - id: DEC-SCHEMA-001
     date: 2026-06-06

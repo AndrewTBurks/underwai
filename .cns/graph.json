@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-09T12:38:04.604327+00:00",
+  "generated": "2026-06-09T13:37:18.719035+00:00",
   "nodes": [
     {
       "path": ".cns/architecture/index.md",
@@ -62,7 +62,52 @@
       "type": "package",
       "parent": "../../.cns/index.md",
       "status": "dirty",
-      "decision_count": 18
+      "decision_count": 19
+    },
+    {
+      "path": "packages/core/src/composition/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/core/src/composition/index.md",
+      "title": "core/composition",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 6
+    },
+    {
+      "path": "packages/core/src/keys/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/core/src/keys/index.md",
+      "title": "core/keys",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 3
+    },
+    {
+      "path": "packages/core/src/live/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/core/src/live/index.md",
+      "title": "core/live",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 3
+    },
+    {
+      "path": "packages/core/src/operations/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/core/src/operations/index.md",
+      "title": "core/operations",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 9
+    },
+    {
+      "path": "packages/core/src/types/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/core/src/types/index.md",
+      "title": "core/types",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 8
     },
     {
       "path": "packages/examples/index.md",
@@ -71,7 +116,61 @@
       "type": "package",
       "parent": "../../.cns/index.md",
       "status": "dirty",
+      "decision_count": 4
+    },
+    {
+      "path": "packages/examples/src/EventLog/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/examples/src/EventLog/index.md",
+      "title": "examples/EventLog",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 4
+    },
+    {
+      "path": "packages/examples/src/ExampleShell/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/examples/src/ExampleShell/index.md",
+      "title": "examples/ExampleShell",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 4
+    },
+    {
+      "path": "packages/examples/src/Graph/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/examples/src/Graph/index.md",
+      "title": "examples/Graph",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 4
+    },
+    {
+      "path": "packages/examples/src/HumanForm/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/examples/src/HumanForm/index.md",
+      "title": "examples/HumanForm",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
       "decision_count": 3
+    },
+    {
+      "path": "packages/examples/src/RenderedPanel/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/examples/src/RenderedPanel/index.md",
+      "title": "examples/RenderedPanel",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 4
+    },
+    {
+      "path": "packages/examples/src/workflows/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/examples/src/workflows/index.md",
+      "title": "examples/workflows",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 6
     },
     {
       "path": "packages/renderer-log/index.md",
@@ -83,6 +182,24 @@
       "decision_count": 2
     },
     {
+      "path": "packages/renderer-log/src/registry/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/renderer-log/src/registry/index.md",
+      "title": "renderer-log/registry",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 2
+    },
+    {
+      "path": "packages/renderer-log/src/runner/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/renderer-log/src/runner/index.md",
+      "title": "renderer-log/runner",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 4
+    },
+    {
       "path": "packages/renderer-react/index.md",
       "file": "/Users/andrew/Documents/underwai/packages/renderer-react/index.md",
       "title": "@underwai/renderer-react",
@@ -92,13 +209,67 @@
       "decision_count": 5
     },
     {
+      "path": "packages/renderer-react/src/auto-render/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/renderer-react/src/auto-render/index.md",
+      "title": "renderer-react/auto-render",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 2
+    },
+    {
+      "path": "packages/renderer-react/src/hooks/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/renderer-react/src/hooks/index.md",
+      "title": "renderer-react/hooks",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 3
+    },
+    {
+      "path": "packages/renderer-react/src/provider/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/renderer-react/src/provider/index.md",
+      "title": "renderer-react/provider",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 3
+    },
+    {
+      "path": "packages/renderer-react/src/registry/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/renderer-react/src/registry/index.md",
+      "title": "renderer-react/registry",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 3
+    },
+    {
       "path": "packages/runner/index.md",
       "file": "/Users/andrew/Documents/underwai/packages/runner/index.md",
       "title": "@underwai/runner",
       "type": "package",
       "parent": "../../.cns/index.md",
       "status": "dirty",
-      "decision_count": 9
+      "decision_count": 10
+    },
+    {
+      "path": "packages/runner/src/mutations/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/runner/src/mutations/index.md",
+      "title": "runner/mutations",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 4
+    },
+    {
+      "path": "packages/runner/src/runtime/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/runner/src/runtime/index.md",
+      "title": "runner/runtime",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 13
     },
     {
       "path": "packages/schema/index.md",
@@ -110,6 +281,15 @@
       "decision_count": 6
     },
     {
+      "path": "packages/schema/src/human/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/schema/src/human/index.md",
+      "title": "schema/human",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 7
+    },
+    {
       "path": "packages/transport/index.md",
       "file": "/Users/andrew/Documents/underwai/packages/transport/index.md",
       "title": "@underwai/transport",
@@ -117,6 +297,42 @@
       "parent": "../../.cns/index.md",
       "status": "dirty",
       "decision_count": 9
+    },
+    {
+      "path": "packages/transport/src/event-stream/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/transport/src/event-stream/index.md",
+      "title": "transport/event-stream",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 4
+    },
+    {
+      "path": "packages/transport/src/subscribe/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/transport/src/subscribe/index.md",
+      "title": "transport/subscribe",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 6
+    },
+    {
+      "path": "packages/transport/src/transports/sse/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/transport/src/transports/sse/index.md",
+      "title": "transport/transports/sse",
+      "type": "module",
+      "parent": "../../../index.md",
+      "status": "clean",
+      "decision_count": 4
+    },
+    {
+      "path": "packages/transport/src/transports/ws/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/transport/src/transports/ws/index.md",
+      "title": "transport/transports/ws",
+      "type": "module",
+      "parent": "../../../index.md",
+      "status": "clean",
+      "decision_count": 5
     }
   ],
   "edges": [
@@ -151,8 +367,63 @@
       "label": "parent"
     },
     {
+      "from": "packages/core/src/composition/index.md",
+      "to": "packages/core/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/core/src/keys/index.md",
+      "to": "packages/core/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/core/src/live/index.md",
+      "to": "packages/core/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/core/src/operations/index.md",
+      "to": "packages/core/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/core/src/types/index.md",
+      "to": "packages/core/index.md",
+      "label": "parent"
+    },
+    {
       "from": "packages/examples/index.md",
       "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/examples/src/EventLog/index.md",
+      "to": "packages/examples/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/examples/src/ExampleShell/index.md",
+      "to": "packages/examples/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/examples/src/Graph/index.md",
+      "to": "packages/examples/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/examples/src/HumanForm/index.md",
+      "to": "packages/examples/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/examples/src/RenderedPanel/index.md",
+      "to": "packages/examples/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/examples/src/workflows/index.md",
+      "to": "packages/examples/index.md",
       "label": "parent"
     },
     {
@@ -161,8 +432,38 @@
       "label": "parent"
     },
     {
+      "from": "packages/renderer-log/src/registry/index.md",
+      "to": "packages/renderer-log/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/renderer-log/src/runner/index.md",
+      "to": "packages/renderer-log/index.md",
+      "label": "parent"
+    },
+    {
       "from": "packages/renderer-react/index.md",
       "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/renderer-react/src/auto-render/index.md",
+      "to": "packages/renderer-react/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/renderer-react/src/hooks/index.md",
+      "to": "packages/renderer-react/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/renderer-react/src/provider/index.md",
+      "to": "packages/renderer-react/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/renderer-react/src/registry/index.md",
+      "to": "packages/renderer-react/index.md",
       "label": "parent"
     },
     {
@@ -171,17 +472,77 @@
       "label": "parent"
     },
     {
+      "from": "packages/runner/src/mutations/index.md",
+      "to": "packages/runner/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/runner/src/runtime/index.md",
+      "to": "packages/runner/index.md",
+      "label": "parent"
+    },
+    {
       "from": "packages/schema/index.md",
       "to": ".cns/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/schema/src/human/index.md",
+      "to": "packages/schema/index.md",
       "label": "parent"
     },
     {
       "from": "packages/transport/index.md",
       "to": ".cns/index.md",
       "label": "parent"
+    },
+    {
+      "from": "packages/transport/src/event-stream/index.md",
+      "to": "packages/transport/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/transport/src/subscribe/index.md",
+      "to": "packages/transport/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/transport/src/transports/sse/index.md",
+      "to": "packages/transport/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/transport/src/transports/ws/index.md",
+      "to": "packages/transport/index.md",
+      "label": "parent"
     }
   ],
-  "orphans": [],
+  "orphans": [
+    "packages/core/src/composition/index.md",
+    "packages/core/src/keys/index.md",
+    "packages/core/src/live/index.md",
+    "packages/core/src/operations/index.md",
+    "packages/core/src/types/index.md",
+    "packages/examples/src/EventLog/index.md",
+    "packages/examples/src/ExampleShell/index.md",
+    "packages/examples/src/Graph/index.md",
+    "packages/examples/src/HumanForm/index.md",
+    "packages/examples/src/RenderedPanel/index.md",
+    "packages/examples/src/workflows/index.md",
+    "packages/renderer-log/src/registry/index.md",
+    "packages/renderer-log/src/runner/index.md",
+    "packages/renderer-react/src/auto-render/index.md",
+    "packages/renderer-react/src/hooks/index.md",
+    "packages/renderer-react/src/provider/index.md",
+    "packages/renderer-react/src/registry/index.md",
+    "packages/runner/src/mutations/index.md",
+    "packages/runner/src/runtime/index.md",
+    "packages/schema/src/human/index.md",
+    "packages/transport/src/event-stream/index.md",
+    "packages/transport/src/subscribe/index.md",
+    "packages/transport/src/transports/sse/index.md",
+    "packages/transport/src/transports/ws/index.md"
+  ],
   "cycles": [],
   "dangling_links": []
 }

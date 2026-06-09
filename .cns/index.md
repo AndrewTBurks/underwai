@@ -5,6 +5,8 @@ principles: [minimal-api-surface, maximal-flexibility]
 links:
   - id: architecture
     path: .cns/architecture/index.md
+  - id: architecture-node
+    path: .cns/architecture/node.md
   - id: design
     path: .cns/design/index.md
   - id: product
@@ -23,6 +25,56 @@ links:
     path: packages/renderer-react/index.md
   - id: renderer-log
     path: packages/renderer-log/index.md
+  - id: examples
+    path: packages/examples/index.md
+  - id: core-keys
+    path: packages/core/src/keys/index.md
+  - id: core-types
+    path: packages/core/src/types/index.md
+  - id: core-composition
+    path: packages/core/src/composition/index.md
+  - id: core-operations
+    path: packages/core/src/operations/index.md
+  - id: core-live
+    path: packages/core/src/live/index.md
+  - id: schema-human
+    path: packages/schema/src/human/index.md
+  - id: runner-runtime
+    path: packages/runner/src/runtime/index.md
+  - id: runner-mutations
+    path: packages/runner/src/mutations/index.md
+  - id: transport-subscribe
+    path: packages/transport/src/subscribe/index.md
+  - id: transport-event-stream
+    path: packages/transport/src/event-stream/index.md
+  - id: transport-sse
+    path: packages/transport/src/transports/sse/index.md
+  - id: transport-ws
+    path: packages/transport/src/transports/ws/index.md
+  - id: rr-provider
+    path: packages/renderer-react/src/provider/index.md
+  - id: rr-hooks
+    path: packages/renderer-react/src/hooks/index.md
+  - id: rr-registry
+    path: packages/renderer-react/src/registry/index.md
+  - id: rr-auto-render
+    path: packages/renderer-react/src/auto-render/index.md
+  - id: rl-registry
+    path: packages/renderer-log/src/registry/index.md
+  - id: rl-runner
+    path: packages/renderer-log/src/runner/index.md
+  - id: ex-EventLog
+    path: packages/examples/src/EventLog/index.md
+  - id: ex-ExampleShell
+    path: packages/examples/src/ExampleShell/index.md
+  - id: ex-Graph
+    path: packages/examples/src/Graph/index.md
+  - id: ex-RenderedPanel
+    path: packages/examples/src/RenderedPanel/index.md
+  - id: ex-HumanForm
+    path: packages/examples/src/HumanForm/index.md
+  - id: ex-workflows
+    path: packages/examples/src/workflows/index.md
 human_notes: |
 
 status: dirty
@@ -78,12 +130,13 @@ The library is a pnpm workspace. Each package has its own `index.md` (peripheral
 
 **All six packages ship with v1.0.** There is no v1.1+ tier — the v1.0 deliverable is the lib _plus_ the way to consume it. A "true v1.0" without a transport and renderers is not a usable v1.0; it's a data structure with a runner. The original product doc's "v1.x / v2 deferred" list had these as v1.1+; that was a misjudgment, corrected on 2026-06-06.
 
-- **packages/core** ([`index.md`](packages/core/index.md)) — `@underwai/core`. The data structure: types, keys, composition, operations. No imports from the other v1 packages.
-- **packages/schema** ([`index.md`](packages/schema/index.md)) — `@underwai/schema`. The Zod extension: `z.human()` + `.verified()`. Standalone; depends on Zod only.
-- **packages/runner** ([`index.md`](packages/runner/index.md)) — `@underwai/runner`. The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives. Depends on `@underwai/core` and `@underwai/schema`.
-- **packages/transport** ([`index.md`](packages/transport/index.md)) — `@underwai/transport`. Subscription API (`subscribe`, `subscribeSet`) + wire format (`WorkflowEvent` stream) + transports (SSE, WebSocket). Depends on `@underwai/core`.
-- **packages/renderer-react** ([`index.md`](packages/renderer-react/index.md)) — `@underwai/renderer-react`. The reference React adapter: hooks, provider, auto-render. Depends on `@underwai/core` and `@underwai/transport`.
-- **packages/renderer-log** ([`index.md`](packages/renderer-log/index.md)) — `@underwai/renderer-log`. The stdout log renderer for tests. Depends on `@underwai/core` and `@underwai/transport`.
+- **packages/core** ([`index.md`](packages/core/index.md)) — `@underwai/core`. The data structure: types, keys, composition, operations. No imports from the other v1 packages. Submodules: [`keys`](packages/core/src/keys/index.md), [`types`](packages/core/src/types/index.md), [`composition`](packages/core/src/composition/index.md), [`operations`](packages/core/src/operations/index.md), [`live`](packages/core/src/live/index.md).
+- **packages/schema** ([`index.md`](packages/schema/index.md)) — `@underwai/schema`. The Zod extension: `z.human()` + `.verified()`. Standalone; depends on Zod only. Submodule: [`human`](packages/schema/src/human/index.md).
+- **packages/runner** ([`index.md`](packages/runner/index.md)) — `@underwai/runner`. The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives. Depends on `@underwai/core` and `@underwai/schema`. Submodules: [`runtime`](packages/runner/src/runtime/index.md), [`mutations`](packages/runner/src/mutations/index.md).
+- **packages/transport** ([`index.md`](packages/transport/index.md)) — `@underwai/transport`. Subscription API (`subscribe`, `subscribeSet`) + wire format (`WorkflowEvent` stream) + transports (SSE, WebSocket). Depends on `@underwai/core`. Submodules: [`subscribe`](packages/transport/src/subscribe/index.md), [`event-stream`](packages/transport/src/event-stream/index.md), [`sse`](packages/transport/src/transports/sse/index.md), [`ws`](packages/transport/src/transports/ws/index.md).
+- **packages/renderer-react** ([`index.md`](packages/renderer-react/index.md)) — `@underwai/renderer-react`. The reference React adapter: hooks, provider, auto-render. Depends on `@underwai/core` and `@underwai/transport`. Submodules: [`provider`](packages/renderer-react/src/provider/index.md), [`hooks`](packages/renderer-react/src/hooks/index.md), [`registry`](packages/renderer-react/src/registry/index.md), [`auto-render`](packages/renderer-react/src/auto-render/index.md).
+- **packages/renderer-log** ([`index.md`](packages/renderer-log/index.md)) — `@underwai/renderer-log`. The stdout log renderer for tests. Depends on `@underwai/core` and `@underwai/transport`. Submodules: [`registry`](packages/renderer-log/src/registry/index.md), [`runner`](packages/renderer-log/src/runner/index.md).
+- **packages/examples** ([`index.md`](packages/examples/index.md)) — `@underwai/examples`. The five deployable example workflows (linear-pipeline, human-in-the-loop, join, streaming, wall-display). Submodules: [`workflows`](packages/examples/src/workflows/index.md), [`ExampleShell`](packages/examples/src/ExampleShell/index.md), [`RenderedPanel`](packages/examples/src/RenderedPanel/index.md), [`Graph`](packages/examples/src/Graph/index.md), [`EventLog`](packages/examples/src/EventLog/index.md), [`HumanForm`](packages/examples/src/HumanForm/index.md).
 
 The pre-shard `src/stub.ts` was moved to `packages/core/src/stub.ts` on 2026-06-06. Phase 2 distributes the stub's contents across the four `packages/core/src/*` files (keys, types, composition, operations).
 
