@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from "vitest";
 import { Effect } from "effect";
-import { WorkflowRuntime, WorkflowRuntimeLive } from "@underwai/runner";
+import { WorkflowRuntime, WorkflowRuntimeLive, type RunOptions } from "@underwai/runner";
 import { NodeKey, type WorkflowState } from "@underwai/core";
 import { capture } from "./EventLog.js";
 import {
@@ -131,7 +131,44 @@ describe("join example", () => {
       throw new Error("expected render to be resolved");
     }
   }, 15000);
+
+  it("resolves faster with maxConcurrent: 4 (parallel branches)", async () => {
+    // The join demo has two parallel branches at the top
+    // (fetchProfile and fetchAvatar) plus a chain (validate
+    // stages) and a merge. With maxConcurrent: 4, the
+    // top-level branches run concurrently, halving the
+    // wall-clock time of that tier. With the artificial
+    // Effect.sleep("500 millis") per node, sequential
+    // takes ~5s; parallel takes ~2.5s.
+    const sequential = await runJoinWith(1);
+    const parallel = await runJoinWith(4);
+    const seqMs = Date.now() - sequential.start;
+    const parMs = Date.now() - parallel.start;
+    expect(sequential.result.status).toBe("completed");
+    expect(parallel.result.status).toBe("completed");
+    // Parallel should be meaningfully faster. The minimum
+    // node count at the top tier is 2 (fetchProfile,
+    // fetchAvatar); sequential = ~1s extra, parallel =
+    // ~0s. We allow some slack.
+    expect(parMs).toBeLessThan(seqMs * 0.85);
+  }, 30000);
 });
+
+// Helper for the parallel-vs-sequential timing assertion.
+async function runJoinWith(maxConcurrent: number | undefined) {
+  const state = joinExampleDemo.setup();
+  const start = Date.now();
+  const result = await Effect.runPromise(
+    Effect.gen(function* () {
+      const rt = yield* WorkflowRuntime;
+      yield* rt.write(NodeKey("root"), "Bob");
+      const opts: RunOptions =
+        maxConcurrent === undefined ? { state } : { state, maxConcurrent };
+      return yield* rt.run(opts);
+    }).pipe(Effect.provide(WorkflowRuntimeLive({ state }))),
+  );
+  return { result, start };
+}
 
 describe("streaming example", () => {
   it("resolves the display with the generated token", async () => {

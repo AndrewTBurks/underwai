@@ -496,6 +496,11 @@ export const joinExampleDemo: Demo = {
   },
   leafKey: "root.fetchProfile.validateProfile.merge.render",
   panel: { kind: "none" },
+  // The two parallel branches (fetchProfile / fetchAvatar)
+  // run concurrently. maxConcurrent: 4 leaves headroom
+  // for the validate stages to also run in parallel with
+  // each other.
+  maxConcurrent: 4,
 };
 
 export const streamingDemo: Demo = {

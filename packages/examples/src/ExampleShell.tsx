@@ -49,6 +49,15 @@ export type Demo<PathMap extends Record<string, unknown> = Record<string, unknow
   readonly panel:
     | { kind: "input"; label: string; default: string; writeTo: NodeKeyT }
     | { kind: "none" };
+  // maxConcurrent: cap on parallel in-flight programs for
+  // this demo. Default 1 (sequential) preserves the
+  // original behavior. A value > 1 lets ready siblings
+  // dispatch in parallel; the runtime's event-driven loop
+  // will pick up the next ready node as soon as a slot
+  // frees up. The join demo opts in to 4 to show that the
+  // two parallel branches (fetchProfile / fetchAvatar) run
+  // concurrently.
+  readonly maxConcurrent?: number;
 };
 
 export function ExampleShell<PathMap extends Record<string, unknown>>({
@@ -176,9 +185,12 @@ export function ExampleShell<PathMap extends Record<string, unknown>>({
       if (pendingHuman) {
         yield* rt.writeHumanInput(pendingHuman.key, pendingHuman.value);
       }
-      const s = yield* rt.run({
-        state: runtimeRef.current?.state ?? d.setup(),
-      });
+      const state = runtimeRef.current?.state ?? d.setup();
+      const opts: Parameters<typeof rt.run>[0] =
+        d.maxConcurrent === undefined
+          ? { state }
+          : { state, maxConcurrent: d.maxConcurrent };
+      const s = yield* rt.run(opts);
       if (cbRef.current === cb) {
         const prevState = prevStateRef.current;
         prevStateRef.current = s;
