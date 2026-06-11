@@ -77,8 +77,8 @@ links:
     path: packages/examples/src/workflows/index.md
 human_notes: |
 
-status: dirty
-last_reconciled: 2026-06-06
+status: clean
+last_reconciled: 2026-06-11
 ---
 
 # underwAI
@@ -124,34 +124,32 @@ The principles are restated and applied in each layer's `index.md`:
 - **product** carries the gap statement, the v1 must-haves, and the modules list. `principles: [minimal-api-surface, experience-first]`.
 - **research** carries the related-work table and the open questions that drive `intent.md`. `principles: [encode-lessons-in-structure, exhaust-the-design-space]`.
 
-## Package references (the pre-shard library folder structure)
+## Package references
 
-The library is a pnpm workspace. Each package has its own `index.md` (peripheral nervous system node) with local context for the implementation phase. Pre-shard on 2026-06-06.
+The library is a pnpm workspace. Each package has its own `index.md` peripheral nervous system node, and larger packages have module-level nodes under `src/*/index.md`. The completed Phase 1, Phase 2, audit-closing, and join-fix items from `intent.md` are sharded into those package and module nodes.
 
-**All six packages ship with v1.0.** There is no v1.1+ tier — the v1.0 deliverable is the lib _plus_ the way to consume it. A "true v1.0" without a transport and renderers is not a usable v1.0; it's a data structure with a runner. The original product doc's "v1.x / v2 deferred" list had these as v1.1+; that was a misjudgment, corrected on 2026-06-06.
+**The v1 workspace includes the library, transports, renderers, and examples.** The examples package is now the consumer-validation surface, not scratch code.
 
-- **packages/core** ([`index.md`](packages/core/index.md)) — `@underwai/core`. The data structure: types, keys, composition, operations. No imports from the other v1 packages. Submodules: [`keys`](packages/core/src/keys/index.md), [`types`](packages/core/src/types/index.md), [`composition`](packages/core/src/composition/index.md), [`operations`](packages/core/src/operations/index.md), [`live`](packages/core/src/live/index.md).
-- **packages/schema** ([`index.md`](packages/schema/index.md)) — `@underwai/schema`. The Zod extension: `z.human()` + `.verified()`. Standalone; depends on Zod only. Submodule: [`human`](packages/schema/src/human/index.md).
-- **packages/runner** ([`index.md`](packages/runner/index.md)) — `@underwai/runner`. The runner: `runWorkflow`, `WorkflowRuntime` service, mutation primitives. Depends on `@underwai/core` and `@underwai/schema`. Submodules: [`runtime`](packages/runner/src/runtime/index.md), [`mutations`](packages/runner/src/mutations/index.md).
-- **packages/transport** ([`index.md`](packages/transport/index.md)) — `@underwai/transport`. Subscription API (`subscribe`, `subscribeSet`) + wire format (`WorkflowEvent` stream) + transports (SSE, WebSocket). Depends on `@underwai/core`. Submodules: [`subscribe`](packages/transport/src/subscribe/index.md), [`event-stream`](packages/transport/src/event-stream/index.md), [`sse`](packages/transport/src/transports/sse/index.md), [`ws`](packages/transport/src/transports/ws/index.md).
-- **packages/renderer-react** ([`index.md`](packages/renderer-react/index.md)) — `@underwai/renderer-react`. The reference React adapter: hooks, provider, auto-render. Depends on `@underwai/core` and `@underwai/transport`. Submodules: [`provider`](packages/renderer-react/src/provider/index.md), [`hooks`](packages/renderer-react/src/hooks/index.md), [`registry`](packages/renderer-react/src/registry/index.md), [`auto-render`](packages/renderer-react/src/auto-render/index.md).
-- **packages/renderer-log** ([`index.md`](packages/renderer-log/index.md)) — `@underwai/renderer-log`. The stdout log renderer for tests. Depends on `@underwai/core` and `@underwai/transport`. Submodules: [`registry`](packages/renderer-log/src/registry/index.md), [`runner`](packages/renderer-log/src/runner/index.md).
-- **packages/examples** ([`index.md`](packages/examples/index.md)) — `@underwai/examples`. The five deployable example workflows (linear-pipeline, human-in-the-loop, join, streaming, wall-display). Submodules: [`workflows`](packages/examples/src/workflows/index.md), [`ExampleShell`](packages/examples/src/ExampleShell/index.md), [`RenderedPanel`](packages/examples/src/RenderedPanel/index.md), [`Graph`](packages/examples/src/Graph/index.md), [`EventLog`](packages/examples/src/EventLog/index.md), [`HumanForm`](packages/examples/src/HumanForm/index.md).
-
-The pre-shard `src/stub.ts` was moved to `packages/core/src/stub.ts` on 2026-06-06. Phase 2 distributes the stub's contents across the four `packages/core/src/*` files (keys, types, composition, operations).
+- **packages/core** ([`index.md`](packages/core/index.md)) — `@underwai/core`. The data structure and composition layer: keys, types, composition, operations, and the small live registry. Core is value-shaped; the runner is the mutator. Submodules: [`keys`](packages/core/src/keys/index.md), [`types`](packages/core/src/types/index.md), [`composition`](packages/core/src/composition/index.md), [`operations`](packages/core/src/operations/index.md), [`live`](packages/core/src/live/index.md).
+- **packages/schema** ([`index.md`](packages/schema/index.md)) — `@underwai/schema`. The Zod marker package: named `human()`, `HumanSchema`, `.verified()`, and `getHumanMode`. Submodule: [`human`](packages/schema/src/human/index.md).
+- **packages/runner** ([`index.md`](packages/runner/index.md)) — `@underwai/runner`. The Effect runtime: `WorkflowRuntime`, `WorkflowRuntimeLive`, `RunOptions`, event-driven dispatch, and pure transition helpers. Submodules: [`runtime`](packages/runner/src/runtime/index.md), [`mutations`](packages/runner/src/mutations/index.md).
+- **packages/transport** ([`index.md`](packages/transport/index.md)) — `@underwai/transport`. Pattern subscriptions plus the `WorkflowEvent` wire format and SSE/WebSocket transports. Submodules: [`subscribe`](packages/transport/src/subscribe/index.md), [`event-stream`](packages/transport/src/event-stream/index.md), [`sse`](packages/transport/src/transports/sse/index.md), [`ws`](packages/transport/src/transports/ws/index.md).
+- **packages/renderer-react** ([`index.md`](packages/renderer-react/index.md)) — `@underwai/renderer-react`. React provider, hooks, renderer registry, and auto-renderer over `LiveSubscriptionRegistry`. Submodules: [`provider`](packages/renderer-react/src/provider/index.md), [`hooks`](packages/renderer-react/src/hooks/index.md), [`registry`](packages/renderer-react/src/registry/index.md), [`auto-render`](packages/renderer-react/src/auto-render/index.md).
+- **packages/renderer-log** ([`index.md`](packages/renderer-log/index.md)) — `@underwai/renderer-log`. Stdout renderer and kind-to-text registry. Submodules: [`registry`](packages/renderer-log/src/registry/index.md), [`runner`](packages/renderer-log/src/runner/index.md).
+- **packages/examples** ([`index.md`](packages/examples/index.md)) — `@underwai/examples`. The deployable consumer examples: linear-pipeline, human-in-the-loop, join, streaming, and wall-display. Submodules: [`workflows`](packages/examples/src/workflows/index.md), [`ExampleShell`](packages/examples/src/ExampleShell/index.md), [`RenderedPanel`](packages/examples/src/RenderedPanel/index.md), [`Graph`](packages/examples/src/Graph/index.md), [`EventLog`](packages/examples/src/EventLog/index.md), [`HumanForm`](packages/examples/src/HumanForm/index.md).
 
 ## Decisions in scope
 
-The package `index.md` files encode their design decisions in the `decisions[]` frontmatter array. Read that array, not the body prose, to understand _why_ each package is shaped the way it is. The body carries the file plan and the boundary; the frontmatter carries the load-bearing decisions.
+The package `index.md` files encode load-bearing decisions in `decisions[]`. Module-specific mechanics live in the linked module-level nodes. The body prose is only an entry point and boundary map.
 
-Each `decisions[]` entry has `id:`, `date:`, `author:`, `summary:`. The IDs are scoped per-package (`DEC-CORE-001` through `DEC-CORE-013`, `DEC-SCHEMA-001` through `DEC-SCHEMA-005`, etc.). Where the same design point touches multiple packages, the decision appears once in the package that owns it; sibling packages cross-reference the design point by name in their `decisions[]` summary, not by ID.
+Decision counts change as reconcile prunes stale decisions and adds new ones. Read the current frontmatter instead of relying on historical counts.
 
-Counts as of 2026-06-06: 13 in core, 5 in schema, 8 in runner, 7 in transport, 6 in renderer-react, 6 in renderer-log. 45 total. Decisions are pruned on reconcile — if the code drifts from a decision, the decision is deleted, not archived.
+The current load-bearing decisions across the workspace are:
 
-The five most load-bearing decisions across the workspace (read these first, then the per-package list):
-
-- **DEC-CORE-001** (core) — `Node["status"]` is a discriminated union. Per-status data lives on the variants that own them.
-- **DEC-CORE-002** (core) — `ResolvedInput = { value, schema, humanFields }`. Single value, not a per-field bundle.
-- **DEC-RUNNER-002** (runner) — Mid-execution `writeHumanInput` interrupts the in-flight Effect fiber via `Fiber.interrupt`. The transition is `running → stale → running`.
-- **DEC-TRANSPORT-001** (transport) — Two subscription methods, no flags. `subscribe` is exact-key; `subscribeSet` is wildcard pattern with `*`.
-- **DEC-CORE-005** (core) — Path generic on `NodeKey<Path>` is non-negotiable. Combinator signatures thread the path through end-to-end.
+- **DEC-CORE-001** — node status is a discriminated union, with per-status data on the variants that own it.
+- **DEC-CORE-002** — `ResolvedInput = { value, schema, humanFields }`, not a per-field bundle.
+- **DEC-CORE-003 / DEC-RUNNER-007** — edges carry optional bridge functions, and runtime input resolution applies those bridges.
+- **DEC-CORE-018** — core has no public mutation primitives; the runner is the only mutator.
+- **DEC-RUNNER-010** — runtime dispatch is event-driven and bounded by `maxConcurrent`.
+- **DEC-TRANSPORT-001 / DEC-TRANSPORT-007** — subscriptions expose `subscribe` and `subscribeSet` with exact-key, `prefix.*`, `prefix.`, and bare `*` patterns.
+- **DEC-TRANSPORT-009** — `WorkflowEvent` is the JSON wire format for SSE and WebSocket transports.

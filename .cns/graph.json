@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-09T13:37:18.719035+00:00",
+  "generated": "2026-06-11T21:03:57.312109+00:00",
   "nodes": [
     {
       "path": ".cns/architecture/index.md",
@@ -34,7 +34,7 @@
       "title": "underwAI",
       "type": "project",
       "parent": null,
-      "status": "dirty",
+      "status": "clean",
       "decision_count": 0
     },
     {
@@ -61,7 +61,7 @@
       "title": "@underwai/core",
       "type": "package",
       "parent": "../../.cns/index.md",
-      "status": "dirty",
+      "status": "clean",
       "decision_count": 19
     },
     {
@@ -250,7 +250,7 @@
       "title": "@underwai/runner",
       "type": "package",
       "parent": "../../.cns/index.md",
-      "status": "dirty",
+      "status": "clean",
       "decision_count": 10
     },
     {
@@ -277,7 +277,7 @@
       "title": "@underwai/schema",
       "type": "package",
       "parent": "../../.cns/index.md",
-      "status": "dirty",
+      "status": "clean",
       "decision_count": 6
     },
     {
@@ -295,7 +295,7 @@
       "title": "@underwai/transport",
       "type": "package",
       "parent": "../../.cns/index.md",
-      "status": "dirty",
+      "status": "clean",
       "decision_count": 9
     },
     {
@@ -526,7 +526,6 @@
     "packages/examples/src/EventLog/index.md",
     "packages/examples/src/ExampleShell/index.md",
     "packages/examples/src/Graph/index.md",
-    "packages/examples/src/HumanForm/index.md",
     "packages/examples/src/RenderedPanel/index.md",
     "packages/examples/src/workflows/index.md",
     "packages/renderer-log/src/registry/index.md",

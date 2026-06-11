@@ -81,7 +81,7 @@ The audit's verdicts:
 
 Per Andrew's preference: sequential one-at-a-time, with TDD per task, CNS health gate per commit. Andrew's interview-first rule applies to _judgment calls_ within each task; the next 5 tasks are scoped enough that the agent asserts the non-pivots and asks only the load-bearing questions per task.
 
-### 30. Close core gaps: `init()` walks composition → WorkflowState; `getHumanInputDisplay()` real impl; add `publish` / `write` core mutation primitives. (TASK-30)
+### 30. Close core gaps ... ✅ Done (2026-06-07) [x]
 
 The composition API returns NodeRefs but nothing actually walks a composition tree to build a WorkflowState. The "composition is the definition" promise is broken at runtime. Also: `getHumanInputDisplay()` is a stub (DEC-CORE-010 unenforced); `publish`/`write` core mutation primitives (named in `docs/design.md` and `.cns/architecture/index.md`) are missing.
 
@@ -95,7 +95,7 @@ Verification: `tsc -b` clean, all 61 existing tests pass, new tests added; CNS h
 
 **Status (2026-06-07): DONE.** 12 new tests added (4 init, 5 getHumanInputDisplay, 3 publish/write). 73/73 green. DEC-CORE-015 (compose) through DEC-CORE-018 (publish/write) added. The init() shape required a `compose()` wrapper (DEC-CORE-015) so the combinators can record their defs and edges; this was not in the original plan but is the laziest path. The runner migration to use core's publish/write is a follow-up; the runner's runtime.ts still inlines markStreaming/markRunning — that's TASK-31.
 
-### 31. Runner integration test (`runWorkflow` end-to-end). (TASK-31)
+### 31. Runner integration test ... ✅ Done (2026-06-07) [x]
 
 The runtime is structurally complete (Effect.gen walking the DAG, sequential program execution, state mutations via `mutations.ts`) but the integration test was rolled back on 2026-06-07 due to Effect 3 + `exactOptionalPropertyTypes` typing friction (DEC-RUNNER-009).
 
@@ -111,7 +111,7 @@ Verification: 4 new tests pass, all existing tests still pass, `tsc -b` clean, C
 
 **Status (2026-06-07): DONE.** 4 new tests added. 77/77 green. Used core/compose + core/init to build a real WorkflowState from a composition; the runtime now accepts state.status "pending" as a starting state (the orchestrator implicitly flips to "running" while walking). Test 3 (publish-service integration) is exercised via the SubscriptionRegistry's notify count. Test 4 verifies a 3-node workflow drives root → a → b in dependency order. DEC-RUNNER-009 closed.
 
-### 32. Transport wire format + live subscription. (TASK-32)
+### 32. Transport wire format + live subscription. (TASK-32) ✅ Done (2026-06-07) [x]
 
 The in-process `subscribe`/`subscribeSet` pattern matcher is complete, but the design is broken: the callback fires _once_ with the current value, not on every state change. There's no live registry, no fan-out from the runner, no `unsubscribe` mechanism, no wire format. The transport package's `index.ts` is `export {}` — the public surface is empty.
 
@@ -129,7 +129,7 @@ Verification: live subscribe test, event-stream serialize/deserialize roundtrip,
 
 **Status (2026-06-07): DONE.** 11 new tests added (3 live registry, 6 live subscribe, 2 SSE, 2 WS, 1 live-registry wired through runner, 3 event-stream). 89/89 green. `LiveSubscriptionRegistry` lives in `@underwai/core` (DEC-TRANSPORT-008) — single source of truth for fan-out; transport wraps it with pattern matching, the runner wires it into `RunOptions.liveRegistry`. `WorkflowEvent` (DEC-TRANSPORT-009) is the wire format; SSE and WebSocket transports emit/consume it. Note: there were 2 distinct Transport-3/4/5 decisions in the package's frontmatter that were unimplemented stubs; both are now reflected in code.
 
-### 33. `@underwai/renderer-react` — React adapter. (TASK-33)
+### 33. `@underwai/renderer-react` ... ✅ Done (2026-06-07) [x]
 
 The React renderer. Hooks-based: `useWorkflowState`, `useNode`, `useSubtree`. Registry: `kind → ReactElement`. No chat/agent UI affordances — the lib is workflow-shaped, not chat-shaped (DEC-RR-004).
 
@@ -145,7 +145,7 @@ Verification: a test that registers a renderer, instantiates a state with 3 node
 
 **Status (2026-06-07): DONE.** 5 files: provider, hooks, registry, auto-render, index. 3 tests. 92/92 green. The renderer is a thin adapter over the LiveSubscriptionRegistry; consumers compose their own UI from useNode, useSubtree, useWorkflowState. The wiring tested is `<WorkflowProvider>` + `<AutoRender>` walking a 3-node state.
 
-### 34. `@underwai/renderer-log` — stdout log renderer. (TASK-34)
+### 34. `@underwai/renderer-log` ... ✅ Done (2026-06-07) [x]
 
 The smallest possible renderer. Subscribes to the workflow via `subscribeSet(state, "*", onUpdate)`, prints to stdout. Every kind is renderable (default for unknown kinds).
 
@@ -363,17 +363,168 @@ Per Andrew's "verify per theme" rule: each task gets its own commit (code + test
 
 User-reported defects on the join (parallel merge) demo + one new feature. Four phases, all in `.cns/plans/join-fixes/`.
 
-### JF-1: Stable topological render order ✅ Done (2026-06-08)
+### JF-1: Stable topological render order ✅ Done (2026-06-08) [x]
 → [`.cns/plans/join-fixes/phase-1-topological-render.md`](plans/join-fixes/phase-1-topological-render.md). Replace Map-insertion-order walk in `RenderedPanel.useRows` with a longest-path-from-root level sort. Helpers land in `packages/core/src/operations.ts` as `topologicalLevels`. Three test cases (chain, diamond, disconnected).
 
-### JF-2: Curved edges for graph fan-in ✅ Done (2026-06-08)
+### JF-2: Curved edges for graph fan-in ✅ Done (2026-06-08) [x]
 → [`.cns/plans/join-fixes/phase-2-graph-fanin.md`](plans/join-fixes/phase-2-graph-fanin.md). In `Graph.computeLayout`, detect fan-in groups (edges sharing a target) and route them along cubic Béziers with vertical offset based on source row. Single-source edges stay straight.
 
-### JF-3: Runtime concurrency knob + event-driven ready queue ✅ Done (2026-06-08)
+### JF-3: Runtime concurrency knob + event-driven ready queue ✅ Done (2026-06-08) [x]
 → [`.cns/plans/join-fixes/phase-3-runtime-concurrency.md`](plans/join-fixes/phase-3-runtime-concurrency.md). `RunOptions` gains `maxConcurrent?: number` (default 1). The dispatch loop is event-driven: each ready node is forked as a fiber carrying its own `NodeKey`; the loop wakes on any in-flight completion and dispatches up to `(maxConcurrent - inFlight.size)` ready nodes. `currentKey` global removed; `inFlightKey` closure replaces it (per-fiber). Three new unit tests cover default sequential, parallel dispatch, and final-state equivalence.
 
-### JF-4: App-level option wiring ✅ Done (2026-06-08)
+### JF-4: App-level option wiring ✅ Done (2026-06-08) [x]
 → [`.cns/plans/join-fixes/phase-4-app-option.md`](plans/join-fixes/phase-4-app-option.md). `Demo` type gains `maxConcurrent?: number`. Join demo sets `maxConcurrent: 4`. `ExampleShell` passes it through to `rt.run` (with a default-undefined branch to satisfy `exactOptionalPropertyTypes`). Other demos default to 1. New test asserts parallel-vs-sequential wall-clock improvement (`parMs < seqMs * 0.85`).
 
-### JF-5: Event log sequence numbers (inverted) ✅ Done (2026-06-08)
+### JF-5: Event log sequence numbers (inverted) ✅ Done (2026-06-08) [x]
 → Replaced the `HH:MM:SS.mmm` timestamp column with sequence numbers (`#001` = latest, `#NNN` = oldest). The runtime fires many markRunning/markResolved calls in the same tick (especially after JF-3's event-driven dispatch), so timestamps collided. Sequence numbers are unique per event and match the consumer's mental model (latest first). Time column narrowed 90px → 50px. Events array still in chronological order; only the display is inverted.
+
+## Repository structure planned fixes (2026-06-11, architect review)
+
+Source: `/architect` repository-structure review. These tasks consolidate the findings from the package-boundary, examples, TypeScript hygiene, and CNS drift audit. Execute one-by-one. Do not delete completed historical tasks. Keep CNS health green after each task.
+
+### 46. Finish or revert the human-in-the-loop live-edit WIP. (TASK-46)
+
+The examples package is currently the load-bearing consumer validation surface. The active WIP changed the human-in-the-loop demo toward live-edit human input, but the repo is not clean: the working tree has modified examples files, an untracked `packages/examples/src/HumanForm/index.tsx`, and the human-in-the-loop test currently produces `"✨ Hello, undefined! ✨\n— underwai"` instead of using Alice.
+
+Planned fixes:
+
+- Decide the human input shape before shipping the WIP: either keep the structured live-edit form intentionally, or revert toward primitive human fields. Do not ship structured object input as an accidental consequence of the current WIP.
+- Remove stale submit-era plumbing from `packages/examples/src/ExampleShell.tsx`: `pendingHumanRef`, the `pendingHuman` parameter to `runDemo`, and comments that refer to a form submit. Correction from Andrew: the current human input fields have no submit button; the model is live field changes.
+- Make one state source authoritative for the live-edit path. The path should be `onHumanInputChange → WorkflowRuntime.writeHumanInput → rerun from the returned/current state → React state update`.
+- Fix the current data-flow bug where upstream bridge/default input overwrites the human-written value.
+- Remove debug artifacts before commit: `console.log`, `window.__onHumanInputCount`, `window.__formChangeCount`, `window.__fieldRowCount`, and `localStorage` debug keys.
+
+Verification: `pnpm --filter @underwai/examples test`, `pnpm --filter @underwai/examples typecheck`, `pnpm test`, `pnpm build`, CNS health gate.
+
+### 47. Put `@underwai/examples` into an explicit root verification lane. (TASK-47)
+
+The examples package is a real workspace package but is not part of the root TypeScript reference graph. `pnpm exec tsc -b --dry` only lists core, schema, runner, transport, renderer-react, and renderer-log. That means root `pnpm build` can pass while the consumer examples are broken.
+
+Planned fixes:
+
+- Decide the lane: either add `packages/examples` to root `tsconfig.json` references, or add a root script that explicitly runs `pnpm --filter @underwai/examples build`.
+- Prefer including examples in the normal project gate while the API is still being validated through examples.
+- Ensure the examples build does not emit test files into the publish/browser bundle unnecessarily. If needed, split app build tsconfig from test tsconfig.
+- Update the documented verification gate so future sessions do not treat root `tsc -b` as sufficient for examples.
+
+Verification: root build lane fails if examples has a type error; examples build produces a deployable Vite bundle; CNS health gate.
+
+### 48. Reconcile the core/schema package boundary. (TASK-48)
+
+`packages/core/index.md` says core has no imports from `@underwai/schema`, but `packages/core/src/types.ts` imports `HumanMode` and `packages/core/src/operations.ts` imports `getHumanMode` from `@underwai/schema`. `@underwai/core` also lists `@underwai/schema` as a devDependency even though source imports it.
+
+Planned fixes:
+
+- Pick the real boundary explicitly.
+- Small honest path: treat schema as a lower-level package that core depends on. Move `@underwai/schema` to the correct dependency class and update CNS/package docs.
+- Larger redesign path: keep core schema-agnostic by moving human schema inspection out of core and into schema, runner, or renderer adapters.
+- Do not keep the current mixed claim.
+
+Verification: package metadata matches actual source imports; CNS package docs match code; `pnpm build`; CNS health gate.
+
+### 49. Make live subscription ownership explicit and single-surface. (TASK-49)
+
+Core docs say subscription methods live in transport, but `LiveSubscriptionRegistry` lives in core, runner accepts it, transport wraps it, renderer-react consumes core directly, and renderer-log consumes transport. The concept is split across two public stories.
+
+Planned fixes:
+
+- Pick the ownership model.
+- Recommended model: core owns a tiny transport-free observable state primitive; transport owns pattern helpers and wire protocols.
+- Align renderer-react and renderer-log on the same public subscription abstraction, or document why they intentionally sit at different layers.
+- Update CNS decisions and package docs to match the code after the ownership model is chosen.
+
+Verification: one documented subscription story; renderer-react and renderer-log dependencies are intentional; existing subscription tests pass; CNS health gate.
+
+### 50. Extract the examples demo model and runtime controller. (TASK-50)
+
+`ExampleShell.tsx` currently owns layout, runtime layer creation, subscriptions, event capture, input writes, human input writes, graph scroll state, and demo switching. `workflows.ts` imports the `Demo` type from `ExampleShell`, so workflow definitions depend on the shell component.
+
+Planned fixes:
+
+- Move `Demo` into a neutral file such as `packages/examples/src/demo-types.ts`.
+- Extract a controller hook such as `useDemoRuntime(demo)` that owns runtime state, events, `run`, `writeRootInput`, `writeHumanInput`, and reset behavior.
+- Keep `ExampleShell` as composition/layout glue.
+- Ensure the controller has one authoritative runtime state source.
+
+Verification: no workflow-definition file imports a UI shell type; human-in-the-loop and linear examples still run; examples tests pass.
+
+### 51. Split the examples workflow catalog by demo. (TASK-51)
+
+`packages/examples/src/workflows.ts` is a 560-line file that contains all demos, demo metadata, setup functions, manual join graph construction, and comments. It also claims every example compiles without `as never` or `as unknown as`, but current join setup uses those casts.
+
+Planned fixes:
+
+- Split into one file per demo: linear, human, join, streaming, and wall.
+- Keep `workflows/index.ts` as the catalog export.
+- Keep join-specific synthetic graph construction local to the join demo.
+- Remove or correct comments that promise no unsafe casts if the current API still requires them.
+
+Verification: imports are acyclic; each demo file is independently readable; examples tests pass; no stale comments contradict code.
+
+### 52. Move graph layout and event projection into pure helpers. (TASK-52)
+
+`Graph.tsx` mixes SVG rendering with layout and fan-in routing. `EventLog.tsx` mixes rendering with state-diff event projection. Transport has duplicated state-to-event projection in SSE and WebSocket adapters.
+
+Planned fixes:
+
+- Move graph layout to `packages/examples/src/Graph/layout.ts` with unit tests for level assignment and fan-in routing.
+- Move example state-diff event projection to `packages/examples/src/EventLog/projection.ts` with tests for ordering and event numbering.
+- Move transport state-to-wire-event projection into `packages/transport/src/event-stream.ts`, then let SSE and WebSocket adapters only handle protocol IO.
+- Keep UI components as render-only surfaces where practical.
+
+Verification: graph and event projection tests pass; transport SSE and WebSocket tests still pass; no duplicate `stateToEvents` implementations remain in transport adapters.
+
+### 53. Package metadata and package-manager hygiene before publish work. (TASK-53)
+
+Package manifests point `main`, `types`, and `exports` at `./src/index.ts` while package tsconfigs emit to `dist`. `renderer-react` and `renderer-log` lack `types` fields. `transport` imports `zod` but does not declare it. Both `pnpm-lock.yaml` and `package-lock.json` are tracked even though `packageManager` is pnpm.
+
+Planned fixes:
+
+- Decide source-first workspace packages vs dist-first publishable packages.
+- If publishable/dist-first, point package `exports` and `types` at `dist` outputs.
+- Add missing dependency declarations, including transport's `zod` import.
+- Add consistent package-local build scripts where appropriate.
+- Remove the npm lockfile only if pnpm is confirmed as authoritative for this repo.
+
+Verification: package manifests match emitted artifacts; package-local scripts work; lockfile policy is singular; `pnpm build`; CNS health gate.
+
+### 54. Audit unsafe casts by cause, not by blanket cleanup. (TASK-54)
+
+A repo-wide search found many unsafe cast patterns. The largest clusters are branded key display casts, Zod internal inspection, builder return type narrowing, serialized state reconstruction, and test/example fixture construction. Some casts may be justified, but the clusters are type-model signals.
+
+Planned fixes:
+
+- Produce a cast audit grouped by cause: branded key display, Zod internals, builder typing, serialization, fixtures, and temporary WIP debug casts.
+- Fix the easiest structural cluster first. Likely candidate: add a display helper for `NodeKey` so examples/renderers stop repeating `as unknown as string`.
+- Do not replace casts with different casts just to satisfy lint.
+- Update comments that claim examples have no casts if the API still requires casts.
+
+Verification: audit summary in CNS/log or intent; one structural cast class reduced; tests and typecheck pass.
+
+### 55. Reconcile CNS package docs after code settles. (TASK-55)
+
+The CNS package docs contain stale body text. Example: `packages/core/index.md` decisions say core has no mutation primitives, but the body still lists `publish`, `write`, and `writeHumanInput` under `operations.ts`. The same file says core imports no schema package, which current code contradicts.
+
+Planned fixes:
+
+- Wait until TASK-46 through TASK-49 settle the code-facing boundaries.
+- Reconcile package `index.md` bodies and decisions against actual code.
+- Keep decisions in frontmatter, not body prose.
+- Preserve human notes unchanged.
+
+Verification: `python3 /Users/andrew/.hermes/skills/nervous-system/scripts/validate.py .`, `python3 /Users/andrew/.hermes/skills/nervous-system/scripts/graph.py . --check`, and a spot-check of the reconciled package docs against source imports.
+
+### Suggested execution order for TASK-46 through TASK-55
+
+1. TASK-46: finish or revert the active human-in-the-loop WIP.
+2. TASK-47: make examples part of the verification gate.
+3. TASK-48: reconcile core/schema boundary.
+4. TASK-49: settle live subscription ownership.
+5. TASK-50: extract examples demo model and runtime controller.
+6. TASK-51: split examples workflow catalog.
+7. TASK-52: extract graph layout and event projection helpers.
+8. TASK-53: package metadata and lockfile hygiene.
+9. TASK-54: unsafe cast audit and one structural cast-class reduction.
+10. TASK-55: CNS package-doc reconcile after code boundaries settle.
+
+Per Andrew's sequential preference: execute one task at a time, with code/test/CNS verification before moving to the next.
