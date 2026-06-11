@@ -2,7 +2,8 @@
 title: "@underwai/transport"
 type: package
 parent: ../../.cns/index.md
-status: dirty
+status: clean
+last_reconciled: 2026-06-11
 shipped_in: v1.0
 links:
   - id: transport-subscribe
@@ -52,34 +53,24 @@ decisions:
     summary: 'WorkflowEvent is a discriminated union on kind: node-added, node-updated, node-removed, edge-added, edge-removed, workflow-status. Each event is JSON-serializable. encodeSseEvent formats an event as an SSE message (event: <kind>\ndata: <json>\n\n). The SseServer and WsServer wrap a LiveSubscriptionRegistry and emit one event per node per notify, plus a workflow-status event. The SseClient and WsClient parse incoming frames back into WorkflowEvents. (DEC-TRANSPORT-003 + DEC-TRANSPORT-004 + DEC-TRANSPORT-005 reflected in code.)'
 human_notes: |
 
-last_reconciled: 2026-06-06
 ---
 
 # @underwai/transport
 
-The subscription API and the wire format. Sits on top of `@underwai/core`. v1.0 ships the in-process subscription API _and_ the wire-format transports (SSE, WebSocket). The whole point of v1.0 is a lib that has a way to be consumed; transport is part of that.
+The subscription and wire-format package. It wraps `@underwai/core`'s `LiveSubscriptionRegistry` with consumer-facing pattern matching, then projects workflow state into a JSON-serializable `WorkflowEvent` stream for SSE and WebSocket transports.
 
-## What will live here (v1.0)
+## What lives here
 
-- `package.json` — `@underwai/transport`, depends on `@underwai/core` and `effect`. Real package, v1.0.
-- `src/index.ts` — the public entry. Re-exports `subscribe`, `subscribeSet`, the `Subscription` interface, the `WorkflowEvent` stream (wire format), and the SSE / WebSocket transports.
-- `src/subscribe.ts` — in-process subscription. `subscribe(state, key, onUpdate)` and `subscribeSet(state, pattern, onUpdate)`. (TASK-C, TASK-D)
-- `src/event-stream.ts` — the `WorkflowEvent` stream: `NodeAdded`, `NodeUpdated`, `NodeRemoved`, `EdgeAdded`, etc. The wire format for SSE / WebSocket transports. The in-process `Node`-granularity model is a _projection_ of the same event log.
-- `src/transports/sse.ts` — Server-Sent Events transport. Server pushes the `WorkflowEvent` stream to a client over an HTTP connection. v1.0.
-- `src/transports/ws.ts` — WebSocket transport. Bidirectional — server pushes events, client sends `write` / `writeHumanInput` operations. v1.0.
+- `src/subscribe.ts` — `subscribe`, `subscribeSet`, `Subscription`, and the pattern grammar: exact key, `prefix.*`, `prefix.`, and bare `*`.
+- `src/event-stream.ts` — `WorkflowEvent`, `SerializedNode`, Zod wire schemas, JSON roundtrip helpers, SSE encoding, and `stateToEvents(state)`.
+- `src/transports/sse.ts` — one-way server-to-client event transport.
+- `src/transports/ws.ts` — bidirectional WebSocket transport. Server pushes events; client can send typed `write` and `writeHumanInput` operations.
+- `src/index.ts` — public re-exports.
 
 ## Boundary
 
-- **Will import from:** `@underwai/core` (data structure), `effect` (peer).
-- **Will export to:** `@underwai/renderer-react` (v1.1+, subscribes to the event stream), `@underwai/renderer-log` (v1.1+), consumer code.
-- **What will NOT live here:** the data structure, the runner. This package is the bridge between in-memory state and external observers.
+- **Imports from:** `@underwai/core` for data types and the live registry; `zod` for the wire schema.
+- **Exports to:** renderer packages, examples, and consumers that need in-process subscriptions or external event streams.
+- **What does NOT live here:** workflow state construction, runtime mutation, or renderer-specific UI.
 
-## For the v1.0 implementation phase
-
-When v1.0 implementation begins, the agent reads this file, opens `.cns/architecture/index.md` § "Subscription" for the API contract, and implements subscribe.ts, event-stream.ts, and the two transports (sse.ts, ws.ts).
-
-The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the subscription API (no flags), the wire format (the WorkflowEvent stream), and the transports (SSE one-way, WebSocket bidirectional). Prose in the body is for the file plan; the _why_ lives in the decisions array.
-
-The transport package is part of v1.0 because the v1 deliverable is "a lib that has a way to be consumed." Without transport, the runner is observable only by an in-process consumer. The wire format is the bridge to renderers that run on different machines (the wall-display, the chat-embedded story) and to non-React consumers (the log renderer can be a CLI tool that tails the event stream over WebSocket).
-
-Total code: ~300-500 lines. The interesting part is the event-stream shape (a discriminated union on event kind) and the two transport implementations. SSE is one-way (server → client); WebSocket is bidirectional. The lib's contract is the event stream; the transports are thin protocol layers.
+The completed TASK-C, TASK-D, TASK-P, TASK-V, TASK-32, TASK-41, and TASK-43 decisions are sharded into this package and its module nodes. The package-level decisions encode the contract; module-specific mechanics live in `src/subscribe/index.md`, `src/event-stream/index.md`, and the transport module nodes.

@@ -51,37 +51,29 @@ decisions:
     summary: '`RunOptions` gains `maxConcurrent?: number` (default 1). The dispatch loop is event-driven: each ready node is forked as a fiber carrying its own `NodeKey`; the loop wakes on `Fiber.join` of any in-flight completion and dispatches up to `(maxConcurrent - inFlight.size)` ready nodes. The legacy sequential `for (const key of ready)` is replaced. `currentKey` global is removed; `inFlightKey` is a single closure variable set by the dispatching fiber (JS single-threadedness makes this safe across parallel fibers). The per-fiber `Effect.ensuring` removes the key from inFlight and clears `inFlightKey`. (TASK-JF-3, .cns/plans/join-fixes/phase-3-runtime-concurrency.md).'
 human_notes: |
 
-status: dirty
-last_reconciled: 2026-06-06
+status: clean
+last_reconciled: 2026-06-11
 ---
 
 # @underwai/runner
 
-The runner. Owns the Effect fiber that walks the DAG. Provides `WorkflowRuntime` to consumer `Effect.gen` programs so they can call `publish` / `write` / `writeHumanInput` without state-threading. The lib is a runtime for Effect programs; this package _is_ that runtime.
+The Effect runtime package. It owns the service that walks a `WorkflowState`, runs node programs, applies pure transition helpers, and notifies subscribers. Core owns the value shape; runner owns mutation and execution.
 
 ## What lives here
 
-The pre-shard file plan:
+- `src/runtime.ts` — `WorkflowRuntime`, `WorkflowRuntimeShape`, `WorkflowRuntimeLive`, `RunOptions`, the event-driven dispatch loop, and subscription fan-out.
+- `src/mutations.ts` — pure transition helpers used by the runtime: streaming, resolved/write, human input, running, paused, stale, and failure transitions.
+- `src/index.ts` — public re-exports.
+- Tests next to the source exercise the service, runtime integration, and pure mutations.
 
-- `src/index.ts` — the public entry. Re-exports `runWorkflow`, `stepInternal`, `WorkflowRuntime`. The only file the consumer imports from.
-- `src/runtime.ts` — the `WorkflowRuntime` Effect service. Implemented with `Context.Tag` (Effect 3.x). The service provides `publish` (accumulator update), `write` (final output), `writeHumanInput` (set a human field). The lib's internal state is what the service updates. (TASK-B, TASK-T)
-- `src/run-workflow.ts` — the main Effect program. Owns the runner fiber. Iterates `findReadyNodes` (in dependency order), runs the consumer's Effect for each, applies the mutation, recurses until no ready nodes. (TASK-B)
-- `src/step-internal.ts` — the internal step primitive. Runs a single ready node's Effect. Handles `pending → running` (or `pending → paused` if verified), `running → streaming` (on `publish`), `running → resolved` (on `write`), `running → failed` (on error), `running → stale` (on mid-execution `writeHumanInput` via `Fiber.interrupt`). Not consumer-facing; the lib uses it inside `runWorkflow`.
-- `src/mutations.ts` — the mutation primitives: `publish(state, key, partial)`, `write(state, key, finalOutput)`, `writeHumanInput(state, nodeKey, fieldKey, value)`. These update `WorkflowState` and return the new state. (TASK-A, TASK-H, TASK-S)
-- `src/find-ready.ts` — `findReadyNodes(state)`: Kahn's algorithm using `edgesByFrom`. Returns `ReadonlyArray<NodeKey>` in dependency order. (TASK-O, TASK-R)
+## Runtime shape
+
+`WorkflowRuntime` exposes `run`, `publish`, `write`, `writeHumanInput`, `getState`, and `subscribe`. Programs come from `state.defs`, which is populated by `core/init()` from a `CompositionTree`; callers no longer thread a parallel `programs` record. The dispatch loop is event-driven: ready nodes are forked up to `maxConcurrent`, each fiber carries its own key, and the loop wakes when any in-flight fiber completes.
 
 ## Boundary
 
-- **Imports from:** `@underwai/core` (data structure), `@underwai/schema` (`getHumanMode` to read the marker on a node's `inputSchema`), `effect` (peer), `zod` (peer).
-- **Exports to:** consumer code (`runWorkflow`, the `WorkflowRuntime` service), `@underwai/transport` (v1.1+, subscribes to state changes driven by the runner).
-- **What does NOT live here:** the data structure (in `@underwai/core`), the Zod extension (in `@underwai/schema`).
+- **Imports from:** `@underwai/core` for state, keys, `resolveInput`, and `LiveSubscriptionRegistry`; `@underwai/schema` for human marker detection; `effect` as the runtime substrate.
+- **Exports to:** consumers and examples that run workflows.
+- **What does NOT live here:** core data definitions, composition builders, transport protocol encoding, or renderer-specific UI.
 
-## For the v1.0 implementation phase
-
-When v1.0 implementation begins, the agent reads this file, opens `.cns/architecture/index.md` and `.cns/architecture/node.md` for the state machine and per-status semantics, and implements the runner.
-
-The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the runner fiber model, the mid-execution interrupt policy, the re-execution coalescing rule, and the WorkflowRuntime service contract. Prose in the body is for the file plan and the boundary; the _why_ lives in the decisions array.
-
-The runner is the most non-trivial piece of the lib. The state machine has seven statuses, six valid transitions, and the mid-execution interrupt. The composition is: `findReadyNodes` → `stepInternal` (run a single ready node's Effect, handle transitions) → loop until no ready nodes → re-run on stale/paused-closed.
-
-The implementation is ~300-500 lines, mostly Effect plumbing. The state machine itself is the design (see `.cns/architecture/index.md` § "Statuses" — that's the source of truth for what each status means and what transitions are valid).
+The completed TASK-A, TASK-B, TASK-M, TASK-O, TASK-R, TASK-T, TASK-31, TASK-35, TASK-37, TASK-39, TASK-40, and TASK-JF-3 decisions are sharded into this package and its module nodes. Module-specific mechanics live in `src/runtime/index.md` and `src/mutations/index.md`.

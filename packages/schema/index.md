@@ -10,7 +10,7 @@ decisions:
   - id: DEC-SCHEMA-001
     date: 2026-06-06
     author: agent
-    summary: z.human() is a runtime function that clones the input schema and attaches a new _def with humanMode. The clone avoids shared mutation across callsites; each call to z.human() produces a fresh schema. Zod 3.x target; Zod 4.x would use .meta() (TASK-E).
+    summary: human() is a named runtime function that clones the input schema and attaches a new _def with humanMode. The clone avoids shared mutation across callsites; each call to human() produces a fresh schema. Zod 3.x target; Zod 4.x would use .meta() (TASK-E, reconciled after DEC-SCHEMA-006).
   - id: DEC-SCHEMA-002
     date: 2026-06-06
     author: agent
@@ -33,35 +33,23 @@ decisions:
     summary: "Canonical API is `human(z.string())` (named import). The `z.human()` namespace mutation is NOT shipped. Zod 3 freezes the z namespace object (Object.isFrozen(z) === true), so the standard zod-extension pattern (zod-prisma, tRPC) does not work without forking. Consumers who want the namespace syntax do `import { human }` and call human() directly. This is the minimal-API-surface shape: no surprise mutations of the consumer's z object."
 human_notes: |
 
-status: dirty
-last_reconciled: 2026-06-06
+status: clean
+last_reconciled: 2026-06-11
 ---
 
 # @underwai/schema
 
-The Zod extension. `human()` (named import) flags a schema as human-writable; `.verified()` is a decorator that gates on human confirmation. Standalone — depends on Zod only, not on `@underwai/core`.
+The Zod marker package. `human()` is a named import that clones a Zod schema and attaches a human-mode marker; `.verified()` is a method on the returned `HumanSchema`. The package is standalone and depends on Zod only.
 
 ## What lives here
 
-The pre-shard file plan:
-
-- `src/index.ts` — the public entry. Re-exports `z.human`, `.verified`, `HumanMode`, `getHumanMode`. The only file the consumer imports from.
-- `src/human.ts` — `z.human()` runtime: clones the input schema, mutates `_def.humanMode` to attach the marker. (TASK-E)
-- `src/verified.ts` — `.verified()` decorator: chains on a `HumanSchema<T>` and flips `_def.humanMode` from `"writeable"` to `"verified"`.
-- `src/get-mode.ts` — `getHumanMode(schema)` helper: reads `_def.humanMode` and returns the marker or `undefined`.
+- `src/human.ts` — `human(schema)`, `getHumanMode(schema)`, `HumanMode`, and the `HumanSchema<T>` type. `human()` clones the input schema and attaches a fresh `_def.humanMode`; it does not mutate the caller's schema in place. `.verified()` returns the verified flavor.
+- `src/index.ts` — the public entry. Re-exports the named API. The `z.human()` namespace mutation is not shipped because Zod 3 freezes the namespace object.
 
 ## Boundary
 
-- **Imports from:** `zod` (peer). Nothing else.
-- **Exports to:** `@underwai/core` (uses `HumanMode` as a type; re-exports for convenience), `@underwai/runner` (uses `getHumanMode` to read the marker on a node's `inputSchema`).
-- **What does NOT live here:** the data structure (`@underwai/core`), the runner (`@underwai/runner`). This package is one Zod extension; nothing else.
+- **Imports from:** `zod` only.
+- **Exports to:** `@underwai/core`, `@underwai/runner`, and examples that need human-marked schemas.
+- **What does NOT live here:** workflow state, runner transitions, renderer UX, or transport behavior.
 
-## For the v1.0 implementation phase
-
-When v1.0 implementation begins, the agent reads this file, opens `.cns/architecture/index.md` for the state machine and per-status semantics, and implements three small files (`human.ts`, `verified.ts`, `get-mode.ts`) and the `index.ts` re-export. The TypeScript declaration-merge trick (`declare module "zod" { namespace z { function human<T>(schema: T): HumanSchema<T> } }`) gives the type-level extension; the runtime functions attach the marker.
-
-The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the runtime marker mechanism, the human-mode vocabulary, and the standalone boundary. Prose in the body is for the file plan; the _why_ lives in the decisions array.
-
-The shape of `HumanSchema<T>` is `T & { __humanMode: HumanMode; verified(): HumanSchema<T> }`. The `&` intersection is the type-theoretic cleanest shape; the runtime marker is on `_def`, which is internal to Zod but stable across 3.x.
-
-Total code in this package: ~50 lines. The design is the bulk of the work.
+The completed TASK-E decisions are sharded into this package and `src/human/index.md`. The design decisions that govern this package are encoded in the `decisions[]` frontmatter above.

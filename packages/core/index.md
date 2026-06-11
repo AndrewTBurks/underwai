@@ -95,36 +95,27 @@ decisions:
     summary: Subscription methods (subscribe, subscribeSet) live in @underwai/transport, not in core. Core exposes the data structure and composition API only.
 human_notes: |
 
-status: dirty
-last_reconciled: 2026-06-06
+status: clean
+last_reconciled: 2026-06-11
 ---
 
 # @underwai/core
 
-The data structure. The foundation. No imports from `@underwai/schema` or `@underwai/runner` — those depend on this. This package depends on Zod (peer) and Effect (peer) only as far as it needs them for the composition API.
+The data structure and composition layer. Core owns the branded keys, the workflow state shape, the typed composition builder, pure state derivations, and the minimal in-process live registry. The runner is the only mutator; core exposes values and helpers, not runtime side effects.
 
 ## What lives here
 
-The pre-shard file plan (from `.cns/intent.md` Phase 2):
-
-- `src/keys.ts` — `NodeKey<Path>`, brand, path template-literal. The branded key that rejects raw strings at the call site. The Path generic threads through the composition API so the consumer's `subscribe(state, ref.key, ...)` is type-checked against the ref's path.
-- `src/types.ts` — the data structure: `WorkflowState`, `Node` (a discriminated union on `Node["status"]`), `Edge`, `ResolvedInput`, `SerializedError`, `Actor`, `HumanMode`.
-- `src/composition.ts` — the only way to create nodes: `run`, `then` (two overloads: direct match and bridge function), `all` (array and object forms), `thenLoop` (family of nodes).
-- `src/operations.ts` — state derivations and mutations: `init`, `getNode`, `serialize`, `deserialize`, `findReadyNodes`, `findSubtree`, `publish`, `write`, `writeHumanInput`. Plus the `getHumanFields` and `getHumanInputDisplay` helpers.
-- `src/index.ts` — the public re-exports. The only file the consumer imports from.
-
-The current pre-shard artifact lives at `src/stub.ts` — a single file with all the type definitions stubbed out (real implementation is Phase 2). The stub was moved here from the project root on 2026-06-06 when the pre-shard landed. Phase 2 distributes the stub's contents across `keys.ts`, `types.ts`, `composition.ts`, and `operations.ts`.
+- `src/keys.ts` — `NodeKey<Path>`, the brand, and the path template helper.
+- `src/types.ts` — `WorkflowState`, `NodeStatus`, `WorkflowStatus`, `Node`, `Edge`, `ResolvedInput`, `HumanInputDisplay`, serialized forms, `Actor`, and `HumanMode`.
+- `src/composition.ts` — `workflow()`, `node()`, builder `.run`, `.chain`, `.all`, `.thenLoop`, `.build`, and typed `view` helpers. The legacy free-function creation path is gone.
+- `src/operations.ts` — pure state derivations: `init`, `getNode`, `serialize`, `deserialize`, `findReadyNodes`, `findSubtree`, `resolveInput`, `topologicalLevels`, `getHumanFields`, and `getHumanInputDisplay`.
+- `src/live.ts` — `LiveSubscriptionRegistry`, the small fan-out primitive shared by runner, transport, and renderer-react.
+- `src/index.ts` — public re-exports.
 
 ## Boundary
 
-- **Imports from:** `zod` (peer), `effect` (peer, only in `composition.ts` and `operations.ts` where Effect types are used).
-- **Exports to:** `@underwai/runner` (uses `WorkflowState`, `Node`, `Edge`, `ResolvedInput`, `NodeKey`, `Actor`, `HumanMode`, the composition API), `@underwai/transport` (subscription and wire format), `@underwai/renderer-react` (registry + auto-render), `@underwai/renderer-log` (registry).
-- **What does NOT live here:** the `z.human()` runtime (`@underwai/schema`), the Effect service and runner logic (`@underwai/runner`), the subscription API and transports (`@underwai/transport`).
+- **Imports from:** `zod` and `effect` as peers where needed; current code also imports `@underwai/schema` for `HumanMode` and `getHumanMode`. TASK-48 tracks the package-boundary follow-up that will either make this dependency official or move human schema inspection out of core.
+- **Exports to:** `@underwai/runner`, `@underwai/transport`, `@underwai/renderer-react`, `@underwai/renderer-log`, and `@underwai/examples`.
+- **What does NOT live here:** runtime mutation methods (`publish`, `write`, `writeHumanInput`) and the Effect service. Those live in `@underwai/runner`. Protocol-specific subscription and wire transport live in `@underwai/transport`.
 
-## For the v1.0 implementation phase
-
-When v1.0 implementation begins, the agent reads this file, opens `src/stub.ts` (the pre-shard artifact with all the types stubbed out), and distributes the contents into the four `src/*` files. The stub has every type and function declaration in one place; the split is mechanical. The composability of the result is verified by `tsc -b` and the per-package typecheck.
-
-The design decisions that govern this package are encoded in the `decisions[]` frontmatter above. They are load-bearing — they shape the type shapes, the composition API, and the serialization contract. Prose in the body is for the file plan and the boundary; the _why_ lives in the decisions array.
-
-The data structure is small enough to fit in your head. The composition API is four combinators. The state machine is seven statuses. The runner is an Effect program that walks the DAG. Most of the implementation work is _verifying the design_, not building the design — the design is settled.
+The completed Phase 1, Phase 2, audit-closing, and join-fix intent items have been sharded into the module nodes linked above. The package-level decisions summarize only the load-bearing package contract; module-specific details live in the corresponding `src/*/index.md` files.

@@ -2,7 +2,7 @@
 parent: ../../.cns/index.md
 title: "@underwai/renderer-react"
 status: clean
-last_reconciled: 2026-06-07
+last_reconciled: 2026-06-11
 type: package
 human_notes: |
 links:
@@ -53,8 +53,8 @@ The React adapter. The lib is workflow-shaped, not chat-shaped. The renderer is 
 
 Imports from `@underwai/core` (LiveSubscriptionRegistry, types). Re-exports React-specific helpers. Consumers import from `@underwai/renderer-react`.
 
-## For the v1.X implementation phase
+## Runtime note
 
-The renderer's public surface is small. The integration with transport's `subscribe`/`subscribeSet` is the consumer's choice — they can either pass the same `LiveSubscriptionRegistry` to `<WorkflowProvider>` (so the runner + renderer share one registry) or use separate registries. Sharing is the more common case; that's the wiring tested here.
+The renderer's public surface is small. The completed TASK-33 implementation wires React through `LiveSubscriptionRegistry` and `useSyncExternalStore`; consumers can share the same registry between the runner and `<WorkflowProvider>` or provide their own. Module-specific hook, provider, registry, and auto-render details live in the linked `src/*/index.md` nodes.
 
 The design decisions that govern this package are encoded in the `decisions[]` frontmatter above.

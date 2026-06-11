@@ -2,7 +2,7 @@
 parent: ../../.cns/index.md
 title: "@underwai/renderer-log"
 status: clean
-last_reconciled: 2026-06-07
+last_reconciled: 2026-06-11
 type: package
 human_notes: |
 links:
@@ -35,8 +35,8 @@ The smallest possible consumer. A stdout log renderer that subscribes to a workf
 
 Imports from `@underwai/core` (LiveSubscriptionRegistry, types) and `@underwai/transport` (subscribeSet). Re-exports the small public surface.
 
-## For the v1.X implementation phase
+## Runtime note
 
-The runner takes a `getState` function from the consumer. This is the v1.0 wire: the consumer owns the state (typically via a ref or React state), the runner subscribes for change notifications, and reads the state on each notify. A future v1.1 could pass the state through subscribeSet's callback instead, but for now the consumer-owned pattern matches how transport's `subscribeSet` is shaped.
+The log renderer takes a `getState` function from the consumer. The consumer owns state, the renderer subscribes for change notifications, and it reads the latest state on each notify. This reflects the completed TASK-34 implementation and is sharded into `src/runner/index.md`.
 
 The design decisions that govern this package are encoded in the `decisions[]` frontmatter above.
