@@ -93,6 +93,10 @@ decisions:
     date: 2026-06-06
     author: agent
     summary: Subscription methods (subscribe, subscribeSet) live in @underwai/transport, not in core. Core exposes the data structure and composition API only.
+  - id: DEC-CORE-021
+    date: 2026-06-12
+    author: agent
+    summary: "Core officially depends on @underwai/schema as a lower-level package for HumanMode and getHumanMode. The package metadata now lists @underwai/schema in dependencies, not devDependencies; core remains runtime-effect-free, but it is not schema-agnostic. (TASK-48.)"
 human_notes: |
 
 status: clean
@@ -114,7 +118,7 @@ The data structure and composition layer. Core owns the branded keys, the workfl
 
 ## Boundary
 
-- **Imports from:** `zod` and `effect` as peers where needed; current code also imports `@underwai/schema` for `HumanMode` and `getHumanMode`. TASK-48 tracks the package-boundary follow-up that will either make this dependency official or move human schema inspection out of core.
+- **Imports from:** `zod` and `effect` as peers where needed, plus `@underwai/schema` as a real lower-level dependency for `HumanMode` and `getHumanMode`. Core is runtime-effect-free, but it is not schema-agnostic; human schema inspection is part of the core data-model helpers.
 - **Exports to:** `@underwai/runner`, `@underwai/transport`, `@underwai/renderer-react`, `@underwai/renderer-log`, and `@underwai/examples`.
 - **What does NOT live here:** runtime mutation methods (`publish`, `write`, `writeHumanInput`) and the Effect service. Those live in `@underwai/runner`. Protocol-specific subscription and wire transport live in `@underwai/transport`.
 

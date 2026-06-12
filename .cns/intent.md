@@ -283,19 +283,6 @@ Per Andrew's "verify per theme" rule: each task gets its own commit (code + test
 
 Source: `/architect` repository-structure review. These tasks consolidate the findings from the package-boundary, examples, TypeScript hygiene, and CNS drift audit. Execute one-by-one. Do not delete completed historical tasks. Keep CNS health green after each task.
 
-### 48. Reconcile the core/schema package boundary. (TASK-48)
-
-`packages/core/index.md` says core has no imports from `@underwai/schema`, but `packages/core/src/types.ts` imports `HumanMode` and `packages/core/src/operations.ts` imports `getHumanMode` from `@underwai/schema`. `@underwai/core` also lists `@underwai/schema` as a devDependency even though source imports it.
-
-Planned fixes:
-
-- Pick the real boundary explicitly.
-- Small honest path: treat schema as a lower-level package that core depends on. Move `@underwai/schema` to the correct dependency class and update CNS/package docs.
-- Larger redesign path: keep core schema-agnostic by moving human schema inspection out of core and into schema, runner, or renderer adapters.
-- Do not keep the current mixed claim.
-
-Verification: package metadata matches actual source imports; CNS package docs match code; `pnpm build`; CNS health gate.
-
 ### 49. Make live subscription ownership explicit and single-surface. (TASK-49)
 
 Core docs say subscription methods live in transport, but `LiveSubscriptionRegistry` lives in core, runner accepts it, transport wraps it, renderer-react consumes core directly, and renderer-log consumes transport. The concept is split across two public stories.
@@ -388,16 +375,15 @@ Planned fixes:
 
 Verification: `python3 /Users/andrew/.hermes/skills/nervous-system/scripts/validate.py .`, `python3 /Users/andrew/.hermes/skills/nervous-system/scripts/graph.py . --check`, and a spot-check of the reconciled package docs against source imports.
 
-### Suggested execution order for remaining TASK-48 through TASK-55
+### Suggested execution order for remaining TASK-49 through TASK-55
 
-1. TASK-48: reconcile core/schema boundary.
-2. TASK-49: settle live subscription ownership.
-3. TASK-50: extract examples demo model and runtime controller.
-4. TASK-51: split examples workflow catalog.
-5. TASK-52: extract graph layout and event projection helpers.
-6. TASK-53: package metadata and lockfile hygiene.
-7. TASK-54: unsafe cast audit and one structural cast-class reduction.
-8. TASK-55: CNS package-doc reconcile after code boundaries settle.
+1. TASK-49: settle live subscription ownership.
+2. TASK-50: extract examples demo model and runtime controller.
+3. TASK-51: split examples workflow catalog.
+4. TASK-52: extract graph layout and event projection helpers.
+5. TASK-53: package metadata and lockfile hygiene.
+6. TASK-54: unsafe cast audit and one structural cast-class reduction.
+7. TASK-55: CNS package-doc reconcile after code boundaries settle.
 
 Per Andrew's sequential preference: execute one task at a time, with code/test/CNS verification before moving to the next.
 
