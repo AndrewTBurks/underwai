@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^4.1.8",
     "effect": "^3.0.0",
     "oxfmt": "^0.53.0",
     "oxlint": "^1.68.0",
