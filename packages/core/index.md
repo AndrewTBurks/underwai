@@ -97,6 +97,10 @@ decisions:
     date: 2026-06-12
     author: agent
     summary: "Core officially depends on @underwai/schema as a lower-level package for HumanMode and getHumanMode. The package metadata now lists @underwai/schema in dependencies, not devDependencies; core remains runtime-effect-free, but it is not schema-agnostic. (TASK-48.)"
+  - id: DEC-CORE-022
+    date: 2026-06-12
+    author: agent
+    summary: "LiveSubscriptionRegistry is the core-owned in-process observable primitive. Transport owns pattern helpers and wire protocols on top of it; renderers either consume transport helpers when they need pattern projection (renderer-log) or consume the primitive directly when React's useSyncExternalStore needs the full current WorkflowState (renderer-react). (TASK-49.)"
 human_notes: |
 
 status: clean
@@ -113,7 +117,7 @@ The data structure and composition layer. Core owns the branded keys, the workfl
 - `src/types.ts` — `WorkflowState`, `NodeStatus`, `WorkflowStatus`, `Node`, `Edge`, `ResolvedInput`, `HumanInputDisplay`, serialized forms, `Actor`, and `HumanMode`.
 - `src/composition.ts` — `workflow()`, `node()`, builder `.run`, `.chain`, `.all`, `.thenLoop`, `.build`, and typed `view` helpers. The legacy free-function creation path is gone.
 - `src/operations.ts` — pure state derivations: `init`, `getNode`, `serialize`, `deserialize`, `findReadyNodes`, `findSubtree`, `resolveInput`, `topologicalLevels`, `getHumanFields`, and `getHumanInputDisplay`.
-- `src/live.ts` — `LiveSubscriptionRegistry`, the small fan-out primitive shared by runner, transport, and renderer-react.
+- `src/live.ts` — `LiveSubscriptionRegistry`, the small transport-free fan-out primitive shared by runner, transport, and renderer-react.
 - `src/index.ts` — public re-exports.
 
 ## Boundary

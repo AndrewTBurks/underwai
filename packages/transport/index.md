@@ -51,13 +51,17 @@ decisions:
     date: 2026-06-07
     author: agent
     summary: 'WorkflowEvent is a discriminated union on kind: node-added, node-updated, node-removed, edge-added, edge-removed, workflow-status. Each event is JSON-serializable. encodeSseEvent formats an event as an SSE message (event: <kind>\ndata: <json>\n\n). The SseServer and WsServer wrap a LiveSubscriptionRegistry and emit one event per node per notify, plus a workflow-status event. The SseClient and WsClient parse incoming frames back into WorkflowEvents. (DEC-TRANSPORT-003 + DEC-TRANSPORT-004 + DEC-TRANSPORT-005 reflected in code.)'
+  - id: DEC-TRANSPORT-010
+    date: 2026-06-12
+    author: agent
+    summary: "Transport owns consumer-facing pattern helpers and wire protocols on top of core's LiveSubscriptionRegistry. renderer-log uses subscribeSet because it wants pattern projection; renderer-react intentionally uses the core primitive directly because its provider must keep the full current WorkflowState for useSyncExternalStore. (TASK-49.)"
 human_notes: |
 
 ---
 
 # @underwai/transport
 
-The subscription and wire-format package. It wraps `@underwai/core`'s `LiveSubscriptionRegistry` with consumer-facing pattern matching, then projects workflow state into a JSON-serializable `WorkflowEvent` stream for SSE and WebSocket transports.
+The subscription and wire-format package. It wraps `@underwai/core`'s `LiveSubscriptionRegistry` with consumer-facing pattern matching, then projects workflow state into a JSON-serializable `WorkflowEvent` stream for SSE and WebSocket transports. Core owns the tiny observable primitive; transport owns pattern helpers and external protocols.
 
 ## What lives here
 

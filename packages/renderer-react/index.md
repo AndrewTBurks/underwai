@@ -35,6 +35,10 @@ decisions:
     date: 2026-06-07
     author: agent
     summary: 'Provider wires a LiveSubscriptionRegistry + WorkflowState into a React context. The provider''s subscribe function registers a "*" pattern callback that updates an internal current state ref. The hooks read from this ref via useSyncExternalStore.'
+  - id: DEC-RR-006
+    date: 2026-06-12
+    author: agent
+    summary: "renderer-react intentionally imports the core LiveSubscriptionRegistry directly instead of depending on @underwai/transport. React hooks need the full current WorkflowState for useSyncExternalStore; transport pattern helpers are still the public helper surface for consumers that need matched node sets. (TASK-49.)"
 ---
 
 # @underwai/renderer-react
@@ -51,7 +55,7 @@ The React adapter. The lib is workflow-shaped, not chat-shaped. The renderer is 
 
 ## Boundary
 
-Imports from `@underwai/core` (LiveSubscriptionRegistry, types). Re-exports React-specific helpers. Consumers import from `@underwai/renderer-react`.
+Imports from `@underwai/core` (LiveSubscriptionRegistry, types) intentionally. It does not import `@underwai/transport` because the provider needs full-state snapshots for `useSyncExternalStore`, not only matched node sets. Consumers import from `@underwai/renderer-react`.
 
 ## Runtime note
 
