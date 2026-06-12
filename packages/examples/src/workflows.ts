@@ -36,6 +36,8 @@ import type { Demo } from "./demo-types.js";
 
 const demoDelay = "500 millis" as const;
 
+type Department = "Engineering" | "Design" | "Product" | "Operations";
+
 // Example 1: linear pipeline with multi-stage bridges.
 //
 //   parse → trim → upper → exclaim → display
@@ -126,7 +128,7 @@ const humanInTheLoopTree = workflow()
       firstName: s,
       lastName: "",
       email: "",
-      department: "Engineering",
+      department: "Engineering" as Department,
       verified: false,
     }),
     node({
@@ -136,7 +138,7 @@ const humanInTheLoopTree = workflow()
           firstName: z.string(),
           lastName: z.string(),
           email: z.string().email(),
-          department: z.string(),
+          department: z.enum(["Engineering", "Design", "Product", "Operations"]),
           verified: z.boolean(),
         }),
       ),
@@ -144,22 +146,22 @@ const humanInTheLoopTree = workflow()
         firstName: z.string(),
         lastName: z.string(),
         email: z.string(),
-        department: z.string(),
+        department: z.enum(["Engineering", "Design", "Product", "Operations"]),
         verified: z.boolean(),
       }),
-      program: (input: { firstName: string; lastName: string; email: string; department: string; verified: boolean }) =>
+      program: (input: { firstName: string; lastName: string; email: string; department: Department; verified: boolean }) =>
         Effect.sleep(demoDelay).pipe(Effect.as(input)),
     }),
   )
   .chain(
-    (s: { firstName: string; lastName: string; email: string; department: string; verified: boolean }) => s,
+    (s: { firstName: string; lastName: string; email: string; department: Department; verified: boolean }) => s,
     node({
       kind: "compose",
       schema: z.object({
         firstName: z.string(),
         lastName: z.string(),
         email: z.string(),
-        department: z.string(),
+        department: z.enum(["Engineering", "Design", "Product", "Operations"]),
         verified: z.boolean(),
       }),
       outputSchema: z.object({
@@ -167,10 +169,10 @@ const humanInTheLoopTree = workflow()
         firstName: z.string(),
         lastName: z.string(),
         email: z.string(),
-        department: z.string(),
+        department: z.enum(["Engineering", "Design", "Product", "Operations"]),
         verified: z.boolean(),
       }),
-      program: (input: { firstName: string; lastName: string; email: string; department: string; verified: boolean }) =>
+      program: (input: { firstName: string; lastName: string; email: string; department: Department; verified: boolean }) =>
         Effect.sleep(demoDelay).pipe(
           Effect.as({
             greeting: input.verified ? "Verified" : "Hello",
@@ -184,7 +186,7 @@ const humanInTheLoopTree = workflow()
     }),
   )
   .chain(
-    (r: { greeting: string; firstName: string; lastName: string; email: string; department: string; verified: boolean }) => r,
+    (r: { greeting: string; firstName: string; lastName: string; email: string; department: Department; verified: boolean }) => r,
     node({
       kind: "polish",
       schema: z.object({
@@ -192,11 +194,11 @@ const humanInTheLoopTree = workflow()
         firstName: z.string(),
         lastName: z.string(),
         email: z.string(),
-        department: z.string(),
+        department: z.enum(["Engineering", "Design", "Product", "Operations"]),
         verified: z.boolean(),
       }),
       outputSchema: z.string(),
-      program: (input: { greeting: string; firstName: string; lastName: string; email: string; department: string; verified: boolean }) =>
+      program: (input: { greeting: string; firstName: string; lastName: string; email: string; department: Department; verified: boolean }) =>
         Effect.sleep(demoDelay).pipe(
           Effect.as(
             input.lastName

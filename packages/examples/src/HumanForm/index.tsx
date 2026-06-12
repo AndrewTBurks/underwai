@@ -53,28 +53,79 @@ export type ScalarType =
   | "array"
   | "unknown";
 
+type ZodDefCompat = {
+  type?: string | ZodTypeAny;
+  typeName?: string;
+  sourceType?: ZodTypeAny;
+  innerType?: ZodTypeAny;
+  schema?: ZodTypeAny;
+  shape?: Record<string, ZodTypeAny> | (() => Record<string, ZodTypeAny>);
+  values?: ReadonlyArray<unknown>;
+  entries?: Record<string, unknown>;
+};
+
+function getDef(schema: ZodTypeAny): ZodDefCompat | undefined {
+  return schema._def as ZodDefCompat | undefined;
+}
+
+function getZodKind(schema: ZodTypeAny): string | undefined {
+  const def = getDef(schema);
+  const rawType = def?.type;
+  return typeof rawType === "string" ? rawType : def?.typeName;
+}
+
+function unwrapSchema(schema: ZodTypeAny): ZodTypeAny {
+  const def = getDef(schema);
+  const kind = getZodKind(schema);
+  if (
+    (kind === "ZodEffects" ||
+      kind === "effects" ||
+      kind === "ZodOptional" ||
+      kind === "optional" ||
+      kind === "ZodNullable" ||
+      kind === "nullable" ||
+      kind === "ZodDefault" ||
+      kind === "default") &&
+    (def?.sourceType || def?.innerType || def?.schema)
+  ) {
+    return unwrapSchema((def.sourceType ?? def.innerType ?? def.schema) as ZodTypeAny);
+  }
+  return schema;
+}
+
+function readObjectShape(schema: ZodTypeAny): Record<string, ZodTypeAny> | undefined {
+  const shape = getDef(schema)?.shape;
+  if (typeof shape === "function") return shape();
+  return shape;
+}
+
 // unwrapScalarType is a public helper that returns the
 // "primitive" shape of a zod schema. The form uses this to
 // pick an input element (text/number/checkbox/select/etc).
-// For v1.0, the human marker only supports strings, numbers,
-// booleans, enums, and flat objects (multi-field forms). Other
-// shapes fall through to a text input with a `value` read-only
-// preview.
+// Supports both Zod v3 (`_def.typeName`) and Zod v4
+// (`_def.type`) internals.
 export function unwrapScalarType(schema: ZodTypeAny): ScalarType {
-  const def = schema._def as
-    | { typeName?: string; sourceType?: ZodTypeAny; shape?: () => Record<string, ZodTypeAny> }
-    | undefined;
-  if (!def) return "unknown";
-  if (def.typeName === "ZodEffects" && def.sourceType) {
-    return unwrapScalarType(def.sourceType as ZodTypeAny);
-  }
-  if (def.typeName === "ZodString") return "string";
-  if (def.typeName === "ZodNumber") return "number";
-  if (def.typeName === "ZodBoolean") return "boolean";
-  if (def.typeName === "ZodEnum") return "enum";
-  if (def.typeName === "ZodObject") return "object";
-  if (def.typeName === "ZodArray") return "array";
+  const unwrapped = unwrapSchema(schema);
+  const kind = getZodKind(unwrapped);
+  if (kind === "ZodString" || kind === "string") return "string";
+  if (kind === "ZodNumber" || kind === "number") return "number";
+  if (kind === "ZodBoolean" || kind === "boolean") return "boolean";
+  if (kind === "ZodEnum" || kind === "enum") return "enum";
+  if (kind === "ZodNativeEnum") return "enum";
+  if (kind === "ZodObject" || kind === "object") return "object";
+  if (kind === "ZodArray" || kind === "array") return "array";
   return "unknown";
+}
+
+export function getEnumOptions(schema: ZodTypeAny): string[] {
+  const unwrapped = unwrapSchema(schema);
+  const def = getDef(unwrapped);
+  if (Array.isArray(def?.values)) return def.values.map(String);
+  if (def?.entries && typeof def.entries === "object") return Object.values(def.entries).map(String);
+  const enumObject = (unwrapped as unknown as { enum?: Record<string, string>; options?: string[] });
+  if (Array.isArray(enumObject.options)) return enumObject.options.map(String);
+  if (enumObject.enum && typeof enumObject.enum === "object") return Object.values(enumObject.enum).map(String);
+  return [];
 }
 
 // getFormFields introspects a human-marked schema and returns
@@ -85,11 +136,9 @@ export function unwrapScalarType(schema: ZodTypeAny): ScalarType {
 export function getFormFields(schema: ZodTypeAny): FormField[] {
   const mode = getHumanMode(schema);
   if (mode === undefined) return [];
-  const def = schema._def as
-    | { typeName?: string; shape?: () => Record<string, ZodTypeAny> }
-    | undefined;
-  if (def?.typeName === "ZodObject" && typeof def.shape === "function") {
-    const shape = def.shape();
+  const unwrapped = unwrapSchema(schema);
+  const shape = readObjectShape(unwrapped);
+  if (unwrapScalarType(unwrapped) === "object" && shape) {
     return Object.entries(shape).map(([key, fieldSchema]) => ({
       fieldKey: key,
       label: key,
@@ -277,10 +326,7 @@ function ScalarInput({ type, schema, value, onChange, inputId }: ScalarInputProp
     );
   }
   if (type === "enum") {
-    // Read enum options from the schema's _def.values,
-    // not from the runtime value (which is just a string).
-    const def = schema._def as { values?: ReadonlyArray<string> } | undefined;
-    const options = def?.values ?? [];
+    const options = getEnumOptions(schema);
     return (
       <select
         id={inputId}
