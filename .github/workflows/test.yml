@@ -50,7 +50,7 @@ jobs:
         run: pnpm -r typecheck
 
       - name: Run tests with coverage
-        run: pnpm test -- --coverage
+        run: pnpm test -- --coverage --reporter=text --coverage.reporter=json
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -61,29 +61,11 @@ jobs:
 
       - name: Post coverage summary
         run: |
-          REPORT=coverage/coverage-summary.json
-          if [ ! -f "$REPORT" ]; then
-            echo "Coverage report not found at $REPORT" >> $GITHUB_STEP_SUMMARY
-            exit 0
-          fi
-          cat > /tmp/coverage-summary.js << 'SCRIPT'
-          const fs = require("fs");
-          const d = JSON.parse(fs.readFileSync("coverage/coverage-summary.json", "utf8"));
-          const t = d.totals;
-          const color = pct => {
-            const n = parseFloat(pct);
-            if (n >= 90) return "🟢";
-            if (n >= 70) return "🟡";
-            return "🔴";
-          };
-          const table = [
-            "| Metric      | %     | Covered/Total |",
-            "|-------------|-------|---------------|",
-            `| Lines       | ${color(t.lines.pct)}${t.lines.pct.toFixed(1)}% | ${t.lines.covered}/${t.lines.total} |`,
-            `| Statements  | ${color(t.statements.pct)}${t.statements.pct.toFixed(1)}% | ${t.statements.covered}/${t.statements.total} |`,
-            `| Functions   | ${color(t.functions.pct)}${t.functions.pct.toFixed(1)}% | ${t.functions.covered}/${t.functions.total} |`,
-            `| Branches    | ${color(t.branches.pct)}${t.branches.pct.toFixed(1)}% | ${t.branches.covered}/${t.branches.total} |`,
-          ].join("\n");
-          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, table + "\n");
-          SCRIPT
-          node /tmp/coverage-summary.js
+          mkdir -p coverage
+          COVERAGE_OUT=$(pnpm test -- --coverage --reporter=text 2>&1)
+          echo "$COVERAGE_OUT" > coverage/coverage.txt
+          # Append last 40 lines (coverage table) to job summary
+          echo "## Test + Coverage" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$COVERAGE_OUT" | tail -40 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
