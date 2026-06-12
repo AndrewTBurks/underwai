@@ -22,6 +22,7 @@
     { "path": "./packages/runner" },
     { "path": "./packages/transport" },
     { "path": "./packages/renderer-react" },
-    { "path": "./packages/renderer-log" }
+    { "path": "./packages/renderer-log" },
+    { "path": "./packages/examples" }
   ]
 }
