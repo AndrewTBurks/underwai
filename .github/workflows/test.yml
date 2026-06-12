@@ -62,23 +62,28 @@ jobs:
       - name: Post coverage summary
         run: |
           REPORT=coverage/coverage-summary.json
-          if [ -f "$REPORT" ]; then
-            TOTAL=$(node -e "const d=require('./$REPORT'); console.log(JSON.stringify({p:d.totals.lines.pct.toFixed(1),c:d.totals.lines.covered,t:d.totals.lines.total,s:d.totals.statements.pct.toFixed(1),sc:d.totals.statements.covered,st:d.totals.statements.total,f:d.totals.functions.pct.toFixed(1),fc:d.totals.functions.covered,ft:d.totals.functions.total,b:d.totals.branches.pct.toFixed(1),bc:d.totals.branches.covered,bt:d.totals.branches.total}))")
-            node -e "
-              const d=JSON.parse('$TOTAL');
-              const row=(pct,covered,total)=>\`|\${pct}%|\${covered}/\${total}|\`;
-              const fmt=v=>v===undefined?'—':v;
-              const p=d.p,c=d.c,t=d.t,s=d.s,sc=d.sc,st=d.st,f=d.f,fc=d.fc,ft=d.ft,b=d.b,bc=d.bc,bt=d.bt;
-              const color=pct=>{
-                const n=parseFloat(pct);
-                if(n>=90)return'🟢';
-                if(n>=70)return'🟡';
-                return'🔴';
-              };
-              const lines=\`| Metric | % | Covered/Total |\n|---|---|---|\n| Lines | \${color(p)}\${p}% | \${c}/\${t} |\n| Statements | \${color(s)}\${s}% | \${sc}/\${st} |\n| Functions | \${color(f)}\${f}% | \${fc}/\${ft} |\n| Branches | \${color(b)}\${b}% | \${bc}/\${bt} |\n|`;
-              const fs=require('fs');
-              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines);
-            "
-          else
+          if [ ! -f "$REPORT" ]; then
             echo "Coverage report not found at $REPORT" >> $GITHUB_STEP_SUMMARY
+            exit 0
           fi
+          cat > /tmp/coverage-summary.js << 'SCRIPT'
+          const fs = require("fs");
+          const d = JSON.parse(fs.readFileSync("coverage/coverage-summary.json", "utf8"));
+          const t = d.totals;
+          const color = pct => {
+            const n = parseFloat(pct);
+            if (n >= 90) return "🟢";
+            if (n >= 70) return "🟡";
+            return "🔴";
+          };
+          const table = [
+            "| Metric      | %     | Covered/Total |",
+            "|-------------|-------|---------------|",
+            `| Lines       | ${color(t.lines.pct)}${t.lines.pct.toFixed(1)}% | ${t.lines.covered}/${t.lines.total} |`,
+            `| Statements  | ${color(t.statements.pct)}${t.statements.pct.toFixed(1)}% | ${t.statements.covered}/${t.statements.total} |`,
+            `| Functions   | ${color(t.functions.pct)}${t.functions.pct.toFixed(1)}% | ${t.functions.covered}/${t.functions.total} |`,
+            `| Branches    | ${color(t.branches.pct)}${t.branches.pct.toFixed(1)}% | ${t.branches.covered}/${t.branches.total} |`,
+          ].join("\n");
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, table + "\n");
+          SCRIPT
+          node /tmp/coverage-summary.js
