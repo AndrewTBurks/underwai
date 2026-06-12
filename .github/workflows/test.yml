@@ -50,7 +50,11 @@ jobs:
         run: pnpm -r typecheck
 
       - name: Run tests with coverage
-        run: pnpm test -- --coverage --reporter=text --coverage.reporter=json
+        run: |
+          set -o pipefail
+          pnpm test -- --coverage 2>&1 | tee /tmp/underwai-coverage.txt
+          mkdir -p coverage
+          cp /tmp/underwai-coverage.txt coverage/coverage.txt
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -61,11 +65,7 @@ jobs:
 
       - name: Post coverage summary
         run: |
-          mkdir -p coverage
-          COVERAGE_OUT=$(pnpm test -- --coverage --reporter=text 2>&1)
-          echo "$COVERAGE_OUT" > coverage/coverage.txt
-          # Append last 40 lines (coverage table) to job summary
           echo "## Test + Coverage" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "$COVERAGE_OUT" | tail -40 >> $GITHUB_STEP_SUMMARY
+          tail -40 coverage/coverage.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
