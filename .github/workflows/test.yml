@@ -1,6 +1,6 @@
 # .github/workflows/test.yml
 #
-# CI: install pnpm, install deps, run typecheck + tests.
+# CI: install pnpm, install deps, run typecheck + tests + coverage.
 # Triggered on push to main and on pull_request.
 #
 # Note: the CNS health gate (validate.py + graph.py --check)
@@ -23,7 +23,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       # Opt into Node 24 for the JS actions above (checkout,
       # pnpm/action-setup, setup-node). The default Node 20
@@ -36,9 +36,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        # Reads the version from package.json's `packageManager`
-        # field. Do not also set `version` here — the action errors
-        # with ERR_PNPM_BAD_PM_VERSION if both are present.
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -52,5 +49,36 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
-      - name: Run tests
-        run: pnpm test
+      - name: Run tests with coverage
+        run: pnpm test -- --coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+      - name: Post coverage summary
+        run: |
+          REPORT=coverage/coverage-summary.json
+          if [ -f "$REPORT" ]; then
+            TOTAL=$(node -e "const d=require('./$REPORT'); console.log(JSON.stringify({p:d.totals.lines.pct.toFixed(1),c:d.totals.lines.covered,t:d.totals.lines.total,s:d.totals.statements.pct.toFixed(1),sc:d.totals.statements.covered,st:d.totals.statements.total,f:d.totals.functions.pct.toFixed(1),fc:d.totals.functions.covered,ft:d.totals.functions.total,b:d.totals.branches.pct.toFixed(1),bc:d.totals.branches.covered,bt:d.totals.branches.total}))")
+            node -e "
+              const d=JSON.parse('$TOTAL');
+              const row=(pct,covered,total)=>\`|\${pct}%|\${covered}/\${total}|\`;
+              const fmt=v=>v===undefined?'—':v;
+              const p=d.p,c=d.c,t=d.t,s=d.s,sc=d.sc,st=d.st,f=d.f,fc=d.fc,ft=d.ft,b=d.b,bc=d.bc,bt=d.bt;
+              const color=pct=>{
+                const n=parseFloat(pct);
+                if(n>=90)return'🟢';
+                if(n>=70)return'🟡';
+                return'🔴';
+              };
+              const lines=\`| Metric | % | Covered/Total |\n|---|---|---|\n| Lines | \${color(p)}\${p}% | \${c}/\${t} |\n| Statements | \${color(s)}\${s}% | \${sc}/\${st} |\n| Functions | \${color(f)}\${f}% | \${fc}/\${ft} |\n| Branches | \${color(b)}\${b}% | \${bc}/\${bt} |\n|`;
+              const fs=require('fs');
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,lines);
+            "
+          else
+            echo "Coverage report not found at $REPORT" >> $GITHUB_STEP_SUMMARY
+          fi
