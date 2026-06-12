@@ -477,3 +477,22 @@ Verification: critique/polish findings either fixed or added to intent; examples
 2. TASK-61: consolidate scenario metadata and reusable primitives once repetition is visible.
 3. TASK-62: run the differentiation-focused design critique/polish pass.
 
+### 63. Fix GitHub Actions test coverage summary without re-running or brittle report paths. (TASK-63)
+
+The `test` workflow is still failing in CI after the coverage-summary changes. The current workflow runs coverage once in `Run tests with coverage`, uploads `coverage/`, then runs `pnpm test -- --coverage --reporter=text` a second time inside `Post coverage summary`. This makes the summary step both slow and failure-prone. Prior attempts also assumed `coverage/coverage-summary.json`, but Vitest's default reporters did not create that file in CI.
+
+Planned fixes:
+
+- Make the CI test job run tests exactly once for coverage. The coverage run should produce both the human-readable text table and a machine-readable artifact if needed.
+- Capture the coverage text from the actual coverage run, not by re-running tests in the summary step. Use `tee coverage/coverage.txt` or an equivalent one-pass approach.
+- Keep the GitHub step summary simple: append the captured coverage text table to `$GITHUB_STEP_SUMMARY` in a fenced block. Do not parse JSON unless the workflow explicitly configures the exact JSON summary reporter and verifies the file exists.
+- Keep `coverage-report` as the test artifact name so it cannot collide with the Pages artifact named `github-pages`.
+- Verify locally that `pnpm test -- --coverage` succeeds and creates the expected coverage output files before pushing.
+
+Verification: `pnpm test -- --coverage` exits 0 locally; `coverage/coverage.txt` or the chosen captured-output file exists locally; workflow YAML validates; CI `test` job passes on GitHub Actions and shows the coverage table in the job summary; CNS health gate passes.
+
+### Suggested execution order for CI/support tasks
+
+1. TASK-63: fix the test workflow coverage summary.
+2. Continue the remaining implementation queue only after CI is green.
+
