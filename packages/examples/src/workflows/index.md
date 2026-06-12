@@ -58,8 +58,8 @@ The source is `workflows.ts` next to this directory.
 
 ## Boundary
 
-- Imports from: `effect` (peer, for `Effect.gen`, `Effect.sleep`), `zod` (peer), `@underwai/schema` (`human`), `@underwai/core` (`init`, `node`, `NodeKey`, `NodeKey` factory, `workflow`, `WorkflowId`, `WorkflowState`), `./ExampleShell.js` (`Demo` type).
-- Exports to: `ExampleShell.tsx` (imports `allDemos`), `workflows.test.ts` (the integration test suite).
+- Imports from: `effect` (peer, for `Effect.gen`, `Effect.sleep`), `zod` (peer), `@underwai/schema` (`human`), `@underwai/core` (`init`, `node`, `NodeKey`, `NodeKey` factory, `workflow`, `WorkflowId`, `WorkflowState`), `./demo-types.js` (`Demo` type).
+- Exports to: `ExampleShell.tsx` (imports `allDemos`), `workflows.test.ts` (the integration test suite), and scenario/rendering modules that need demo metadata.
 - **What does NOT live here:** the shell that drives these demos (in `ExampleShell.tsx`), the test suite (in `workflows.test.ts`).
 
 The design decisions that govern this module are encoded in the `decisions[]` frontmatter above.

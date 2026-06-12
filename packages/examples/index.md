@@ -16,6 +16,10 @@ links:
     path: packages/examples/src/EventLog/index.md
   - id: ex-HumanForm
     path: packages/examples/src/HumanForm/index.md
+  - id: ex-demo-types
+    path: packages/examples/src/demo-types/index.md
+  - id: ex-useDemoRuntime
+    path: packages/examples/src/useDemoRuntime/index.md
 decisions:
   - id: DEC-EXAMPLES-001
     date: 2026-06-07
@@ -41,6 +45,10 @@ decisions:
     date: 2026-06-12
     author: agent
     summary: "The examples package is part of the root TypeScript build lane. Root tsconfig references packages/examples so pnpm build catches broken consumer examples; the examples package tsconfig excludes test files from the app/declaration emit while vitest still owns example integration tests. (TASK-47.)"
+  - id: DEC-EXAMPLES-014
+    date: 2026-06-12
+    author: agent
+    summary: "ExampleShell is layout/navigation glue. Demo metadata lives in demo-types.ts and runtime state/effects live in useDemoRuntime.ts, so workflow definitions do not import shell component types and the controller has one authoritative runtime state source. (TASK-50.)"
 human_notes: |
 status: clean
 last_reconciled: 2026-06-07
@@ -54,5 +62,7 @@ Three deployable example workflows. Each one is a real composition that exercise
 - `research triage` — uses the human-in-the-loop workflow to render a claim verification desk. Validates human graph edits and downstream recomputation.
 - `incident join` — uses the join workflow to render evidence lanes and a typed severity aggregate. Validates branch fan-out/fan-in and graph topology as product UI.
 - `streaming` and `wall display` remain lower-priority runtime examples for current state and subscription behavior.
+
+The examples shell is split into neutral metadata (`demo-types.ts`), runtime control (`useDemoRuntime.ts`), and visual layout (`ExampleShell.tsx`).
 
 Run `pnpm --filter @underwai/examples dev` to start the Vite dev server. Run `pnpm --filter @underwai/examples test` to run the integration tests. Root `pnpm build` also includes the examples package so the consumer-facing app stays in the normal verification lane.

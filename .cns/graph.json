@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-11T21:03:57.312109+00:00",
+  "generated": "2026-06-12T12:52:23.965070+00:00",
   "nodes": [
     {
       "path": ".cns/architecture/index.md",
@@ -62,7 +62,7 @@
       "type": "package",
       "parent": "../../.cns/index.md",
       "status": "clean",
-      "decision_count": 19
+      "decision_count": 21
     },
     {
       "path": "packages/core/src/composition/index.md",
@@ -115,8 +115,8 @@
       "title": "@underwai/examples",
       "type": "package",
       "parent": "../../.cns/index.md",
-      "status": "dirty",
-      "decision_count": 4
+      "status": "clean",
+      "decision_count": 7
     },
     {
       "path": "packages/examples/src/EventLog/index.md",
@@ -134,7 +134,7 @@
       "type": "module",
       "parent": "../../index.md",
       "status": "clean",
-      "decision_count": 4
+      "decision_count": 5
     },
     {
       "path": "packages/examples/src/Graph/index.md",
@@ -162,6 +162,24 @@
       "parent": "../../index.md",
       "status": "clean",
       "decision_count": 4
+    },
+    {
+      "path": "packages/examples/src/demo-types/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/examples/src/demo-types/index.md",
+      "title": "examples/demo-types",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 1
+    },
+    {
+      "path": "packages/examples/src/useDemoRuntime/index.md",
+      "file": "/Users/andrew/Documents/underwai/packages/examples/src/useDemoRuntime/index.md",
+      "title": "examples/useDemoRuntime",
+      "type": "module",
+      "parent": "../../index.md",
+      "status": "clean",
+      "decision_count": 1
     },
     {
       "path": "packages/examples/src/workflows/index.md",
@@ -206,7 +224,7 @@
       "type": "package",
       "parent": "../../.cns/index.md",
       "status": "clean",
-      "decision_count": 5
+      "decision_count": 6
     },
     {
       "path": "packages/renderer-react/src/auto-render/index.md",
@@ -251,7 +269,7 @@
       "type": "package",
       "parent": "../../.cns/index.md",
       "status": "clean",
-      "decision_count": 10
+      "decision_count": 11
     },
     {
       "path": "packages/runner/src/mutations/index.md",
@@ -296,7 +314,7 @@
       "type": "package",
       "parent": "../../.cns/index.md",
       "status": "clean",
-      "decision_count": 9
+      "decision_count": 10
     },
     {
       "path": "packages/transport/src/event-stream/index.md",
@@ -422,6 +440,16 @@
       "label": "parent"
     },
     {
+      "from": "packages/examples/src/demo-types/index.md",
+      "to": "packages/examples/index.md",
+      "label": "parent"
+    },
+    {
+      "from": "packages/examples/src/useDemoRuntime/index.md",
+      "to": "packages/examples/index.md",
+      "label": "parent"
+    },
+    {
       "from": "packages/examples/src/workflows/index.md",
       "to": "packages/examples/index.md",
       "label": "parent"
@@ -527,6 +555,8 @@
     "packages/examples/src/ExampleShell/index.md",
     "packages/examples/src/Graph/index.md",
     "packages/examples/src/RenderedPanel/index.md",
+    "packages/examples/src/demo-types/index.md",
+    "packages/examples/src/useDemoRuntime/index.md",
     "packages/examples/src/workflows/index.md",
     "packages/renderer-log/src/registry/index.md",
     "packages/renderer-log/src/runner/index.md",

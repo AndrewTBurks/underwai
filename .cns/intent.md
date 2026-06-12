@@ -283,19 +283,6 @@ Per Andrew's "verify per theme" rule: each task gets its own commit (code + test
 
 Source: `/architect` repository-structure review. These tasks consolidate the findings from the package-boundary, examples, TypeScript hygiene, and CNS drift audit. Execute one-by-one. Do not delete completed historical tasks. Keep CNS health green after each task.
 
-### 50. Extract the examples demo model and runtime controller. (TASK-50)
-
-`ExampleShell.tsx` currently owns layout, runtime layer creation, subscriptions, event capture, input writes, human input writes, graph scroll state, and demo switching. `workflows.ts` imports the `Demo` type from `ExampleShell`, so workflow definitions depend on the shell component.
-
-Planned fixes:
-
-- Move `Demo` into a neutral file such as `packages/examples/src/demo-types.ts`.
-- Extract a controller hook such as `useDemoRuntime(demo)` that owns runtime state, events, `run`, `writeRootInput`, `writeHumanInput`, and reset behavior.
-- Keep `ExampleShell` as composition/layout glue.
-- Ensure the controller has one authoritative runtime state source.
-
-Verification: no workflow-definition file imports a UI shell type; human-in-the-loop and linear examples still run; examples tests pass.
-
 ### 51. Split the examples workflow catalog by demo. (TASK-51)
 
 `packages/examples/src/workflows.ts` is a 560-line file that contains all demos, demo metadata, setup functions, manual join graph construction, and comments. It also claims every example compiles without `as never` or `as unknown as`, but current join setup uses those casts.
@@ -362,14 +349,13 @@ Planned fixes:
 
 Verification: `python3 /Users/andrew/.hermes/skills/nervous-system/scripts/validate.py .`, `python3 /Users/andrew/.hermes/skills/nervous-system/scripts/graph.py . --check`, and a spot-check of the reconciled package docs against source imports.
 
-### Suggested execution order for remaining TASK-50 through TASK-55
+### Suggested execution order for remaining TASK-51 through TASK-55
 
-1. TASK-50: extract examples demo model and runtime controller.
-2. TASK-51: split examples workflow catalog.
-3. TASK-52: extract graph layout and event projection helpers.
-4. TASK-53: package metadata and lockfile hygiene.
-5. TASK-54: unsafe cast audit and one structural cast-class reduction.
-6. TASK-55: CNS package-doc reconcile after code boundaries settle.
+1. TASK-51: split examples workflow catalog.
+2. TASK-52: extract graph layout and event projection helpers.
+3. TASK-53: package metadata and lockfile hygiene.
+4. TASK-54: unsafe cast audit and one structural cast-class reduction.
+5. TASK-55: CNS package-doc reconcile after code boundaries settle.
 
 Per Andrew's sequential preference: execute one task at a time, with code/test/CNS verification before moving to the next.
 

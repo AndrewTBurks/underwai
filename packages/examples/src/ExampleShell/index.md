@@ -20,6 +20,10 @@ decisions:
     date: 2026-06-08
     author: agent
     summary: '`Demo` is generic on the typed tree''s path map (`PathMap extends Record<string, unknown>`) so the `view()` call site narrows the leaf''s output type. The shell''s render uses `view(state, leafKey)` to read the leaf with the declared output type.'
+  - id: DEC-EXAMPLES-015
+    date: 2026-06-12
+    author: agent
+    summary: "ExampleShell no longer owns runtime state. It imports Demo from demo-types and useDemoRuntime from useDemoRuntime, then composes the layout: product surface, graph, and event log. (TASK-50.)"
 human_notes: |
 status: clean
 last_reconciled: 2026-06-08
@@ -27,14 +31,13 @@ last_reconciled: 2026-06-08
 
 # examples/src/ExampleShell
 
-The 3-area UI for every example. The shell takes a `Demo` object (built tree + setup + display metadata) and drives the workflow through Effect. Runs are user-initiated only.
+The 3-area UI for every example. The shell takes a `Demo` object and delegates runtime execution to `useDemoRuntime`. Runs are user-initiated only.
 
 ## What lives here
 
 The source is `ExampleShell.tsx` next to this directory.
 
-- **`Demo<PathMap>`** — the per-demo metadata: `{ id, title, description, built, setup, leafKey, panel, maxConcurrent? }`. Generic on the typed tree's path map so `view()` narrows the leaf's output type.
-- **`ExampleShell<PathMap>({ demo, onSelectDemo?, demoIdx? })`** — the shell component. Holds `state`, `events`, `scrollToKey`, `input` as React state. Renders the rendered panel, graph, event log, and a "Run" button.
+- **`ExampleShell<PathMap>({ demo, onSelectDemo?, demoIdx? })`** — the shell component. Holds only layout/navigation-local state such as `scrollToKey`; runtime state, events, input, run, and human writes come from `useDemoRuntime(demo)`.
 
 ## Three areas
 
@@ -42,11 +45,11 @@ The source is `ExampleShell.tsx` next to this directory.
 - **Right top** — the graph topology (`<Graph state={...} />`).
 - **Right bottom** — the event log (`<EventLog events={...} lastEvent={...} />`).
 
-The shell drives `rt.run({ state, maxConcurrent: demo.maxConcurrent, liveRegistry })` on click of "Run." On every state change, the shell calls `capture()` to diff the new state against the previous one and appends the resulting events.
+Runtime execution is owned by `useDemoRuntime`: it drives `rt.run`, writes root input, resumes human input, subscribes to state, and captures events. The shell only passes those controller outputs into the rendered panel, graph, and event log.
 
 ## Boundary
 
-- Imports from: `react` (peer), `effect` (peer, for `Effect.gen`), `@underwai/core` (NodeKey, TypedTree, WorkflowState), `@underwai/runner` (WorkflowRuntime, WorkflowRuntimeLive), `@underwai/transport` (WorkflowEvent), `./Graph.js`, `./EventLog.js`, `./RenderedPanel.js`, `./StatusPill.js`, `./workflows.js`.
+- Imports from: `react` (peer), `./Graph.js`, `./EventLog.js`, `./RenderedPanel.js`, `./StatusPill.js`, `./workflows.js`, `./useDemoRuntime.js`, and `./demo-types.js`.
 - Exports to: the example app's `main.tsx` (mounts the shell), the test suite (`workflows.test.ts` exercises the demos through the shell).
 - **What does NOT live here:** the graph layout (in `Graph.tsx`), the event log (in `EventLog.tsx`), the rendered panel (in `RenderedPanel.tsx`), the per-demo setup (in `workflows.ts`).
 
