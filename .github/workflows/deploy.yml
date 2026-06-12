@@ -50,7 +50,6 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: packages/examples/dist
-          name: underwai-examples-dist
 
       - name: Deploy to GitHub Pages
         id: deployment
