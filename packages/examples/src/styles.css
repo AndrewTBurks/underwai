@@ -130,18 +130,32 @@ html, body {
 .app-header__examples {
   display: flex;
   gap: var(--space-1);
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .app-header__chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
   font-family: var(--font-mono);
   font-size: 11px;
   background: transparent;
   color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 4px 10px;
+  padding: 5px 10px;
   cursor: pointer;
+  white-space: nowrap;
   transition: color 100ms ease, border-color 100ms ease, background 100ms ease;
+}
+
+.app-header__chip-kicker {
+  color: var(--text-dim);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .app-header__chip:hover {
@@ -567,3 +581,527 @@ html, body {
   padding: var(--space-4) 0;
   text-align: center;
 }
+
+/* ============== Multi-human form (always-visible live edit) ============== */
+
+.multi-human-form {
+  border: 1px solid color-mix(in oklch, var(--border-default) 80%, transparent);
+  border-radius: 8px;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  margin-top: var(--space-2);
+  background: color-mix(in oklch, var(--bg-base) 60%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  /* A subtle focus-within glow that follows the form's
+     current text color. */
+  transition: border-color 120ms ease;
+}
+
+.multi-human-form:focus-within {
+  border-color: var(--text-secondary);
+}
+
+/* The form's "paused" state (workflow halted on this node)
+   is the form's primary state — emphasize the legend and
+   the surrounding panel. */
+.multi-human-form[data-paused="true"] {
+  border-color: color-mix(in oklch, var(--status-paused) 60%, transparent);
+  background: color-mix(in oklch, var(--status-paused) 7%, var(--bg-base));
+}
+
+.multi-human-form__legend {
+  /* The fieldset legend is positioned by default; lift it
+     above the border and use a small uppercase style. */
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 var(--space-2);
+  background: var(--bg-base);
+  border-radius: 4px;
+  align-self: flex-start;
+  margin-left: var(--space-1);
+}
+
+.multi-human-form[data-paused="true"] .multi-human-form__legend {
+  color: var(--status-paused);
+}
+
+.multi-human-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.multi-human-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.88em;
+}
+
+.multi-human-form__label {
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+
+/* Inputs: explicit text color so the form is readable
+   regardless of where it's mounted. currentColor on the
+   border + color-mix tint on the background follows the
+   theme. */
+.multi-human-form__input {
+  font: inherit;
+  color: var(--text-primary);
+  background: color-mix(in oklch, var(--bg-base) 70%, transparent);
+  border: 1px solid color-mix(in oklch, currentColor 25%, transparent);
+  border-radius: 6px;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.multi-human-form__input:hover {
+  border-color: color-mix(in oklch, currentColor 45%, transparent);
+}
+
+.multi-human-form__input:focus-visible {
+  border-color: var(--text-secondary);
+  background: color-mix(in oklch, var(--text-secondary) 8%, var(--bg-base));
+}
+
+.multi-human-form__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+}
+
+.multi-human-form__send {
+  border: 1px solid color-mix(in oklch, var(--status-paused) 68%, var(--border-default));
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--status-paused) 18%, var(--bg-base));
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+}
+
+.multi-human-form__send:hover,
+.multi-human-form__send:focus-visible {
+  border-color: var(--status-paused);
+  background: color-mix(in oklch, var(--status-paused) 26%, var(--bg-base));
+}
+
+.multi-human-form__input--checkbox {
+  width: 18px;
+  height: 18px;
+  align-self: flex-start;
+  cursor: pointer;
+}
+
+.multi-human-form__input--json {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 4em;
+}
+
+.multi-human-form__input--number,
+.multi-human-form__input--select {
+  /* Browsers default to a different font for number/select.
+     Force the project font. */
+  font-family: inherit;
+}
+
+/* The output slot that holds the form within the rendered
+   stage. The form replaces the stage's output when the
+   stage has human fields. */
+.rendered__stage-output--human {
+  padding: 0;
+}
+
+/* ============== Scenario miniature target apps ============== */
+
+.mini-app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.mini-app__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.36fr);
+  gap: var(--space-5);
+  align-items: start;
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, color-mix(in oklch, var(--bg-elevated) 88%, var(--accent) 12%), var(--bg-panel));
+}
+
+.mini-app__eyebrow {
+  display: inline-flex;
+  margin-bottom: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.mini-app__header h1 {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 1.45rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.mini-app__header p {
+  max-width: 68ch;
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+}
+
+.mini-app__proof {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--bg-base) 58%, transparent);
+}
+
+.mini-app__proof span {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.mini-app__proof strong {
+  color: var(--text-primary);
+}
+
+.mini-app__proof code {
+  color: var(--accent);
+  white-space: normal;
+}
+
+.mini-app__proof button,
+.mini-inputbar button {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--accent-soft) 72%, var(--bg-base));
+  color: var(--accent-fg);
+  font-family: var(--font-mono);
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+}
+
+.mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.mini-grid--incident,
+.mini-grid--data {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ui-region {
+  position: relative;
+  min-height: 138px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+  overflow: hidden;
+  transition: border-color 180ms var(--ease-out, ease), background 180ms ease, box-shadow 180ms ease;
+}
+
+.ui-region--wide {
+  grid-column: 1 / -1;
+}
+
+.ui-region--emphasis {
+  border-color: color-mix(in oklch, var(--status-paused) 48%, var(--border-default));
+}
+
+.ui-region[data-status="running"] {
+  border-color: color-mix(in oklch, var(--status-running) 50%, var(--border-default));
+}
+
+.ui-region[data-status="resolved"] {
+  border-color: color-mix(in oklch, var(--status-resolved) 34%, var(--border-default));
+}
+
+.ui-region[data-status="failed"] {
+  border-color: color-mix(in oklch, var(--status-failed) 62%, var(--border-default));
+  background: color-mix(in oklch, var(--status-failed) 7%, var(--bg-panel));
+}
+
+.ui-region[data-status="stale"] {
+  border-color: color-mix(in oklch, var(--status-stale) 72%, var(--border-default));
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--status-stale) 35%, transparent);
+}
+
+.ui-region__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.ui-region__badge {
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.ui-region__body {
+  padding: var(--space-4);
+}
+
+.ui-region__overlay {
+  position: absolute;
+  inset: auto var(--space-3) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in oklch, var(--status-stale) 70%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--bg-base) 86%, var(--status-stale));
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.mini-inputbar {
+  display: flex;
+  gap: var(--space-3);
+  align-items: end;
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+}
+
+.mini-inputbar label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.mini-inputbar input {
+  width: 100%;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  padding: 0.55rem 0.7rem;
+}
+
+.mini-inputbar__hint {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.mini-inputbar__hint code {
+  color: var(--accent);
+}
+
+.mini-copy {
+  margin: 0;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+.mini-copy--strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.claim-list,
+.severity-aggregate {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.claim-list li,
+.severity-aggregate div,
+.evidence-lane {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.claim-list span,
+.severity-aggregate span,
+.evidence-lane span,
+.brief-card span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.claim-list strong,
+.severity-aggregate strong,
+.evidence-lane strong {
+  color: var(--text-primary);
+  text-align: left;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.evidence-lane {
+  flex-direction: column;
+}
+
+.brief-card h2 {
+  margin: var(--space-2) 0;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  line-height: 1.25;
+}
+
+.brief-card p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.mini-table th,
+.mini-table td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+}
+
+.mini-table th {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.skeleton-lines,
+.skeleton-table {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.skeleton-lines span,
+.skeleton-table span,
+.active-skeleton span {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--bg-elevated), color-mix(in oklch, var(--text-muted) 13%, var(--bg-elevated)), var(--bg-elevated));
+}
+
+.skeleton-lines span:nth-child(2n) { width: 74%; }
+.skeleton-lines span:nth-child(3n) { width: 52%; }
+
+.skeleton-table {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.active-skeleton {
+  display: grid;
+  gap: var(--space-3);
+  color: var(--status-running);
+  font-family: var(--font-mono);
+}
+
+.active-skeleton span {
+  animation: skeleton-scan 1100ms ease-in-out infinite;
+}
+
+.error-block {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid color-mix(in oklch, var(--status-failed) 55%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--status-failed) 10%, var(--bg-panel));
+  color: var(--text-primary);
+}
+
+.error-block strong {
+  color: var(--status-failed);
+  font-family: var(--font-mono);
+}
+
+.mini-code {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--text-secondary);
+}
+
+@keyframes skeleton-scan {
+  0%, 100% { opacity: 0.48; transform: scaleX(0.96); transform-origin: left; }
+  50% { opacity: 1; transform: scaleX(1); }
+}
+
+@media (max-width: 980px) {
+  .app-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(460px, 0.8fr);
+  }
+
+  .app-body__left {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .mini-app__header,
+  .mini-grid,
+  .mini-grid--incident,
+  .mini-grid--data {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .active-skeleton span {
+    animation: none;
+  }
+}
+

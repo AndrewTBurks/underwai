@@ -167,7 +167,11 @@ export const WorkflowRuntimeLive = (initialOpts: RunOptions): Layer.Layer<Workfl
                 const fiber = yield* Effect.fork(
                   Effect.gen(function* () {
                     inFlightKey = key;
-                    const input = resolveInput(running, key) ?? node.input.value;
+                    const resolvedInput = resolveInput(running, key);
+                    const input =
+                      humanMode !== undefined && node.status.kind === "stale"
+                        ? node.input.value
+                        : (resolvedInput ?? node.input.value);
                     return yield* program(input).pipe(
                       Effect.tap((output) =>
                         Ref.update(stateRef, (s) =>

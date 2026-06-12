@@ -70,7 +70,9 @@ const linearPipelineTree = workflow()
       schema: z.string(),
       outputSchema: z.string(),
       program: (input: string) =>
-        Effect.sleep(demoDelay).pipe(Effect.as(input)),
+        input.toLowerCase().includes("!!bad")
+          ? Effect.fail(new Error("quality check failed at row.value: remove !!bad marker"))
+          : Effect.sleep(demoDelay).pipe(Effect.as(input)),
     }),
   )
   .chain(
@@ -94,16 +96,22 @@ const linearPipelineTree = workflow()
   )
   .build();
 
-// Example 2: human-in-the-loop with a mid-graph pause.
+// Example 2: human-in-the-loop with a multi-field form.
 //
-//   greet(format) → askName(human) → compose → polish → sign → display
+//   greet(format) → askName(human: { firstName, lastName, email })
+//                       → compose → polish → sign → display
 //
 // Automated work runs first. Then the human-marked askName
-// node pauses the workflow. The user types their name in
-// the form. The remaining stages run, producing a signed
-// greeting. The pause is intentionally mid-graph so the
-// user sees automated work happen, contributes their input,
-// then watches the rest of the pipeline complete.
+// node pauses the workflow. The multi-field form (built from
+// the object's zod schema) collects firstName, lastName, and
+// email. The remaining stages run, producing a signed
+// greeting. The form is shown for *any* node status (not just
+// paused) — editing a field re-runs the node and downstream.
+//
+// The schema is `human(z.object({...}))` — the human marker
+// is at the top, the object's fields are regular zod
+// schemas. The form introspects the object and renders one
+// input per field.
 const humanInTheLoopTree = workflow()
   .run(
     node({
@@ -114,44 +122,56 @@ const humanInTheLoopTree = workflow()
     }),
   )
   .chain(
-    (s: string) => s,
+    (s: string) => ({ firstName: s, lastName: "", email: "" }),
     node({
       kind: "askName",
-      schema: human(z.string()),
-      outputSchema: z.string(),
-      program: (input: string) =>
+      schema: human(
+        z.object({
+          firstName: z.string(),
+          lastName: z.string(),
+          email: z.string().email(),
+        }),
+      ),
+      outputSchema: z.object({
+        firstName: z.string(),
+        lastName: z.string(),
+        email: z.string(),
+      }),
+      program: (input: { firstName: string; lastName: string; email: string }) =>
         Effect.sleep(demoDelay).pipe(Effect.as(input)),
     }),
   )
   .chain(
-    (s: string) => s,
+    (s: { firstName: string; lastName: string; email: string }) => s.firstName,
     node({
       kind: "compose",
       schema: z.string(),
-      outputSchema: z.object({ greeting: z.string(), name: z.string() }),
-      // The compose receives just the name from askName
-      // (string), then it looks up the greet format. But
-      // the upstream is just askName — it doesn't have the
-      // greet format. We need greet to flow into compose.
-      // For the demo, compose reads just the name and
-      // produces a structured record; the polish stage
-      // applies the greeting format. But the greeting
-      // format ("Hello, ") is just a constant here.
+      outputSchema: z.object({
+        greeting: z.string(),
+        firstName: z.string(),
+        lastName: z.string(),
+        email: z.string(),
+      }),
       program: (input: string) =>
         Effect.sleep(demoDelay).pipe(
-          Effect.as({ greeting: "Hello", name: input }),
+          Effect.as({ greeting: "Hello", firstName: input, lastName: "", email: "" }),
         ),
     }),
   )
   .chain(
-    (r: { greeting: string; name: string }) => r,
+    (r: { greeting: string; firstName: string; lastName: string; email: string }) => r,
     node({
       kind: "polish",
-      schema: z.object({ greeting: z.string(), name: z.string() }),
+      schema: z.object({
+        greeting: z.string(),
+        firstName: z.string(),
+        lastName: z.string(),
+        email: z.string(),
+      }),
       outputSchema: z.string(),
-      program: (input: { greeting: string; name: string }) =>
+      program: (input: { greeting: string; firstName: string; lastName: string; email: string }) =>
         Effect.sleep(demoDelay).pipe(
-          Effect.as(`✨ ${input.greeting}, ${input.name}! ✨`),
+          Effect.as(`✨ ${input.greeting}, ${input.firstName}! ✨`),
         ),
     }),
   )
@@ -420,9 +440,12 @@ const wallDisplayTree = workflow()
 
 export const linearPipelineDemo: Demo = {
   id: "wf-linear",
-  title: "linear pipeline",
+  title: "data QA",
+  differentiator: "validation repair",
+  keyMutation: "raw row → typed table regions",
+  scenario: "data-qa",
   description:
-    "Five stages, each with a visible delay: parse, trim, upper, exclaim, display. Bridges show the typed composition — each stage's input is the previous stage's output, transformed.",
+    "A miniature import table renders pending, running, and resolved states as product UI regions instead of debugger rows.",
   built: linearPipelineTree,
   setup: () => init(linearPipelineTree.tree, WorkflowId("wf-linear")),
   leafKey: "root.trim.upper.exclaim.display",
@@ -436,9 +459,12 @@ export const linearPipelineDemo: Demo = {
 
 export const humanInTheLoopDemo: Demo = {
   id: "wf-human",
-  title: "human-in-the-loop",
+  title: "research triage",
+  differentiator: "stale subtree",
+  keyMutation: "human edit → downstream brief stale",
+  scenario: "research-triage",
   description:
-    "Automated work runs, then a human node pauses the workflow. The form (built from the node's schema) collects the input. More work runs after submission.",
+    "A miniature research desk renders a human-verification control as the product UI, then recomputes only the dependent brief region.",
   built: humanInTheLoopTree,
   setup: () => init(humanInTheLoopTree.tree, WorkflowId("wf-human")),
   leafKey: "root.askName.compose.polish.sign.display",
@@ -447,9 +473,12 @@ export const humanInTheLoopDemo: Demo = {
 
 export const joinExampleDemo: Demo = {
   id: "wf-join",
-  title: "join (parallel merge)",
+  title: "incident join",
+  differentiator: "typed join",
+  keyMutation: "branches → normalized severity aggregate",
+  scenario: "incident-join",
   description:
-    "Two parallel branches — fetchProfile and fetchAvatar — both run from trigger. Their validate stages converge at a merge node. The composite record is keyed by upstream path.",
+    "A miniature incident console renders branch evidence lanes and a joined severity aggregate from typed graph positions.",
   built: joinExampleTree,
   setup: (): WorkflowState => {
     // Build the join state by augmenting the builder's
@@ -495,7 +524,12 @@ export const joinExampleDemo: Demo = {
     );
   },
   leafKey: "root.fetchProfile.validateProfile.merge.render",
-  panel: { kind: "none" },
+  panel: {
+    kind: "input",
+    label: "incident signal",
+    default: "checkout errors in us-east after deploy 4f8",
+    writeTo: NodeKeyT("root"),
+  },
   // The two parallel branches (fetchProfile / fetchAvatar)
   // run concurrently. maxConcurrent: 4 leaves headroom
   // for the validate stages to also run in parallel with

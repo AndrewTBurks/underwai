@@ -58,12 +58,16 @@ describe("human-in-the-loop example", () => {
     );
     const askView = humanInTheLoopDemo.built.view(paused, "root.askName");
     expect(askView.status.kind).toBe("paused");
-    // Submit the human value; the runtime un-pauses and
-    // the rest of the pipeline runs.
+    // Submit the multi-field human value; the runtime un-pauses
+    // and the rest of the pipeline runs.
     const result = await Effect.runPromise(
       Effect.gen(function* () {
         const rt = yield* WorkflowRuntime;
-        yield* rt.writeHumanInput(NodeKey("root.askName"), "Alice");
+        yield* rt.writeHumanInput(NodeKey("root.askName"), {
+          firstName: "Alice",
+          lastName: "Doe",
+          email: "alice@example.com",
+        });
         return yield* rt.run({ state: paused });
       }).pipe(Effect.provide(layer)),
     );
