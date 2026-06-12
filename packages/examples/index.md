@@ -37,8 +37,12 @@ decisions:
     date: 2026-06-12
     author: human
     summary: "The examples page differentiates underWAI from TanStack Workflow by rendering scenario-specific miniature target applications in the left panel, not a workflow-debug stage list. Each app region is backed by graph node state and renders real pending/running/failed/stale/resolved UI; status badges stay subtle because the product UI carries the state. Human verification stages stage local form edits and use an explicit send-values button to write into the runtime. The first wave covers data QA (including a real forced quality-check failure via !!bad and repair by rerun), research triage, and incident join scenarios. (TASK-56 through TASK-59.)"
+  - id: DEC-EXAMPLES-006
+    date: 2026-06-12
+    author: agent
+    summary: "The examples package is part of the root TypeScript build lane. Root tsconfig references packages/examples so pnpm build catches broken consumer examples; the examples package tsconfig excludes test files from the app/declaration emit while vitest still owns example integration tests. (TASK-47.)"
 human_notes: |
-status: dirty
+status: clean
 last_reconciled: 2026-06-07
 ---
 
@@ -51,4 +55,4 @@ Three deployable example workflows. Each one is a real composition that exercise
 - `incident join` — uses the join workflow to render evidence lanes and a typed severity aggregate. Validates branch fan-out/fan-in and graph topology as product UI.
 - `streaming` and `wall display` remain lower-priority runtime examples for current state and subscription behavior.
 
-Run `pnpm --filter @underwai/examples dev` to start the Vite dev server. Run `pnpm --filter @underwai/examples test` to run the integration tests.
+Run `pnpm --filter @underwai/examples dev` to start the Vite dev server. Run `pnpm --filter @underwai/examples test` to run the integration tests. Root `pnpm build` also includes the examples package so the consumer-facing app stays in the normal verification lane.

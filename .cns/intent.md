@@ -283,19 +283,6 @@ Per Andrew's "verify per theme" rule: each task gets its own commit (code + test
 
 Source: `/architect` repository-structure review. These tasks consolidate the findings from the package-boundary, examples, TypeScript hygiene, and CNS drift audit. Execute one-by-one. Do not delete completed historical tasks. Keep CNS health green after each task.
 
-### 47. Put `@underwai/examples` into an explicit root verification lane. (TASK-47)
-
-The examples package is a real workspace package but is not part of the root TypeScript reference graph. `pnpm exec tsc -b --dry` only lists core, schema, runner, transport, renderer-react, and renderer-log. That means root `pnpm build` can pass while the consumer examples are broken.
-
-Planned fixes:
-
-- Decide the lane: either add `packages/examples` to root `tsconfig.json` references, or add a root script that explicitly runs `pnpm --filter @underwai/examples build`.
-- Prefer including examples in the normal project gate while the API is still being validated through examples.
-- Ensure the examples build does not emit test files into the publish/browser bundle unnecessarily. If needed, split app build tsconfig from test tsconfig.
-- Update the documented verification gate so future sessions do not treat root `tsc -b` as sufficient for examples.
-
-Verification: root build lane fails if examples has a type error; examples build produces a deployable Vite bundle; CNS health gate.
-
 ### 48. Reconcile the core/schema package boundary. (TASK-48)
 
 `packages/core/index.md` says core has no imports from `@underwai/schema`, but `packages/core/src/types.ts` imports `HumanMode` and `packages/core/src/operations.ts` imports `getHumanMode` from `@underwai/schema`. `@underwai/core` also lists `@underwai/schema` as a devDependency even though source imports it.
@@ -401,17 +388,16 @@ Planned fixes:
 
 Verification: `python3 /Users/andrew/.hermes/skills/nervous-system/scripts/validate.py .`, `python3 /Users/andrew/.hermes/skills/nervous-system/scripts/graph.py . --check`, and a spot-check of the reconciled package docs against source imports.
 
-### Suggested execution order for remaining TASK-47 through TASK-55
+### Suggested execution order for remaining TASK-48 through TASK-55
 
-1. TASK-47: make examples part of the verification gate.
-2. TASK-48: reconcile core/schema boundary.
-3. TASK-49: settle live subscription ownership.
-4. TASK-50: extract examples demo model and runtime controller.
-5. TASK-51: split examples workflow catalog.
-6. TASK-52: extract graph layout and event projection helpers.
-7. TASK-53: package metadata and lockfile hygiene.
-8. TASK-54: unsafe cast audit and one structural cast-class reduction.
-9. TASK-55: CNS package-doc reconcile after code boundaries settle.
+1. TASK-48: reconcile core/schema boundary.
+2. TASK-49: settle live subscription ownership.
+3. TASK-50: extract examples demo model and runtime controller.
+4. TASK-51: split examples workflow catalog.
+5. TASK-52: extract graph layout and event projection helpers.
+6. TASK-53: package metadata and lockfile hygiene.
+7. TASK-54: unsafe cast audit and one structural cast-class reduction.
+8. TASK-55: CNS package-doc reconcile after code boundaries settle.
 
 Per Andrew's sequential preference: execute one task at a time, with code/test/CNS verification before moving to the next.
 
