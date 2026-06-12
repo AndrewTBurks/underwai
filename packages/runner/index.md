@@ -49,6 +49,10 @@ decisions:
     date: 2026-06-08
     author: agent
     summary: '`RunOptions` gains `maxConcurrent?: number` (default 1). The dispatch loop is event-driven: each ready node is forked as a fiber carrying its own `NodeKey`; the loop wakes on `Fiber.join` of any in-flight completion and dispatches up to `(maxConcurrent - inFlight.size)` ready nodes. The legacy sequential `for (const key of ready)` is replaced. `currentKey` global is removed; `inFlightKey` is a single closure variable set by the dispatching fiber (JS single-threadedness makes this safe across parallel fibers). The per-fiber `Effect.ensuring` removes the key from inFlight and clears `inFlightKey`. (TASK-JF-3, .cns/plans/join-fixes/phase-3-runtime-concurrency.md).'
+  - id: DEC-RUNNER-011
+    date: 2026-06-12
+    author: agent
+    summary: "When a human-marked node is stale after writeHumanInput, the runtime uses the node's human-written input value instead of recomputing input from upstream bridge defaults. This preserves live-edit human input and prevents upstream defaults from overwriting the user's value before rerun. (TASK-46.)"
 human_notes: |
 
 status: clean

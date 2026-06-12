@@ -283,20 +283,6 @@ Per Andrew's "verify per theme" rule: each task gets its own commit (code + test
 
 Source: `/architect` repository-structure review. These tasks consolidate the findings from the package-boundary, examples, TypeScript hygiene, and CNS drift audit. Execute one-by-one. Do not delete completed historical tasks. Keep CNS health green after each task.
 
-### 46. Finish or revert the human-in-the-loop live-edit WIP. (TASK-46)
-
-The examples package is currently the load-bearing consumer validation surface. The active WIP changed the human-in-the-loop demo toward live-edit human input, but the repo is not clean: the working tree has modified examples files, an untracked `packages/examples/src/HumanForm/index.tsx`, and the human-in-the-loop test currently produces `"✨ Hello, undefined! ✨\n— underwai"` instead of using Alice.
-
-Planned fixes:
-
-- Decide the human input shape before shipping the WIP: either keep the structured live-edit form intentionally, or revert toward primitive human fields. Do not ship structured object input as an accidental consequence of the current WIP.
-- Remove stale submit-era plumbing from `packages/examples/src/ExampleShell.tsx`: `pendingHumanRef`, the `pendingHuman` parameter to `runDemo`, and comments that refer to a form submit. Correction from Andrew: the current human input fields have no submit button; the model is live field changes.
-- Make one state source authoritative for the live-edit path. The path should be `onHumanInputChange → WorkflowRuntime.writeHumanInput → rerun from the returned/current state → React state update`.
-- Fix the current data-flow bug where upstream bridge/default input overwrites the human-written value.
-- Remove debug artifacts before commit: `console.log`, `window.__onHumanInputCount`, `window.__formChangeCount`, `window.__fieldRowCount`, and `localStorage` debug keys.
-
-Verification: `pnpm --filter @underwai/examples test`, `pnpm --filter @underwai/examples typecheck`, `pnpm test`, `pnpm build`, CNS health gate.
-
 ### 47. Put `@underwai/examples` into an explicit root verification lane. (TASK-47)
 
 The examples package is a real workspace package but is not part of the root TypeScript reference graph. `pnpm exec tsc -b --dry` only lists core, schema, runner, transport, renderer-react, and renderer-log. That means root `pnpm build` can pass while the consumer examples are broken.
@@ -415,18 +401,17 @@ Planned fixes:
 
 Verification: `python3 /Users/andrew/.hermes/skills/nervous-system/scripts/validate.py .`, `python3 /Users/andrew/.hermes/skills/nervous-system/scripts/graph.py . --check`, and a spot-check of the reconciled package docs against source imports.
 
-### Suggested execution order for TASK-46 through TASK-55
+### Suggested execution order for remaining TASK-47 through TASK-55
 
-1. TASK-46: finish or revert the active human-in-the-loop WIP.
-2. TASK-47: make examples part of the verification gate.
-3. TASK-48: reconcile core/schema boundary.
-4. TASK-49: settle live subscription ownership.
-5. TASK-50: extract examples demo model and runtime controller.
-6. TASK-51: split examples workflow catalog.
-7. TASK-52: extract graph layout and event projection helpers.
-8. TASK-53: package metadata and lockfile hygiene.
-9. TASK-54: unsafe cast audit and one structural cast-class reduction.
-10. TASK-55: CNS package-doc reconcile after code boundaries settle.
+1. TASK-47: make examples part of the verification gate.
+2. TASK-48: reconcile core/schema boundary.
+3. TASK-49: settle live subscription ownership.
+4. TASK-50: extract examples demo model and runtime controller.
+5. TASK-51: split examples workflow catalog.
+6. TASK-52: extract graph layout and event projection helpers.
+7. TASK-53: package metadata and lockfile hygiene.
+8. TASK-54: unsafe cast audit and one structural cast-class reduction.
+9. TASK-55: CNS package-doc reconcile after code boundaries settle.
 
 Per Andrew's sequential preference: execute one task at a time, with code/test/CNS verification before moving to the next.
 
@@ -434,87 +419,9 @@ Per Andrew's sequential preference: execute one task at a time, with code/test/C
 
 Source: `/nervous-system plan more interesting/complex/compelling workflows and accompanying UI that can be shown as examples in the page`, sharpened after comparing against TanStack AI and TanStack Workflow. TanStack AI owns model/provider calls. TanStack Workflow owns durable async execution. underWAI must prove a different layer: typed AI-human workflow graph state as an inspectable, editable, renderable product substrate.
 
-These tasks should execute after TASK-46 stabilizes the live human-in-the-loop WIP and after TASK-47 puts examples into the root verification lane. The current active WIP should not be overwritten. New examples should build on the extracted demo model/controller from TASK-50 when practical.
+These remaining tasks should execute after the completed TASK-56 through TASK-59 miniature-app wave and after TASK-47 puts examples into the root verification lane. New examples should build on the extracted demo model/controller from TASK-50 when practical.
 
-Craft direction confirmed 2026-06-12: continue without generated Impeccable mocks because the image backend is unavailable and the project already has a committed dark/terracotta product palette. The left panel should be a scenario-specific miniature target application, not an underWAI debug list. Each app region is backed by graph state and renders real UI states: skeleton fallback for pending, more active skeleton/progress for running, local error fallback for failed, stale/recomputing overlay while preserving prior success, and final product UI for resolved. Status badges should be subtle because the UI element itself carries the state. First implementation wave should include TASK-57, TASK-58, and TASK-59 together after TASK-56 establishes the shell.
-
-### 56. Reframe the examples page around typed reactive graph state, not workflow execution. (TASK-56)
-
-The examples page must not read as a durable-job runner, event-log monitor, or generic demo switcher. Its job is to show the thing TanStack Workflow does not foreground: the graph state itself is the interface. A visitor should see typed nodes, edges, stale subtrees, human writes, validated outputs, and renderer subscriptions as one coherent product surface.
-
-Planned fixes:
-
-- Replace the flat demo-chip header with a scenario navigator organized by graph-state behavior: human edit → stale subtree, branch → typed join, validation failure → repair, competing resolvers → adjudication, subtree subscription → live UI.
-- Add a “what this proves” strip for each scenario that explicitly distinguishes underWAI from TanStack Workflow: not durability/retry, but inspectable graph state, editable typed positions, and UI rendered from node/subtree state.
-- Promote graph-state affordances above generic runtime affordances: selected node schema, current typed value, incoming/outgoing edges, downstream stale set, next ready nodes, and subscribed subtree.
-- Keep the 3-area model, but rename its roles in the UI: product surface, typed graph state, and state transition trail. The event log is supporting evidence, not the product.
-- Add reduced-motion-safe transition cues for graph state changes: edge trace when a value invalidates downstream, stale halo on affected nodes, resolved lock on unaffected siblings, and instant non-motion equivalents.
-
-Verification: visual smoke test of all current demos; `pnpm --filter @underwai/examples test`; `pnpm --filter @underwai/examples build`; CNS health gate.
-
-### 57. Add a research triage graph where a human edit invalidates only the downstream subtree. (TASK-57)
-
-Create a scenario whose load-bearing moment is not “a workflow ran”; it is “a typed human edit changes one graph position, and only the dependent subtree becomes stale.” This is the clearest underWAI-vs-workflow-engine distinction.
-
-Workflow shape:
-
-- `source_note` receives a messy research note.
-- `extract_claims` produces typed claims with confidence and citations.
-- `verify_claim` is a human-resolvable typed position for one ambiguous claim field.
-- `synthesize_brief` depends on the verified claim and recomputes after human edit.
-- A sibling branch such as `extract_keywords` does not depend on the verified field and must remain resolved when the human edits the claim.
-
-UI shape:
-
-- Left panel is a compact research workstation: source note, extracted claims, verification control, final brief.
-- Graph must visibly separate affected downstream nodes from unaffected siblings.
-- The key animation/state cue is stale propagation, not “running.” The visitor should be able to point at the stale subtree.
-- Event trail should annotate the human write as a graph mutation: `verify_claim.value changed → synthesize_brief stale → extract_keywords unchanged`.
-
-Verification: test human correction changes the final brief; test unrelated sibling output remains unchanged/resolved; examples build; CNS health gate.
-
-### 58. Add a typed join scenario that makes edge/bridge semantics visible. (TASK-58)
-
-Create an example that proves underWAI is a typed graph, not a list of async steps. The scenario can be incident response, but the point is the typed join: multiple branch outputs flow through explicit edges/bridges into one aggregate node, and the UI shows the aggregate as a typed value assembled from upstream graph positions.
-
-Workflow shape:
-
-- `incident_signal` receives a short incident report.
-- Parallel branches: `customer_impact`, `infra_health`, `recent_deploys`.
-- Each branch emits a different typed output shape.
-- Edge bridges normalize those outputs into `severity_inputs`.
-- `assess_severity` joins the normalized values into a typed severity object.
-- `operator_override` can edit the severity position, causing only the response-plan subtree to become stale.
-
-UI shape:
-
-- Graph view must show fan-out/fan-in and make bridge/normalization visible, even if compactly.
-- The join node should expose its typed aggregate: which fields came from which upstream branch.
-- Operator override should feel like editing a graph value with visible downstream consequences, not approving a job step.
-- Avoid generic incident dashboard tropes; no metric tiles as the main proof.
-
-Verification: test branch outputs join into the typed aggregate; test operator override invalidates response-plan descendants without rerunning independent branch evidence; examples build; CNS health gate.
-
-### 59. Add a validation-repair scenario where failure is a typed graph state. (TASK-59)
-
-Create an example that shows failure/recovery as graph state, not workflow retry plumbing. The point is not “retry a failed job”; it is “a node failed because a typed value did not validate, the UI can render the failed node’s schema/error/value, a human repairs the typed position, and the graph resumes from the affected point.”
-
-Workflow shape:
-
-- `raw_payload` starts with intentionally imperfect tabular data.
-- `parse_rows` converts raw rows into typed objects.
-- `validate_quality` fails with a structured error tied to a specific field/path.
-- `repair_field` is a human-resolvable typed position for the failed value.
-- `normalize` runs only after the repaired value validates.
-
-UI shape:
-
-- Failed node displays schema, offending value, and structured error path as first-class data.
-- Downstream nodes show blocked/stale state, not generic “pending.”
-- Human repair UI writes a typed value back into the graph; the table diff shows raw → repaired → normalized.
-- The event trail should read as graph repair, not infrastructure retry.
-
-Verification: test initial validation failure; test repair causes successful rerun from the repaired node; test normalized output; examples build; CNS health gate.
+Craft direction confirmed 2026-06-12: continue without generated Impeccable mocks because the image backend is unavailable and the project already has a committed dark/terracotta product palette. The left panel should be a scenario-specific miniature target application, not an underWAI debug list. Each app region is backed by graph state and renders real UI states: skeleton fallback for pending, more active skeleton/progress for running, local error fallback for failed, stale/recomputing overlay while preserving prior success, and final product UI for resolved. Status badges should be subtle because the UI element itself carries the state. TASK-57 through TASK-59 landed in the first implementation wave after TASK-56 established the shell.
 
 ### 60. Add a competing-resolvers scenario where AI branches and human adjudication fill graph positions. (TASK-60)
 
@@ -564,12 +471,9 @@ Planned fixes:
 
 Verification: critique/polish findings either fixed or added to intent; examples build; CNS health gate.
 
-### Suggested execution order for TASK-56 through TASK-62
+### Suggested execution order for remaining TASK-56 through TASK-62 work
 
-1. Finish TASK-46 first so the active human-input WIP is not overwritten.
-2. TASK-47 so examples are included in the verification lane.
-3. TASK-50 and TASK-51 if needed to make the example codebase ready for multiple scenarios.
-4. TASK-56 to reframe the shell around typed graph-state behavior.
-5. TASK-57 through TASK-60 one differentiator scenario at a time; each scenario gets its own tests and commit.
-6. TASK-61 to consolidate scenario metadata and reusable primitives once repetition is visible.
-7. TASK-62 as the final differentiation-focused design critique/polish pass.
+1. TASK-60: add the competing-resolvers scenario.
+2. TASK-61: consolidate scenario metadata and reusable primitives once repetition is visible.
+3. TASK-62: run the differentiation-focused design critique/polish pass.
+

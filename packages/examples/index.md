@@ -33,6 +33,10 @@ decisions:
     date: 2026-06-08
     author: agent
     summary: '`Demo` type carries an optional `maxConcurrent?: number` that propagates from `ExampleShell` to `WorkflowRuntime.run`. The join demo opts in to `maxConcurrent: 4`; the others default to 1 (sequential, original behavior). The runtime respects the value as a hard cap on parallel in-flight fibers (DEC-RUNNER-010). Graph layout detects fan-in groups (≥2 incoming edges to the same target) and renders them as cubic Béziers with distinct y-coordinates; single-source edges stay straight. (TASK-JF-2, TASK-JF-4, .cns/plans/join-fixes/.)'
+  - id: DEC-EXAMPLES-005
+    date: 2026-06-12
+    author: human
+    summary: "The examples page differentiates underWAI from TanStack Workflow by rendering scenario-specific miniature target applications in the left panel, not a workflow-debug stage list. Each app region is backed by graph node state and renders real pending/running/failed/stale/resolved UI; status badges stay subtle because the product UI carries the state. Human verification stages stage local form edits and use an explicit send-values button to write into the runtime. The first wave covers data QA (including a real forced quality-check failure via !!bad and repair by rerun), research triage, and incident join scenarios. (TASK-56 through TASK-59.)"
 human_notes: |
 status: dirty
 last_reconciled: 2026-06-07
@@ -40,10 +44,11 @@ last_reconciled: 2026-06-07
 
 # @underwai/examples
 
-Three deployable example workflows. Each one is a real composition that exercises a different surface of the underwai library.
+Three deployable example workflows. Each one is a real composition that exercises a different surface of the underwai library. The example page now treats the left panel as a miniature target application, not a generic stage list: scenario renderers project graph node state into product UI regions with subtle status badges and built-in loading/error/success/stale states.
 
-- `linear-pipeline` — a 2-node pipeline with a bridge transform (trim + uppercase). Validates the bridge resolution from TASK-35.
-- `human-in-the-loop` — a 3-node workflow where the consumer injects a value via `WorkflowRuntime.writeHumanInput`. Validates the consumer-injection API from TASK-37.
-- `wall-display` — a 2-node workflow with a live subscription via `transport.subscribeSet`. Validates the live-subscription contract from TASK-32 + TASK-36.
+- `data QA` — uses the linear pipeline to render an import-repair table. Validates that pending/running/resolved graph state can project into local product UI regions.
+- `research triage` — uses the human-in-the-loop workflow to render a claim verification desk. Validates human graph edits and downstream recomputation.
+- `incident join` — uses the join workflow to render evidence lanes and a typed severity aggregate. Validates branch fan-out/fan-in and graph topology as product UI.
+- `streaming` and `wall display` remain lower-priority runtime examples for current state and subscription behavior.
 
 Run `pnpm --filter @underwai/examples dev` to start the Vite dev server. Run `pnpm --filter @underwai/examples test` to run the integration tests.
