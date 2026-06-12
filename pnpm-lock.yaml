@@ -38,6 +38,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@underwai/schema':
+        specifier: workspace:*
+        version: link:../schema
       effect:
         specifier: ^3.0.0
         version: 3.21.3
@@ -45,9 +48,6 @@ importers:
         specifier: ^3.22.0
         version: 3.25.76
     devDependencies:
-      '@underwai/schema':
-        specifier: workspace:*
-        version: link:../schema
       typescript:
         specifier: ^5.4.0
         version: 5.9.3

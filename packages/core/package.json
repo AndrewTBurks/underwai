@@ -14,8 +14,10 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "dependencies": {
+    "@underwai/schema": "workspace:*"
+  },
   "devDependencies": {
-    "@underwai/schema": "workspace:*",
     "typescript": "^5.4.0",
     "vitest": "^4.1.8"
   },
