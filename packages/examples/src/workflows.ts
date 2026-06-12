@@ -122,7 +122,13 @@ const humanInTheLoopTree = workflow()
     }),
   )
   .chain(
-    (s: string) => ({ firstName: s, lastName: "", email: "" }),
+    (s: string) => ({
+      firstName: s,
+      lastName: "",
+      email: "",
+      department: "Engineering",
+      verified: false,
+    }),
     node({
       kind: "askName",
       schema: human(
@@ -130,36 +136,55 @@ const humanInTheLoopTree = workflow()
           firstName: z.string(),
           lastName: z.string(),
           email: z.string().email(),
+          department: z.string(),
+          verified: z.boolean(),
         }),
       ),
       outputSchema: z.object({
         firstName: z.string(),
         lastName: z.string(),
         email: z.string(),
+        department: z.string(),
+        verified: z.boolean(),
       }),
-      program: (input: { firstName: string; lastName: string; email: string }) =>
+      program: (input: { firstName: string; lastName: string; email: string; department: string; verified: boolean }) =>
         Effect.sleep(demoDelay).pipe(Effect.as(input)),
     }),
   )
   .chain(
-    (s: { firstName: string; lastName: string; email: string }) => s.firstName,
+    (s: { firstName: string; lastName: string; email: string; department: string; verified: boolean }) => s,
     node({
       kind: "compose",
-      schema: z.string(),
+      schema: z.object({
+        firstName: z.string(),
+        lastName: z.string(),
+        email: z.string(),
+        department: z.string(),
+        verified: z.boolean(),
+      }),
       outputSchema: z.object({
         greeting: z.string(),
         firstName: z.string(),
         lastName: z.string(),
         email: z.string(),
+        department: z.string(),
+        verified: z.boolean(),
       }),
-      program: (input: string) =>
+      program: (input: { firstName: string; lastName: string; email: string; department: string; verified: boolean }) =>
         Effect.sleep(demoDelay).pipe(
-          Effect.as({ greeting: "Hello", firstName: input, lastName: "", email: "" }),
+          Effect.as({
+            greeting: input.verified ? "Verified" : "Hello",
+            firstName: input.firstName,
+            lastName: input.lastName,
+            email: input.email,
+            department: input.department,
+            verified: input.verified,
+          }),
         ),
     }),
   )
   .chain(
-    (r: { greeting: string; firstName: string; lastName: string; email: string }) => r,
+    (r: { greeting: string; firstName: string; lastName: string; email: string; department: string; verified: boolean }) => r,
     node({
       kind: "polish",
       schema: z.object({
@@ -167,11 +192,17 @@ const humanInTheLoopTree = workflow()
         firstName: z.string(),
         lastName: z.string(),
         email: z.string(),
+        department: z.string(),
+        verified: z.boolean(),
       }),
       outputSchema: z.string(),
-      program: (input: { greeting: string; firstName: string; lastName: string; email: string }) =>
+      program: (input: { greeting: string; firstName: string; lastName: string; email: string; department: string; verified: boolean }) =>
         Effect.sleep(demoDelay).pipe(
-          Effect.as(`✨ ${input.greeting}, ${input.firstName}! ✨`),
+          Effect.as(
+            input.lastName
+              ? `✨ ${input.greeting}, ${input.firstName} ${input.lastName} (${input.department})! ✨`
+              : `✨ ${input.greeting}, ${input.firstName} (${input.department})! ✨`,
+          ),
         ),
     }),
   )

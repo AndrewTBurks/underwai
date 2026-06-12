@@ -111,10 +111,24 @@ export function markStale(state: WorkflowState, nodeId: Node["id"], now: string)
   };
 }
 
-// writeHumanInput: per TASK-A, mid-execution writeHumanInput marks
-// the node stale, interrupts the in-flight Effect fiber, then
-// re-runs with the new input. Here we mark stale; the runtime
-// (runtime.ts) handles the fiber interrupt.
+// writeHumanInput: used by consumers to write a value into a
+// human-paused node from outside the program. After a human
+// clicks "send" in the UI, this is called to resume the node.
+//
+// Behavior:
+// - If the node is paused (human waiting): mark it pending,
+//   update the input.value, and return. The next rt.run() call
+//   will dispatch it normally.
+// - If the node is stale (downstream recomputation needed): mark
+//   it stale with the new input. The downstream stale propagation
+//   happens in the run loop when it re-derives from the changed
+//   input.
+// - If the node is resolved/streaming/running: mark it stale and
+//   update the input.
+//
+// This replaces the prior single-behavior approach (always → stale).
+// The paused → pending transition is the key one for the human
+// "send to resume" use case. (TASK-46 follow-up.)
 export function writeHumanInput(
   state: WorkflowState,
   nodeId: Node["id"],
@@ -123,12 +137,32 @@ export function writeHumanInput(
 ): WorkflowState {
   const node = state.nodes.get(nodeId);
   if (!node) return state;
+
+  // Case 1: human node is paused — resume it directly.
+  // This is the "send values to runtime" path: the human form
+  // wrote a value, we update the input and flip the node back
+  // to pending so the next run() dispatches it.
+  if (node.status.kind === "paused") {
+    return {
+      ...state,
+      nodes: new Map(state.nodes).set(nodeId, {
+        ...node,
+        input: { ...node.input, value },
+        status: { kind: "pending" },
+        updatedAt: now,
+      }),
+    };
+  }
+
+  // Case 2: node is stale — update input, keep stale.
+  // Case 3: node is resolved/streaming/running — mark stale.
+  const previousOutput = extractOutput(node.status);
   return {
     ...state,
     nodes: new Map(state.nodes).set(nodeId, {
       ...node,
       input: { ...node.input, value },
-      status: { kind: "stale", previousOutput: extractOutput(node.status) },
+      status: { kind: "stale", previousOutput },
       updatedAt: now,
     }),
   };

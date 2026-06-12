@@ -67,6 +67,8 @@ describe("human-in-the-loop example", () => {
           firstName: "Alice",
           lastName: "Doe",
           email: "alice@example.com",
+          department: "Engineering",
+          verified: true,
         });
         return yield* rt.run({ state: paused });
       }).pipe(Effect.provide(layer)),

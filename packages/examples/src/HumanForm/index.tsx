@@ -200,10 +200,11 @@ type FieldRowProps = {
 function FieldRow({ field, value, onChange, displayLabel }: FieldRowProps) {
   const inputId = `mhf-${field.fieldKey}`;
   return (
-    <label className="multi-human-form__field" htmlFor={inputId}>
-      <span className="multi-human-form__label">{displayLabel}</span>
+    <label className="multi-human-form__field">
+      <span className="multi-human-form__field-label">{displayLabel}</span>
       <ScalarInput
         type={field.scalar}
+        schema={field.schema}
         value={value}
         onChange={onChange}
         inputId={inputId}
@@ -214,12 +215,13 @@ function FieldRow({ field, value, onChange, displayLabel }: FieldRowProps) {
 
 type ScalarInputProps = {
   type: ScalarType;
+  schema: ZodTypeAny;
   value: unknown;
   onChange: (v: unknown) => void;
   inputId: string;
 };
 
-function ScalarInput({ type, value, onChange, inputId }: ScalarInputProps) {
+function ScalarInput({ type, schema, value, onChange, inputId }: ScalarInputProps) {
   // For object/array/unknown, render a JSON textarea. The
   // runtime's input.value is unconstrained unknown, so JSON
   // is the most honest representation. A v1.1+ could use a
@@ -275,11 +277,9 @@ function ScalarInput({ type, value, onChange, inputId }: ScalarInputProps) {
     );
   }
   if (type === "enum") {
-    // The v1.0 HumanForm hard-coded an "yes/no" select, but
-    // the multi-field form introspects the schema's `values`
-    // property on the ZodEnum's _def. v1.1+ could enrich
-    // this with the literal union of options.
-    const def = (value as unknown as { _def?: { values?: ReadonlyArray<string> } })?._def;
+    // Read enum options from the schema's _def.values,
+    // not from the runtime value (which is just a string).
+    const def = schema._def as { values?: ReadonlyArray<string> } | undefined;
     const options = def?.values ?? [];
     return (
       <select

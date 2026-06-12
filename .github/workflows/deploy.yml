@@ -1,0 +1,56 @@
+# .github/workflows/deploy.yml
+#
+# Build the examples app and deploy to GitHub Pages.
+# Triggered on every push to main.
+#
+# Prerequisites:
+#   - Enable GitHub Pages in repo Settings > Pages >
+#     Source: GitHub Actions
+#   - The deployed URL will be:
+#     https://andrewtburks.github.io/underwai/
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build examples app
+        run: pnpm --filter @underwai/examples build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/examples/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
