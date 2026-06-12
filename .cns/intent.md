@@ -402,18 +402,19 @@ Planned fixes:
 
 Verification: no scenario file imports the shell; all scenarios appear in the navigator with differentiator metadata; examples tests/build pass; CNS health gate.
 
-### 62. Run an Impeccable critique/polish pass focused on differentiation after scenarios land. (TASK-62)
+### 62. Run an Impeccable critique/polish pass focused on differentiation after scenarios land. (TASK-62) ✅ Done (2026-06-12)
 
-Once TASK-56 through TASK-61 land, run the real `/impeccable critique` or `/impeccable polish` flow against the examples page. The critique must judge whether the page proves underWAI’s distinct territory against TanStack AI and TanStack Workflow.
+Completed via `/impeccable critique` + `/impeccable audit` on the live examples page at `http://127.0.0.1:5173/underwai/`, with `PRODUCT.md` loaded. Findings were converted into TASK-64 through TASK-68 so the critique does not remain untracked.
 
-Planned fixes:
+Findings summary:
 
-- Start the examples dev server and inspect the live page.
-- Run the Impeccable critique/polish workflow with PRODUCT.md loaded.
-- Convert findings into concrete fixes or new intent tasks; do not leave critique findings untracked.
-- Specifically check: whether the page leads with graph-state editability/renderability, whether any scenario collapses into generic durable workflow execution, graph legibility, stale-subtree visibility, event-log density, reduced motion, keyboard access, mobile/tablet overflow, and non-color-only status communication.
+- P0/P1 interaction: the research-triage human form renders valid controls, including the enum select, but clicking `send values to runtime` after filling values leaves the node paused and does not visibly resume/recompute downstream state.
+- Differentiation: the page has the right dark/terracotta runtime-console register and the `PROVES` card helps, but the graph panel and event log are initially empty/opaque; the page still asks the visitor to infer the typed graph-state mechanism rather than narrating it in-place.
+- Accessibility/keyboard: top nav chips and primary run buttons lack a consistent focus-visible language; status is still heavily color/badge-text dependent, and graph SVG nodes need a keyboard/narrative equivalent.
+- Responsive/adaptive: the shell is a fixed 60/40 split with 3-column scenario grids and `100vh`/overflow-hidden layout; tablet/mobile will likely clip the graph, event log, or human form instead of reflowing into a usable sequence.
+- Motion: active skeleton respects reduced motion, but event-log flash does not; state-change motion needs a complete reduced-motion branch.
 
-Verification: critique/polish findings either fixed or added to intent; examples build; CNS health gate.
+Verification for the critique task: live browser inspection completed, enum select verified present in the human form, send-action non-effect reproduced, and findings appended to intent.
 
 ### Suggested execution order for remaining TASK-56 through TASK-62 work
 
@@ -433,3 +434,75 @@ Verification completed locally: `pnpm test -- --coverage` exits 0; the exact wor
 
 1. TASK-63: fix the test workflow coverage summary.
 2. Continue the remaining implementation queue only after CI is green.
+
+### 64. Fix human-form send so edits resume the graph and visibly recompute downstream state. (TASK-64)
+
+Source: `/impeccable critique` + user report: “clicking send values to runtime doesn’t do anything at all.” Live inspection confirmed the research-triage form accepts text, enum, and checkbox values, but clicking `send values to runtime` leaves the human node paused and the downstream brief unchanged.
+
+Planned fixes:
+
+- Trace `MultiHumanForm.sendValues → ScenarioSurface.onHumanInputChange → useDemoRuntime.writeHumanInput → WorkflowRuntime` and identify the first boundary where the value is lost or the runtime resume is not triggered.
+- Add a regression test for the research-triage example: fill human values, send them, assert the `askName` node resolves and dependent nodes become stale/running/resolved.
+- Keep the explicit send button; do not revert to passive field edits.
+- Make post-send feedback visible: pending write, accepted write, recomputing downstream, or validation error.
+
+Verification: browser interaction proves the form send changes graph state; examples test/build pass; root `pnpm build && pnpm test`; CNS health gate.
+
+### 65. Make the graph and event log explain the typed graph-state mechanism before and during runs. (TASK-65)
+
+Source: `/impeccable critique`. The left miniature app is moving in the right direction, but the right graph/event panes are initially empty or terse (`no nodes`, `no events yet`) and do not teach the visitor what will happen. This weakens the product thesis that underWAI is an inspectable, editable, renderable typed graph state substrate.
+
+Planned fixes:
+
+- Replace empty graph/event states with instructional previews: expected nodes, the key mutation, and what will become stale/resolved after a run.
+- During a run, highlight the active node, incoming edge, and downstream invalidation path in a way that is not color-only.
+- Add a selected-node detail panel or inline callout that shows schema/input/output/status for the clicked graph node.
+- Ensure event rows explain cause (`human edit`, `bridge transform`, `join resolved`, `downstream stale`) instead of only showing generic status transitions.
+
+Verification: first-load page communicates graph-state editability before clicking run; after run, clicking/focusing a node reveals typed state details; examples build; CNS health gate.
+
+### 66. Harden examples accessibility: focus, keyboard, and non-color status semantics. (TASK-66)
+
+Source: `/impeccable audit`. The app has native controls and readable dark contrast, but the focus language is incomplete outside the human form, SVG graph nodes are pointer-first, and status meaning still leans on colored borders/badges.
+
+Planned fixes:
+
+- Add consistent `:focus-visible` styles for scenario chips, run buttons, inputbar buttons, graph nodes, and event-log interactive affordances.
+- Make SVG graph nodes keyboard-focusable with labels, or provide an adjacent keyboard-operable node list/detail surface with the same information.
+- Add non-color state cues for running/resolved/failed/stale/paused in regions and graph nodes: icon/text/shape/pattern, not color alone.
+- Verify form labels, group legends, button names, and selected scenario state are announced correctly.
+
+Verification: keyboard-only navigation can select scenarios, run workflows, inspect graph nodes, and submit human input; accessibility tree exposes meaningful names/states; examples build; CNS health gate.
+
+### 67. Adapt the examples shell for tablet and mobile without clipping core controls. (TASK-67)
+
+Source: `/impeccable audit`. The shell uses `height: 100vh`, `overflow: hidden`, a fixed 60/40 app split, and 3-column scenario grids. This is appropriate for desktop inspection but will clip or bury the graph/event/human form on narrower viewports.
+
+Planned fixes:
+
+- Add structural breakpoints: desktop = split product/graph/event; tablet = product first with graph/event stacked; mobile = scenario picker, product surface, graph summary, event log as sequential sections.
+- Replace 3-column mini-grids with responsive `auto-fit/minmax` or explicit 2→1 column breakpoints.
+- Avoid trapping important controls above/below scroll boundaries; run/send controls must remain discoverable after scrolling.
+- Use dynamic viewport units (`100dvh`) and allow page-level scroll on small screens.
+
+Verification: no horizontal overflow or clipped primary controls at representative desktop/tablet/mobile widths; examples build; CNS health gate.
+
+### 68. Complete reduced-motion and state-transition polish for the examples page. (TASK-68)
+
+Source: `/impeccable audit`. The active skeleton has a reduced-motion branch, but event-log flash still animates unconditionally. State-change motion should clarify runtime transitions without excluding reduced-motion users.
+
+Planned fixes:
+
+- Add `prefers-reduced-motion: reduce` coverage for event-log flash and all transition/animation effects that convey state.
+- Keep state changes understandable without animation by preserving text, badges, and ordering cues.
+- Make motion purposeful: running skeletons, stale overlays, and event insertion should use one consistent timing language (150–250ms for product UI, longer only when it materially clarifies runtime flow).
+
+Verification: reduced-motion mode disables or replaces all non-essential animation; normal mode still communicates running/stale/resolved transitions; examples build; CNS health gate.
+
+### Suggested execution order for Impeccable follow-up tasks
+
+1. TASK-64: fix the broken human-form send path first because it blocks the core human-edit proof.
+2. TASK-65: make graph/event panes explain the graph-state mechanism once interaction is real.
+3. TASK-66: harden accessibility and keyboard inspection.
+4. TASK-67: adapt responsive layout.
+5. TASK-68: finish reduced-motion/state-transition polish.
