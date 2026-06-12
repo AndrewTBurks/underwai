@@ -32,7 +32,7 @@ import {
   WorkflowId,
   type WorkflowState,
 } from "@underwai/core";
-import type { Demo } from "./ExampleShell.js";
+import type { Demo } from "./demo-types.js";
 
 const demoDelay = "500 millis" as const;
 

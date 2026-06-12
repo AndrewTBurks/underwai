@@ -1,5 +1,5 @@
 import type { NodeKey, WorkflowState } from "@underwai/core";
-import type { Demo } from "./ExampleShell.js";
+import type { Demo } from "./demo-types.js";
 import { ScenarioSurface } from "./ScenarioSurface.js";
 
 export function RenderedPanel<PathMap extends Record<string, unknown>>({
